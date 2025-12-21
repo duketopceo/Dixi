@@ -6,12 +6,12 @@ Thank you for your interest in contributing to Dixi! This document provides guid
 
 1. Fork the repository
 2. Clone your fork: `git clone https://github.com/your-username/Dixi.git`
-3. Create a feature branch: `git checkout -b feature/your-feature-name`
+3. Create a feature branch from `development`: `git checkout development && git checkout -b feature/your-feature-name`
 4. Make your changes
 5. Test your changes thoroughly
 6. Commit with clear messages: `git commit -m "Add feature: description"`
 7. Push to your fork: `git push origin feature/your-feature-name`
-8. Open a Pull Request
+8. Open a Pull Request targeting the `development` branch
 
 ## Development Setup
 
@@ -252,6 +252,19 @@ export const GestureIndicator: React.FC<GestureIndicatorProps> = ({
 ---
 
 ## Git Workflow and Commit Guidelines
+
+### Branch Structure
+
+Dixi uses the following primary branches:
+
+- **`main`**: Production-ready code. All merges to main should be stable and thoroughly tested.
+- **`development`**: Integration branch for ongoing development. Feature branches are merged here first.
+
+#### Workflow
+
+1. Create feature branches from `development`
+2. Submit PR to merge feature branch into `development`
+3. After testing in `development`, changes are merged to `main` for release
 
 ### Branch Naming
 
