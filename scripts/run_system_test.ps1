@@ -9,38 +9,48 @@ Write-Host ""
 # Try to find Python
 $pythonExe = $null
 
-# Check common Python locations
-$pythonPaths = @(
-    "python",
-    "python3",
-    "py",
-    "C:\Python*\python.exe",
-    "C:\Program Files\Python*\python.exe",
-    "$env:LOCALAPPDATA\Programs\Python\Python*\python.exe",
-    "$env:ProgramFiles\Python*\python.exe"
-)
+# First check for virtual environment in project root
+$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+$projectRoot = Split-Path -Parent $scriptPath
+$venvPython = Join-Path $projectRoot ".venv\Scripts\python.exe"
 
-foreach ($path in $pythonPaths) {
-    try {
-        if ($path -like "*\*" -or $path -like "*/*") {
-            # It's a path pattern, try to resolve it
-            $found = Get-ChildItem -Path $path -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($found) {
-                $pythonExe = $found.FullName
-                Write-Host "Found Python at: $pythonExe" -ForegroundColor Green
-                break
+if (Test-Path $venvPython) {
+    $pythonExe = $venvPython
+    Write-Host "Found Python virtual environment at: $pythonExe" -ForegroundColor Green
+} else {
+    # Check common Python locations
+    $pythonPaths = @(
+        "python",
+        "python3",
+        "py",
+        "C:\Python*\python.exe",
+        "C:\Program Files\Python*\python.exe",
+        "$env:LOCALAPPDATA\Programs\Python\Python*\python.exe",
+        "$env:ProgramFiles\Python*\python.exe"
+    )
+
+    foreach ($path in $pythonPaths) {
+        try {
+            if ($path -like "*\*" -or $path -like "*/*") {
+                # It's a path pattern, try to resolve it
+                $found = Get-ChildItem -Path $path -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($found) {
+                    $pythonExe = $found.FullName
+                    Write-Host "Found Python at: $pythonExe" -ForegroundColor Green
+                    break
+                }
+            } else {
+                # It's a command name, try to find it
+                $cmd = Get-Command $path -ErrorAction SilentlyContinue
+                if ($cmd) {
+                    $pythonExe = $cmd.Source
+                    Write-Host "Found Python at: $pythonExe" -ForegroundColor Green
+                    break
+                }
             }
-        } else {
-            # It's a command name, try to find it
-            $cmd = Get-Command $path -ErrorAction SilentlyContinue
-            if ($cmd) {
-                $pythonExe = $cmd.Source
-                Write-Host "Found Python at: $pythonExe" -ForegroundColor Green
-                break
-            }
+        } catch {
+            # Continue searching
         }
-    } catch {
-        # Continue searching
     }
 }
 

@@ -6,6 +6,12 @@ import sys
 import time
 import os
 
+# Fix Windows console encoding for emoji characters
+if sys.platform == 'win32':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 def test_camera():
     print("--- Testing Camera Access ---")
     cap = cv2.VideoCapture(0)

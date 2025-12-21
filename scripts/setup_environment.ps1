@@ -63,35 +63,43 @@ Write-Host "Step 2: Checking Python installation..." -ForegroundColor Cyan
 Write-Host ""
 
 $pythonExe = $null
-$pythonPaths = @(
-    "python",
-    "python3",
-    "py",
-    "C:\Python*\python.exe",
-    "C:\Program Files\Python*\python.exe",
-    "$env:LOCALAPPDATA\Programs\Python\Python*\python.exe",
-    "$env:ProgramFiles\Python*\python.exe"
-)
 
-foreach ($path in $pythonPaths) {
-    try {
-        if ($path -like "*\*" -or $path -like "*/*") {
-            $found = Get-ChildItem -Path $path -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($found) {
-                $pythonExe = $found.FullName
-                Write-Host "Found Python at: $pythonExe" -ForegroundColor Green
-                break
+# First check for virtual environment
+$venvPython = Join-Path $projectRoot ".venv\Scripts\python.exe"
+if (Test-Path $venvPython) {
+    $pythonExe = $venvPython
+    Write-Host "Found Python virtual environment at: $pythonExe" -ForegroundColor Green
+} else {
+    $pythonPaths = @(
+        "python",
+        "python3",
+        "py",
+        "C:\Python*\python.exe",
+        "C:\Program Files\Python*\python.exe",
+        "$env:LOCALAPPDATA\Programs\Python\Python*\python.exe",
+        "$env:ProgramFiles\Python*\python.exe"
+    )
+
+    foreach ($path in $pythonPaths) {
+        try {
+            if ($path -like "*\*" -or $path -like "*/*") {
+                $found = Get-ChildItem -Path $path -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($found) {
+                    $pythonExe = $found.FullName
+                    Write-Host "Found Python at: $pythonExe" -ForegroundColor Green
+                    break
+                }
+            } else {
+                $cmd = Get-Command $path -ErrorAction SilentlyContinue
+                if ($cmd) {
+                    $pythonExe = $cmd.Source
+                    Write-Host "Found Python at: $pythonExe" -ForegroundColor Green
+                    break
+                }
             }
-        } else {
-            $cmd = Get-Command $path -ErrorAction SilentlyContinue
-            if ($cmd) {
-                $pythonExe = $cmd.Source
-                Write-Host "Found Python at: $pythonExe" -ForegroundColor Green
-                break
-            }
+        } catch {
+            # Continue searching
         }
-    } catch {
-        # Continue searching
     }
 }
 
