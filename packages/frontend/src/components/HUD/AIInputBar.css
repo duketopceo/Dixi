@@ -1,3 +1,16 @@
+.ai-input-container {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  width: 90%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .ai-input-hint {
   position: fixed;
   bottom: 32px;
@@ -16,13 +29,6 @@
 }
 
 .ai-input-bar {
-  position: fixed;
-  bottom: 32px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 100;
-  width: 90%;
-  max-width: 600px;
   animation: slideUp 200ms ease-out;
 }
 
@@ -98,5 +104,80 @@
     opacity: 0.6;
     transform: scale(1.1);
   }
+}
+
+/* AI Response Container with Scrolling */
+.ai-response-container {
+  max-height: 200px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: rgba(15, 15, 15, 0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px 16px;
+  animation: slideUp 200ms ease-out;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Custom scrollbar for response container */
+.ai-response-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ai-response-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.ai-response-container::-webkit-scrollbar-thumb {
+  background: rgba(0, 245, 255, 0.4);
+  border-radius: 3px;
+}
+
+.ai-response-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 245, 255, 0.6);
+}
+
+.ai-response-message {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ai-response-user,
+.ai-response-assistant {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.ai-response-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 32px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.ai-response-user .ai-response-label {
+  color: rgba(0, 255, 135, 0.8);
+}
+
+.ai-response-assistant .ai-response-label {
+  color: rgba(0, 245, 255, 0.8);
+}
+
+.ai-response-content {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.9);
+  word-wrap: break-word;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
 }
 

@@ -7,10 +7,9 @@ import './MinimalHUD.css';
 const MinimalHUD: React.FC = () => {
   const { isConnected } = useWebSocket();
   const currentGesture = useGestureStore((state) => state.currentGesture);
-  const { latestResponse, isProcessing } = useAIStore();
+  const { isProcessing } = useAIStore();
   const [fps, setFps] = useState(0);
   const frameCountRef = useRef(0);
-  const lastTimeRef = useRef(performance.now());
 
   useEffect(() => {
     let animationFrameId: number;
@@ -57,16 +56,6 @@ const MinimalHUD: React.FC = () => {
         <span className="hud-label">FPS:</span>
         <span className="hud-value">{fps}</span>
       </div>
-      {latestResponse && latestResponse.analysisType === 'query' && (
-        <div className="hud-item ai-response-item">
-          <span className="hud-label">AI:</span>
-          <span className="hud-value ai-response-text" title={latestResponse.response}>
-            {latestResponse.response.length > 50 
-              ? latestResponse.response.substring(0, 50) + '...' 
-              : latestResponse.response}
-          </span>
-        </div>
-      )}
       {isProcessing && (
         <div className="hud-item">
           <span className="loading-dot" />

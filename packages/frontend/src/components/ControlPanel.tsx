@@ -15,14 +15,15 @@ interface DebugLog {
 const ControlPanel: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [gestureTracking, setGestureTracking] = useState(false);
+  const [continuousAnalysis, setContinuousAnalysis] = useState(false);
   const [aiQuery, setAiQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
   const [showDebug, setShowDebug] = useState(true);
   const [systemStatus, setSystemStatus] = useState<any>({});
-  const [wsStats, setWsStats] = useState({ messagesReceived: 0, messagesSent: 0, reconnects: 0 });
   const logEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   
   const currentGesture = useGestureStore((state) => state.currentGesture);
   const gestureHistory = useGestureStore((state) => state.gestureHistory);
@@ -71,13 +72,20 @@ const ControlPanel: React.FC = () => {
 
     // Periodic system status check - actually verifies services are working
     const checkSystemStatus = async () => {
+      // Cancel any in-flight requests before starting new ones
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+      
       try {
         // Check backend health
         let backendHealth = null;
         try {
           const response = await fetch('http://localhost:3001/health', { 
             method: 'GET',
-            signal: AbortSignal.timeout(2000)
+            signal
           });
           if (response.ok) {
             backendHealth = await response.json();
@@ -85,6 +93,7 @@ const ControlPanel: React.FC = () => {
             backendHealth = { status: 'unhealthy', error: `HTTP ${response.status}` };
           }
         } catch (err) {
+          if ((err as Error).name === 'AbortError') return; // Request was cancelled
           backendHealth = { status: 'unavailable', error: err instanceof Error ? err.message : 'Connection failed' };
         }
         
@@ -93,7 +102,7 @@ const ControlPanel: React.FC = () => {
         try {
           const response = await fetch('http://localhost:5000/health', {
             method: 'GET',
-            signal: AbortSignal.timeout(2000)
+            signal
           });
           if (response.ok) {
             visionHealth = await response.json();
@@ -101,6 +110,7 @@ const ControlPanel: React.FC = () => {
             visionHealth = { status: 'unhealthy', error: `HTTP ${response.status}` };
           }
         } catch (err) {
+          if ((err as Error).name === 'AbortError') return; // Request was cancelled
           visionHealth = { status: 'unavailable', error: err instanceof Error ? err.message : 'Connection failed' };
         }
         
@@ -109,7 +119,7 @@ const ControlPanel: React.FC = () => {
         try {
           const response = await fetch('http://localhost:11434/api/tags', {
             method: 'GET',
-            signal: AbortSignal.timeout(2000)
+            signal
           });
           if (response.ok) {
             ollamaHealth = { status: 'available', models: await response.json() };
@@ -117,20 +127,15 @@ const ControlPanel: React.FC = () => {
             ollamaHealth = { status: 'unhealthy', error: `HTTP ${response.status}` };
           }
         } catch (err) {
+          if ((err as Error).name === 'AbortError') return; // Request was cancelled
           ollamaHealth = { status: 'unavailable', error: err instanceof Error ? err.message : 'Connection failed' };
         }
         
-        // Get gesture status (if backend is up)
-        let gestureStatus = null;
-        if (backendHealth?.status === 'healthy') {
-          try {
-            gestureStatus = await apiService.getGestureStatus();
-          } catch (err) {
-            gestureStatus = { error: 'Failed to fetch' };
-          }
-        }
+        // DISABLED: Gesture status polling removed to prevent camera freeze
+        // The gesture data is received via WebSocket, no need to poll
+        const gestureStatus = null;
         
-        // Get AI status (if backend is up)
+        // Get AI status (if backend is up) - only check model status, not trigger inference
         let aiStatus = null;
         if (backendHealth?.status === 'healthy') {
           try {
@@ -149,6 +154,7 @@ const ControlPanel: React.FC = () => {
           timestamp: Date.now()
         });
       } catch (err) {
+        if ((err as Error).name === 'AbortError') return; // Request was cancelled
         addDebugLog('error', 'Failed to check system status', err);
         setSystemStatus({
           backend: { status: 'error', error: 'Status check failed' },
@@ -160,13 +166,17 @@ const ControlPanel: React.FC = () => {
     // Initial check
     checkSystemStatus();
     
-    // Periodic checks every 5 seconds
-    const statusInterval = setInterval(checkSystemStatus, 5000);
+    // Periodic checks every 10 seconds (reduced from 5 to lower request frequency)
+    const statusInterval = setInterval(checkSystemStatus, 10000);
 
     return () => {
       unsubscribe();
       unsubscribeAI();
       clearInterval(statusInterval);
+      // Cancel any in-flight requests on unmount
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
   }, []);
 
@@ -191,6 +201,28 @@ const ControlPanel: React.FC = () => {
       console.error('Failed to toggle gesture tracking:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleContinuousAnalysisToggle = async () => {
+    if (loading) return; // Prevent double-clicks
+    setError(null);
+    const newState = !continuousAnalysis;
+    addDebugLog('api', `Attempting to ${newState ? 'enable' : 'disable'} continuous analysis`);
+    
+    // Optimistic update for better UX
+    setContinuousAnalysis(newState);
+    
+    try {
+      await apiService.toggleContinuousAnalysis(newState);
+      addDebugLog('success', `Continuous analysis ${newState ? 'enabled' : 'disabled'}`);
+    } catch (error) {
+      // Revert on error
+      setContinuousAnalysis(!newState);
+      const message = error instanceof Error ? error.message : 'Failed to toggle continuous analysis';
+      setError(message);
+      addDebugLog('error', 'Failed to toggle continuous analysis', error);
+      console.error('Failed to toggle continuous analysis:', error);
     }
   };
 
@@ -331,7 +363,7 @@ const ControlPanel: React.FC = () => {
       </section>
 
       <section className="control-section">
-        <h3>Gesture Tracking</h3>
+        <h3>👋 Gesture Tracking</h3>
         <button
           className={`control-button ${gestureTracking ? 'active' : ''}`}
           onClick={handleGestureToggle}
@@ -367,7 +399,57 @@ const ControlPanel: React.FC = () => {
       </section>
 
       <section className="control-section">
-        <h3>AI Query</h3>
+        <h3>Continuous AI Analysis</h3>
+        <div className="toggle-switch-container">
+          <div 
+            className={`toggle-switch ${continuousAnalysis ? 'on' : 'off'}`}
+            onClick={handleContinuousAnalysisToggle}
+            role="switch"
+            aria-checked={continuousAnalysis}
+            aria-label="Continuous AI Analysis"
+          >
+            <div className="toggle-slider" />
+            <span className="toggle-label">
+              {continuousAnalysis ? 'ON' : 'OFF'}
+            </span>
+          </div>
+        </div>
+        <p className="control-status" style={{ fontSize: '0.85rem', color: '#aaa', marginTop: '10px' }}>
+          {continuousAnalysis 
+            ? '🟢 AI analyzes gestures every 10 seconds automatically' 
+            : '🔴 Manual analysis only (use button below)'}
+        </p>
+        
+        {/* Manual Analysis Button - Only show when continuous is OFF */}
+        {!continuousAnalysis && (
+          <button
+            className="control-button"
+            onClick={async () => {
+              try {
+                setLoading(true);
+                setError(null);
+                addDebugLog('info', 'Triggering manual gesture analysis...');
+                const result = await apiService.triggerManualAnalysis();
+                addDebugLog('success', 'Manual analysis triggered', result);
+              } catch (err: any) {
+                const message = err.message || 'Failed to trigger analysis';
+                setError(message);
+                addDebugLog('error', 'Manual analysis failed', err);
+                console.error('Failed to trigger manual analysis:', err);
+              } finally {
+                setLoading(false);
+              }
+            }}
+            disabled={loading || isProcessing}
+            style={{ marginTop: '12px', width: '100%' }}
+          >
+            {loading || isProcessing ? '⏳ Analyzing...' : '🔍 Analyze Gestures Now'}
+          </button>
+        )}
+      </section>
+
+      <section className="control-section">
+        <h3>🤖 AI Query</h3>
         <form onSubmit={handleAIQuery}>
           <textarea
             className="query-input"
@@ -408,7 +490,7 @@ const ControlPanel: React.FC = () => {
       </section>
 
       <section className="control-section">
-        <h3>System Info</h3>
+        <h3>⚙️ System Info</h3>
         <div className="info-grid">
           <div className="info-item">
             <span className="info-label">Environment:</span>
@@ -437,7 +519,7 @@ const ControlPanel: React.FC = () => {
 
       <section className="control-section">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <h3 style={{ margin: 0 }}>Debug Logs ({debugLogs.length})</h3>
+          <h3 style={{ margin: 0 }}>📊 Debug Logs ({debugLogs.length})</h3>
           <div>
             <button 
               className="control-button" 

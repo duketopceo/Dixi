@@ -6,24 +6,70 @@ import { gestureLimiter } from '../middleware/rateLimiter';
 import { validateGestureProcess } from '../middleware/validation';
 import logger from '../utils/logger';
 
+// Type definitions for gesture data
+interface GesturePosition {
+  x: number;
+  y: number;
+  z?: number;
+}
+
+interface FingerStates {
+  thumb: boolean;
+  index: boolean;
+  middle: boolean;
+  ring: boolean;
+  pinky: boolean;
+}
+
+interface GestureOrientation {
+  pitch: number;
+  yaw: number;
+  roll: number;
+}
+
+interface GestureMotion {
+  pattern: string;
+  velocity: number;
+  direction: number;
+}
+
+interface GestureBufferItem {
+  type: string;
+  position?: GesturePosition;
+  confidence?: number;
+  timestamp: number;
+  finger_states?: FingerStates;
+  orientation?: GestureOrientation;
+  motion?: GestureMotion;
+}
+
+interface GestureHistoryItem {
+  type: string;
+  time: number;
+}
+
 const router = Router();
 
 const VISION_SERVICE_URL = process.env.VISION_SERVICE_URL || 'http://localhost:5000';
 const aiService = new AIService();
+// CRITICAL: Aggressive rate limiting to prevent freeze
 // Separate cooldown timers for each gesture type
-const gestureCooldowns: { [key: string]: number } = {
-  wave: 0,
-  point: 0,
-  pinch: 0
-};
-const GESTURE_COOLDOWN_MS = 2000; // Prevent multiple AI calls for same gesture
+const gestureCooldowns: { [key: string]: number } = {};
+const GESTURE_COOLDOWN_MS = 10000; // 10 seconds - CRITICAL: Prevents 200ms spam
+const MIN_GESTURE_INTERVAL = 10000; // 10 seconds between ANY gesture-triggered analyses
+const COOLDOWN_AFTER_ANALYSIS = 15000; // 15 second cooldown after each analysis
 
-// Continuous analysis state with rate limiting
-const gestureBuffer: any[] = [];
-const MAX_BUFFER_SIZE = 10; // Reduced from 20 for better performance
-const CONTINUOUS_ANALYSIS_INTERVAL = 5000; // Increased to 5 seconds (was 3)
-const MIN_GESTURE_INTERVAL = 2000; // 2 seconds between gesture-triggered analyses
-const COOLDOWN_AFTER_ANALYSIS = 5000; // 5 second cooldown after each analysis
+// AI call queue to prevent simultaneous calls (CRITICAL for preventing freeze)
+let aiCallQueue: Array<() => Promise<void>> = [];
+let isProcessingAI = false;
+let lastAICallTime = 0;
+const MIN_AI_CALL_INTERVAL = 10000; // 10 seconds minimum between ANY AI calls
+
+// Continuous analysis - DISABLED by default (causes freeze)
+const gestureBuffer: GestureBufferItem[] = [];
+const MAX_BUFFER_SIZE = 10;
+const CONTINUOUS_ANALYSIS_INTERVAL = 10000; // 10 seconds when enabled
+let continuousAnalysisEnabled = false; // Toggleable - starts disabled
 let lastContinuousAnalysis = 0;
 let lastGestureAnalysis = 0;
 let continuousAnalysisTimer: NodeJS.Timeout | null = null;
@@ -32,47 +78,93 @@ let analysisInProgress = false;
 // Get current gesture data
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const response = await axios.get(`${VISION_SERVICE_URL}/gesture`);
+    const response = await axios.get(`${VISION_SERVICE_URL}/gesture`, {
+      timeout: 5000 // 5 second timeout
+    });
     const gestureData = response.data;
     
-    // Automatically trigger AI inference when gesture is detected
-    if (gestureData && gestureData.type && gestureData.type !== 'unknown') {
-      const currentTime = Date.now();
-      const gestureType = gestureData.type;
-      // Only trigger if enough time has passed since last gesture of this type (cooldown)
-      if (currentTime - (gestureCooldowns[gestureType] || 0) > GESTURE_COOLDOWN_MS) {
-        gestureCooldowns[gestureType] = currentTime;
-        
-        // Trigger AI inference asynchronously (don't block the response)
-        triggerAIForGesture(gestureData).catch((error) => {
-          logger.error(`Failed to trigger AI for ${gestureType} gesture:`, error);
-        });
-      }
-    }
+    // DISABLED: Auto-trigger AI on GET route (causes freeze with frequent polling)
+    // AI should only be triggered on POST /process with proper rate limiting
     
     res.json(gestureData);
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Failed to fetch gesture data:', error);
+    
+    // Handle specific error types
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      res.status(503).json({ 
+        error: 'Vision service unavailable',
+        details: 'Vision service is not running or not accessible. Please start the vision service on port 5000.',
+        type: 'connection_error'
+      });
+      return;
+    }
+    
+    if (error.response) {
+      // Vision service responded with an error
+      res.status(error.response.status || 500).json({ 
+        error: 'Vision service error',
+        details: error.response.data?.error || error.response.statusText || 'Unknown error',
+        type: 'service_error'
+      });
+      return;
+    }
+    
     res.status(500).json({ 
       error: 'Failed to fetch gesture data',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
+      type: 'unknown_error'
     });
   }
 });
 
-// Helper function to trigger AI inference for any gesture
-async function triggerAIForGesture(gestureData: any): Promise<void> {
-  try {
-    const gestureType = gestureData.type;
-    const emoji = gestureType === 'wave' ? '🌊' : gestureType === 'point' ? '👉' : gestureType === 'pinch' ? '🤏' : '👋';
-    logger.info(`${emoji} ${gestureType} gesture detected, triggering AI inference`);
-    
-    // Initialize AI service if needed (it will check internally)
+// AI call queue processor (prevents simultaneous calls)
+async function processAIQueue(): Promise<void> {
+  if (isProcessingAI || aiCallQueue.length === 0) return;
+  
+  const currentTime = Date.now();
+  if (currentTime - lastAICallTime < MIN_AI_CALL_INTERVAL) {
+    // Too soon, wait a bit
+    setTimeout(() => processAIQueue(), MIN_AI_CALL_INTERVAL - (currentTime - lastAICallTime));
+    return;
+  }
+  
+  isProcessingAI = true;
+  const aiCall = aiCallQueue.shift();
+  
+  if (aiCall) {
     try {
-      await aiService.initialize();
-    } catch (initError) {
-      logger.warn('AI service initialization failed, will attempt inference anyway:', initError);
+      await aiCall();
+      lastAICallTime = Date.now();
+    } catch (error) {
+      logger.error('AI queue processing error:', error);
     }
+  }
+  
+  isProcessingAI = false;
+  
+  // Process next in queue if any
+  if (aiCallQueue.length > 0) {
+    setTimeout(() => processAIQueue(), MIN_AI_CALL_INTERVAL);
+  }
+}
+
+// Helper function to trigger AI inference for any gesture (queued, non-blocking)
+async function triggerAIForGesture(gestureData: GestureBufferItem): Promise<void> {
+  const gestureType = gestureData.type;
+  const emoji = gestureType === 'wave' ? '🌊' : gestureType === 'point' ? '👉' : gestureType === 'pinch' ? '🤏' : '👋';
+  
+  // Add to queue instead of calling directly
+  aiCallQueue.push(async () => {
+    try {
+      logger.info(`${emoji} ${gestureType} gesture detected, processing AI inference`);
+      
+      // Initialize AI service if needed (it will check internally)
+      try {
+        await aiService.initialize();
+      } catch (initError) {
+        logger.warn('AI service initialization failed, will attempt inference anyway:', initError);
+      }
     
     // Create gesture-specific prompts for all gesture types
     let prompt: string;
@@ -140,33 +232,55 @@ async function triggerAIForGesture(gestureData: any): Promise<void> {
     
     prompt += ` Describe this interaction naturally and helpfully. Keep it brief (1-2 sentences).`;
     
-    // Get AI response
-    const context = `Gesture detected: ${gestureType}, position: (${gestureData.position?.x?.toFixed(2)}, ${gestureData.position?.y?.toFixed(2)}), confidence: ${(gestureData.confidence * 100).toFixed(0)}%`;
-    const aiResponse = await aiService.infer(prompt, context);
-    
-    // Broadcast AI response via WebSocket
-    if (wsService) {
-      wsService.broadcastAIResponse({
-        query: queryText,
-        response: aiResponse.text,
-        metadata: aiResponse.metadata,
-        timestamp: Date.now()
-      });
+      // Build optimized context object (not string)
+      const aiContext = {
+        gesture: {
+          type: gestureType,
+          confidence: gestureData.confidence || 0.8,
+          coordinates: {
+            x: gestureData.position?.x || 0,
+            y: gestureData.position?.y || 0
+          }
+        },
+        // Include gesture history if available (last 3 only)
+        gesture_history: gestureBuffer.slice(-3).map((g: GestureBufferItem): GestureHistoryItem => ({
+          type: g.type,
+          time: g.timestamp ? Date.now() - g.timestamp : 0
+        }))
+      };
+      
+      // Get AI response (non-blocking, async) with optimized context
+      const aiResponse = await aiService.infer(prompt, aiContext);
+      
+      // Broadcast AI response via WebSocket
+      if (wsService) {
+        wsService.broadcastAIResponse({
+          query: queryText,
+          response: aiResponse.text,
+          metadata: { ...aiResponse.metadata, analysisType: 'gesture' },
+          timestamp: Date.now()
+        });
+      }
+      
+      logger.info(`✅ AI response generated for ${gestureType} gesture`);
+    } catch (error) {
+      logger.error(`Failed to generate AI response for ${gestureData.type}:`, error);
+      // Don't throw - we don't want to break gesture detection if AI fails
+      if (wsService) {
+        wsService.broadcastAIResponse({
+          query: `${gestureData.type} gesture detected`,
+          response: `AI service is currently unavailable. ${gestureData.type} gesture was recognized successfully.`,
+          metadata: { error: true, analysisType: 'gesture' },
+          timestamp: Date.now()
+        });
+      }
     }
-    
-    logger.info(`✅ AI response generated for ${gestureType} gesture`);
-  } catch (error) {
-    logger.error(`Failed to generate AI response for ${gestureData.type}:`, error);
-    // Don't throw - we don't want to break gesture detection if AI fails
-    if (wsService) {
-      wsService.broadcastAIResponse({
-        query: `${gestureData.type} gesture detected`,
-        response: `AI service is currently unavailable. ${gestureData.type} gesture was recognized successfully.`,
-        metadata: { error: true },
-        timestamp: Date.now()
-      });
-    }
-  }
+  });
+  
+  // Start processing queue (non-blocking)
+  processAIQueue().catch((error) => {
+    logger.error('Failed to process AI queue:', error);
+  });
 }
 
 // Start gesture tracking (with rate limiting)
@@ -207,11 +321,12 @@ router.post('/stop', gestureLimiter, async (req: Request, res: Response) => {
   }
 });
 
-// Continuous analysis function with rate limiting
-async function performContinuousAnalysis(): Promise<void> {
-  // Rate limiting checks
+// Continuous analysis function with rate limiting (DISABLED by default)
+// Can also be used for manual single analysis
+async function performContinuousAnalysis(isManual: boolean = false): Promise<void> {
+  // CRITICAL: Multiple rate limiting checks
   const currentTime = Date.now();
-  if (analysisInProgress) {
+  if (analysisInProgress || isProcessingAI) {
     logger.debug('Analysis already in progress, skipping');
     return;
   }
@@ -221,7 +336,14 @@ async function performContinuousAnalysis(): Promise<void> {
     return;
   }
   
-  if (gestureBuffer.length < 5) return; // Need at least 5 gestures for analysis
+  if (currentTime - lastAICallTime < MIN_AI_CALL_INTERVAL) {
+    logger.debug('AI call interval not met, skipping');
+    return;
+  }
+  
+    // For manual analysis, require at least 3 gestures; for continuous, require 5
+    const minGestures = isManual ? 3 : 5;
+    if (gestureBuffer.length < minGestures) return;
   
   analysisInProgress = true;
   
@@ -240,20 +362,31 @@ async function performContinuousAnalysis(): Promise<void> {
     
     const prompt = `Analyze the user's recent gesture activity. They performed: ${gestureSummary}. Provide a brief, natural analysis of what the user might be trying to communicate or interact with. Keep it conversational and helpful (2-3 sentences max).`;
     
-    // Use streaming for continuous analysis
+    // Build optimized context for analysis
+    const analysisContext = {
+      gesture_history: recentGestures.slice(-3).map((g: GestureBufferItem): GestureHistoryItem => ({
+        type: g.type,
+        time: g.timestamp ? Date.now() - g.timestamp : 0
+      })),
+      analysisType: isManual ? 'manual' : 'continuous'
+    };
+    
+    const queryText = isManual ? 'Manual gesture analysis' : 'Continuous gesture analysis';
+    
+    // Use streaming for analysis with optimized context
     if (wsService) {
       let fullResponse = '';
       
-      await aiService.inferStream(prompt, { analysisType: 'continuous' }, (chunk: any) => {
+      await aiService.inferStream(prompt, analysisContext, (chunk: { response?: string; metadata?: Record<string, unknown> }) => {
         if (chunk.response && wsService) {
           fullResponse += chunk.response;
           // Stream each chunk to clients
           wsService.broadcastAIResponse({
-            query: 'Continuous gesture analysis',
+            query: queryText,
             response: fullResponse,
             metadata: { 
               ...chunk.metadata,
-              analysisType: 'continuous',
+              analysisType: isManual ? 'manual' : 'continuous',
               streaming: true
             },
             timestamp: Date.now()
@@ -264,10 +397,10 @@ async function performContinuousAnalysis(): Promise<void> {
       // Final response when streaming completes
       if (wsService) {
         wsService.broadcastAIResponse({
-          query: 'Continuous gesture analysis',
+          query: queryText,
           response: fullResponse,
           metadata: { 
-            analysisType: 'continuous',
+            analysisType: isManual ? 'manual' : 'continuous',
             streaming: false,
             gestureCount: recentGestures.length
           },
@@ -310,52 +443,170 @@ router.post('/process', validateGestureProcess, async (req: Request, res: Respon
       });
     }
     
-    // Automatically trigger AI inference when gesture is detected (with rate limiting)
-    if (gestureData.type && gestureData.type !== 'unknown') {
-      const currentTime = Date.now();
-      const gestureType = gestureData.type;
-      
-      // Rate limiting: Only trigger if enough time has passed
-      const timeSinceLastGesture = currentTime - (gestureCooldowns[gestureType] || 0);
-      const timeSinceLastAnalysis = currentTime - lastGestureAnalysis;
-      
-      if (timeSinceLastGesture > GESTURE_COOLDOWN_MS && 
-          timeSinceLastAnalysis > MIN_GESTURE_INTERVAL &&
-          !analysisInProgress) {
-        gestureCooldowns[gestureType] = currentTime;
-        lastGestureAnalysis = currentTime;
-        triggerAIForGesture(gestureData).catch((error) => {
-          logger.error(`Failed to trigger AI for ${gestureType} gesture:`, error);
-        });
-      }
-    }
+    // CRITICAL: NO automatic AI calls happen here.
+    // AI is ONLY triggered via:
+    // 1. Manual query from frontend (POST /api/ai/infer)
+    // 2. Manual analysis button (POST /gestures/analyze-now)
+    // 3. Continuous analysis toggle when explicitly enabled by user
     
-    // Trigger continuous analysis if enough time has passed (with stricter rate limiting)
-    const currentTime = Date.now();
-    const timeSinceLastAnalysis = currentTime - lastContinuousAnalysis;
-    if (timeSinceLastAnalysis > CONTINUOUS_ANALYSIS_INTERVAL && 
-        gestureBuffer.length >= 5 && 
-        !analysisInProgress) {
-      // Clear any existing timer
-      if (continuousAnalysisTimer) {
-        clearTimeout(continuousAnalysisTimer);
+    // Continuous analysis - DISABLED by default, user must explicitly enable
+    // Even when enabled, uses aggressive rate limiting
+    if (continuousAnalysisEnabled) {
+      const currentTime = Date.now();
+      const timeSinceLastAnalysis = currentTime - lastContinuousAnalysis;
+      const timeSinceLastAI = currentTime - lastAICallTime;
+      
+      // CRITICAL: Multiple rate limiting checks - all must pass
+      if (timeSinceLastAnalysis > CONTINUOUS_ANALYSIS_INTERVAL && 
+          timeSinceLastAI > MIN_AI_CALL_INTERVAL &&
+          gestureBuffer.length >= 5 && 
+          !analysisInProgress &&
+          !isProcessingAI &&
+          aiCallQueue.length === 0) { // No queued calls
+        // Clear any existing timer
+        if (continuousAnalysisTimer) {
+          clearTimeout(continuousAnalysisTimer);
+        }
+        // Schedule analysis with LONG delay to prevent any spam
+        continuousAnalysisTimer = setTimeout(() => {
+          // Double-check still enabled before running
+          if (continuousAnalysisEnabled && !analysisInProgress && !isProcessingAI) {
+            performContinuousAnalysis().catch((error) => {
+              logger.error('Scheduled continuous analysis failed:', error);
+            });
+          }
+        }, 10000); // 10 second delay (was 5s)
       }
-      // Schedule analysis (non-blocking) with delay to batch recent gestures
-      continuousAnalysisTimer = setTimeout(() => {
-        performContinuousAnalysis().catch((error) => {
-          logger.error('Scheduled continuous analysis failed:', error);
-        });
-      }, 1000); // Increased delay to batch more gestures
     }
     
     res.json({ 
       message: 'Gesture processed successfully',
       gesture: gestureData
     });
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Failed to process gesture:', error);
+    
+    // Handle specific error types
+    if (error.name === 'ValidationError' || error.message?.includes('validation')) {
+      res.status(400).json({ 
+        error: 'Validation error',
+        details: error.message || 'Invalid gesture data format',
+        type: 'validation_error'
+      });
+      return;
+    }
+    
     res.status(500).json({ 
       error: 'Failed to process gesture',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      type: 'processing_error'
+    });
+  }
+});
+
+// Get continuous analysis status
+router.get('/continuous-analysis/status', async (req: Request, res: Response) => {
+  try {
+    res.json({ 
+      enabled: continuousAnalysisEnabled,
+      interval: CONTINUOUS_ANALYSIS_INTERVAL
+    });
+  } catch (error) {
+    logger.error('Failed to get continuous analysis status:', error);
+    res.status(500).json({ 
+      error: 'Failed to get continuous analysis status',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Toggle continuous analysis
+router.post('/continuous-analysis/toggle', async (req: Request, res: Response) => {
+  try {
+    const { enabled } = req.body;
+    
+    if (typeof enabled !== 'boolean') {
+      res.status(400).json({ error: 'enabled must be a boolean' });
+      return;
+    }
+    
+    continuousAnalysisEnabled = enabled;
+    
+    // Clear any existing timer when disabling
+    if (!enabled && continuousAnalysisTimer) {
+      clearTimeout(continuousAnalysisTimer);
+      continuousAnalysisTimer = null;
+    }
+    
+    logger.info(`Continuous analysis ${enabled ? 'enabled' : 'disabled'}`);
+    
+    res.json({ 
+      enabled: continuousAnalysisEnabled,
+      message: `Continuous analysis ${enabled ? 'enabled' : 'disabled'}`
+    });
+  } catch (error) {
+    logger.error('Failed to toggle continuous analysis:', error);
+    res.status(500).json({ 
+      error: 'Failed to toggle continuous analysis',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Manual single gesture analysis (triggered by button click)
+router.post('/analyze-now', async (req: Request, res: Response) => {
+  try {
+    // Check if continuous analysis is enabled - if so, don't allow manual trigger
+    if (continuousAnalysisEnabled) {
+      res.status(400).json({ 
+        error: 'Continuous analysis is enabled. Disable it first to use manual analysis.',
+        enabled: true
+      });
+      return;
+    }
+
+    // Rate limiting check
+    const currentTime = Date.now();
+    if (analysisInProgress || isProcessingAI) {
+      res.status(429).json({ 
+        error: 'Analysis already in progress. Please wait.',
+        retryAfter: Math.ceil((MIN_AI_CALL_INTERVAL - (currentTime - lastAICallTime)) / 1000)
+      });
+      return;
+    }
+
+    if (currentTime - lastAICallTime < MIN_AI_CALL_INTERVAL) {
+      const waitTime = Math.ceil((MIN_AI_CALL_INTERVAL - (currentTime - lastAICallTime)) / 1000);
+      res.status(429).json({ 
+        error: 'Rate limited. Please wait before requesting another analysis.',
+        retryAfter: waitTime
+      });
+      return;
+    }
+
+    // Check if we have enough gestures in buffer
+    if (gestureBuffer.length < 3) {
+      res.status(400).json({ 
+        error: 'Not enough gesture data. Need at least 3 gestures in buffer.',
+        currentBufferSize: gestureBuffer.length
+      });
+      return;
+    }
+
+    // Trigger single analysis (non-blocking) - pass true to indicate manual
+    performContinuousAnalysis(true).catch((error) => {
+      logger.error('Manual gesture analysis failed:', error);
+    });
+
+    res.json({ 
+      message: 'Gesture analysis triggered',
+      bufferSize: gestureBuffer.length,
+      status: 'processing'
+    });
+  } catch (error) {
+    logger.error('Failed to trigger manual gesture analysis:', error);
+    res.status(500).json({ 
+      error: 'Failed to trigger gesture analysis',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }

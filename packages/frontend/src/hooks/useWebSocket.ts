@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useGestureStore } from '../store/gestureStore';
 import { useAIStore } from '../store/aiStore';
+import logger from '../utils/logger';
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3002';
 const MAX_RECONNECT_ATTEMPTS = 5;
@@ -26,7 +27,7 @@ export const useWebSocket = () => {
     // Don't reconnect if we've exceeded max attempts
     if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
       setError(`Failed to connect after ${MAX_RECONNECT_ATTEMPTS} attempts. Please refresh the page.`);
-      console.error(`Max reconnection attempts (${MAX_RECONNECT_ATTEMPTS}) reached`);
+      logger.error(`Max reconnection attempts (${MAX_RECONNECT_ATTEMPTS}) reached`);
       return;
     }
 
@@ -40,7 +41,7 @@ export const useWebSocket = () => {
       setError(null);
 
       wsRef.current.onopen = () => {
-        console.log('🔌 WebSocket connected');
+        logger.log('🔌 WebSocket connected');
         setIsConnected(true);
         reconnectAttemptsRef.current = 0; // Reset on successful connection
       };
@@ -72,36 +73,36 @@ export const useWebSocket = () => {
               break;
             case 'projection':
               // Handle projection updates
-              console.log('Projection update:', message.data);
+              logger.log('Projection update:', message.data);
               break;
             case 'connection':
               // Welcome message
-              console.log('WebSocket:', message.message);
+              logger.log('WebSocket:', message.message);
               break;
             default:
-              console.log('Unknown message type:', message.type);
+              logger.log('Unknown message type:', message.type);
           }
         } catch (error) {
-          console.error('Failed to parse WebSocket message:', error);
+          logger.error('Failed to parse WebSocket message:', error);
           setError('Failed to parse message from server');
         }
       };
 
       wsRef.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        logger.error('WebSocket error:', error);
         setError('WebSocket connection error');
         setIsConnected(false);
       };
 
       wsRef.current.onclose = (event) => {
-        console.log('🔌 WebSocket disconnected', { code: event.code, reason: event.reason });
+        logger.log('🔌 WebSocket disconnected', { code: event.code, reason: event.reason });
         setIsConnected(false);
         
         // Only attempt to reconnect if it wasn't a manual close
         if (event.code !== 1000) { // 1000 = normal closure
           reconnectAttemptsRef.current += 1;
           const delay = RECONNECT_DELAY * reconnectAttemptsRef.current; // Exponential backoff
-          console.log(`Attempting to reconnect in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})...`);
+          logger.log(`Attempting to reconnect in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})...`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
@@ -109,7 +110,7 @@ export const useWebSocket = () => {
         }
       };
     } catch (error) {
-      console.error('Failed to connect to WebSocket:', error);
+      logger.error('Failed to connect to WebSocket:', error);
       setError(error instanceof Error ? error.message : 'Failed to connect to WebSocket');
       setIsConnected(false);
       
@@ -140,18 +141,18 @@ export const useWebSocket = () => {
     }
   }, []);
 
-  const send = useCallback((data: any) => {
+  const send = useCallback((data: unknown) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       try {
         wsRef.current.send(JSON.stringify(data));
       } catch (error) {
-        console.error('Failed to send WebSocket message:', error);
+        logger.error('Failed to send WebSocket message:', error);
         setError('Failed to send message');
         throw error;
       }
     } else {
       const errorMsg = 'WebSocket is not connected';
-      console.warn(errorMsg);
+      logger.warn(errorMsg);
       setError(errorMsg);
       throw new Error(errorMsg);
     }

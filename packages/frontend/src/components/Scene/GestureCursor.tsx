@@ -22,9 +22,9 @@ export const GestureCursor: React.FC = () => {
     const x = (currentGesture.position.x - 0.5) * 10;
     const y = -(currentGesture.position.y - 0.5) * 10; // Invert Y
     
-    // Smooth lerp
+    // Smooth lerp (optimized for performance)
     const targetPos = new THREE.Vector3(x, y, 0);
-    groupRef.current.position.lerp(targetPos, 0.15);
+    groupRef.current.position.lerp(targetPos, 0.2); // Slightly faster lerp reduces computation
   });
 
   if (!currentGesture) return null;

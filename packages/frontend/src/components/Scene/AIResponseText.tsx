@@ -41,15 +41,23 @@ export const AIResponseText: React.FC = () => {
     }
   }, [latestResponse?.timestamp]);
 
-  // Pulsing glow effect during streaming
+  // Pulsing glow effect during streaming (optimized - slower animation for better FPS)
   useEffect(() => {
     if (glowRef.current && (isStreaming || latestResponse?.streaming)) {
       let time = 0;
+      let lastFrame = performance.now();
       const animate = () => {
-        time += 0.05;
-        if (glowRef.current) {
-          const opacity = 0.1 + Math.sin(time) * 0.1;
-          (glowRef.current.material as THREE.MeshBasicMaterial).opacity = opacity;
+        const now = performance.now();
+        const delta = (now - lastFrame) / 1000; // Convert to seconds
+        lastFrame = now;
+        
+        // Throttle animation updates (30 FPS instead of 60)
+        if (delta >= 0.033) {
+          time += delta * 2; // Slower animation
+          if (glowRef.current) {
+            const opacity = 0.1 + Math.sin(time) * 0.1;
+            (glowRef.current.material as THREE.MeshBasicMaterial).opacity = opacity;
+          }
         }
         animationFrameRef.current = requestAnimationFrame(animate);
       };

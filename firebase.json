@@ -14,19 +14,23 @@
     ],
     "headers": [
       {
-        "source": "**/*.@(js|css)",
+        "source": "/**/*.@(js|css|jpg|jpeg|gif|png|svg|webp|woff|woff2|ttf|eot)",
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "max-age=31536000"
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      },
+      {
+        "source": "/index.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
           }
         ]
       }
     ]
-  },
-  "functions": {
-    "source": "packages/backend",
-    "runtime": "nodejs20"
   }
 }
-

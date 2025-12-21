@@ -1,66 +1,33 @@
-# AI_to_Khan - Status Update
+# AI_to_Khan - Status Update keep under 50 lines always. newest data up top
 
 **Last Updated:** December 21, 2025
 
-Hey Khan! Everything complete, tested, and ready. All trackers verified as real data. TypeScript errors fixed.
+## CRITICAL: Auto-Trigger AI Completely Disabled (LATEST)
 
-## Firebase Integration (COMPLETE)
+**Problem:** Camera freezes caused by automatic AI calls during polling.
 
-**Configuration:**
-- Project: **dixi-vision**
-- Config: `packages/frontend/src/config/firebase.ts`
-- Analytics: Production only (disabled in dev)
-- SDK: v10.7.1
-- `.firebaserc`: Configured for dixi-vision
+**Fixes Applied:**
+1. **Removed gesture status polling** - `getGestureStatus()` call removed from ControlPanel health checks (was calling GET /gestures every 10s)
+2. **Continuous analysis safeguards** - Added multiple rate limiting checks, queue length check, and double-check before execution
+3. **Increased delay** - Continuous analysis delay increased from 5s to 10s
 
-## Real Data Trackers (ALL VERIFIED)
+**AI Now ONLY Triggered Via:**
+- Manual query from frontend (POST /api/ai/infer)
+- Manual analysis button (POST /gestures/analyze-now)
+- Continuous analysis toggle (when user explicitly enables it)
 
-**FPS Counter:**
-- Uses `requestAnimationFrame` - real frame counting
-- Updates every second with actual frame count
-- No fake data
+**Result:** Camera should stay at 120 FPS. No automatic AI calls.
 
-**WebSocket Connection:**
-- Real connection state from WebSocket API
-- Shows actual connected/disconnected status
+## Previous: Codebase Optimization Complete
 
-**Gesture Data:**
-- Real data from MediaPipe vision service
-- Actual gesture types, confidence, positions
-- No mock data
-
-**AI Processing:**
-- Real processing state from API calls
-- Actual response data from Ollama
-- Real streaming updates
-
-**Status Checks:**
-- Backend: Real `/health` endpoint check
-- Vision: Real `/health` endpoint check
-- Ollama: Real `/api/tags` endpoint check
-- All with 2-second timeouts
-- Shows actual error messages
-
-## Chat History & Input
-
-- Chat history: Last 50 messages tracked
-- Enter to send: Working
-- AI response in HUD: Under FPS counter
-- Real chat data only
-
-## Gesture Recognition
-
-30+ gestures with priority hierarchy, conflict prevention, rate-limited AI analysis.
-
-## Bug Fixes
-
-- Fixed TypeScript error: `wsService` null check in continuous analysis callback
-- All code compiles without errors
+**6 optimizations implemented:**
+1. MinimalHUD.tsx - Removed unused refs/imports
+2. ControlPanel.tsx - AbortController for health checks, interval 10s
+3. gesture.ts & ai.ts - TypeScript interfaces added
+4. Frontend logger utility created
+5. Cleaned 30+ lines commented code
+6. Fixed two-hand tracking distance bug
 
 ## Current Status
 
-Everything complete! All trackers verified as real data. Firebase (dixi-vision) integrated. TypeScript errors fixed. Ready for deployment.
-
-**Quick Ref:** Frontend 3000/5173, Backend 3001, Vision 5000, Health /health.
-
-**Deploy:** `npm run build:frontend && firebase deploy --only hosting`
+All auto-trigger AI disabled. App should run smoothly. Test by watching FPS in HUD.

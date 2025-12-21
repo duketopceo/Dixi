@@ -33,16 +33,16 @@ const AIResponseCard: React.FC<CardProps> = ({ response, index, totalCards, base
     return () => clearTimeout(timer);
   }, []);
 
-  // Smooth animations
-  useFrame(() => {
+  // Smooth animations (optimized - frame-rate independent)
+  useFrame((state, delta) => {
     if (groupRef.current) {
-      // Slight rotation for visual interest
-      groupRef.current.rotation.z = Math.sin(Date.now() * 0.001 + index) * 0.05;
+      // Slight rotation for visual interest (reduced frequency for better FPS)
+      groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.5 + index) * 0.05;
       
-      // Fade out animation
+      // Fade out animation (frame-rate independent)
       if (fadeOut && cardRef.current) {
         const material = cardRef.current.material as THREE.MeshStandardMaterial;
-        material.opacity = Math.max(0, material.opacity - 0.02);
+        material.opacity = Math.max(0, material.opacity - delta * 0.5);
         if (material.opacity <= 0) {
           groupRef.current.visible = false;
         }
@@ -140,8 +140,8 @@ export const AIResponseCards: React.FC = () => {
     }
   }, [currentGesture]);
 
-  // Show last 5-10 responses
-  const visibleCards = responseHistory.slice(-8);
+  // Show last 5 responses (reduced for better FPS)
+  const visibleCards = responseHistory.slice(-5);
 
   if (visibleCards.length === 0) return null;
 

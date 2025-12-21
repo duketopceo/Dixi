@@ -116,5 +116,34 @@ export const apiService = {
     } catch (error) {
       handleApiError(error);
     }
+  },
+
+  // Continuous analysis endpoints
+  async getContinuousAnalysisStatus() {
+    try {
+      const response = await api.get('/gestures/continuous-analysis/status');
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
+  },
+
+  async toggleContinuousAnalysis(enabled: boolean) {
+    try {
+      const response = await api.post('/gestures/continuous-analysis/toggle', { enabled });
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
+  },
+
+  // Manual single gesture analysis
+  async triggerManualAnalysis() {
+    try {
+      const response = await api.post('/gestures/analyze-now');
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
   }
 };

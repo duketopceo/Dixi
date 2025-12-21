@@ -63,6 +63,7 @@ class GestureRecognitionService:
         self.lock = threading.Lock()
         self.gesture_history = collections.deque(maxlen=30)
         self.motion_history = collections.deque(maxlen=50)  # Extended for complex motion patterns
+        self.two_hand_distance_history = collections.deque(maxlen=20)  # Track distance between hands for clap/stretch detection
         # Push architecture: backend URL and last pushed gesture
         self.backend_url = os.getenv('BACKEND_URL', 'http://localhost:3001')
         self.last_pushed_gesture = None
@@ -140,12 +141,62 @@ class GestureRecognitionService:
             # Optimize for performance: set buffer size to 1 to reduce latency
             self.camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             
+            # Camera watchdog: detect frame timeouts and auto-restart
+            last_frame_time = time.time()
+            FRAME_TIMEOUT = 5.0  # 5 seconds timeout
+            camera_restart_count = 0
+            MAX_RESTARTS = 3  # Max restarts before giving up
+            
             while self.is_tracking:
                 ret, frame = self.camera.read()
+                current_time = time.time()
                 
                 if not ret:
                     print("⚠️ Failed to read frame")
-                    break
+                    # Check if we've been waiting too long for a frame
+                    if current_time - last_frame_time > FRAME_TIMEOUT:
+                        print("❌ Camera feed timeout detected - restarting camera")
+                        if camera_restart_count >= MAX_RESTARTS:
+                            print(f"❌ Max camera restarts ({MAX_RESTARTS}) reached. Stopping tracking.")
+                            self.camera_error = "Camera timeout - max restarts reached"
+                            break
+                        
+                        # Restart camera
+                        try:
+                            self.camera.release()
+                            time.sleep(1)  # Give camera time to release
+                            self.camera = cv2.VideoCapture(camera_index)
+                            
+                            if not self.camera.isOpened():
+                                print(f"❌ Failed to reopen camera at index {camera_index}")
+                                camera_restart_count += 1
+                                time.sleep(2)  # Wait before retry
+                                continue
+                            
+                            # Reconfigure camera settings
+                            if target_width and target_height:
+                                self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, int(target_width))
+                                self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, int(target_height))
+                            self.camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                            
+                            camera_restart_count += 1
+                            last_frame_time = current_time
+                            print(f"✅ Camera restarted (attempt {camera_restart_count}/{MAX_RESTARTS})")
+                            continue
+                        except Exception as e:
+                            print(f"❌ Error restarting camera: {e}")
+                            camera_restart_count += 1
+                            time.sleep(2)
+                            continue
+                    else:
+                        # Just a temporary read failure, wait a bit
+                        time.sleep(0.1)
+                        continue
+                
+                # Update last frame time on successful read
+                if ret:
+                    last_frame_time = current_time
+                    camera_restart_count = 0  # Reset restart count on successful frame
                 
                 if self.landmarker:
                     # Convert BGR to RGB
@@ -580,13 +631,15 @@ class GestureRecognitionService:
         # Calculate distance between hands
         hand_distance = np.sqrt((wrist1.x - wrist2.x)**2 + (wrist1.y - wrist2.y)**2)
         
-        # Clap detection - hands coming together
-        if len(self.gesture_history) > 5:
-            recent_positions = list(self.gesture_history)[-5:]
-            prev_distances = []
-            for i in range(len(recent_positions) - 1):
-                # Simplified - would need to track both hand positions
-                prev_distances.append(hand_distance)
+        # Store current distance in history for tracking
+        self.two_hand_distance_history.append({
+            'distance': hand_distance,
+            'timestamp': timestamp_ms
+        })
+        
+        # Clap detection - hands coming together (need enough history)
+        if len(self.two_hand_distance_history) >= 5:
+            prev_distances = [d['distance'] for d in list(self.two_hand_distance_history)[-5:-1]]
             
             if len(prev_distances) > 0 and hand_distance < min(prev_distances) * 0.7:
                 return {
@@ -602,12 +655,9 @@ class GestureRecognitionService:
                     'landmarks_count': len(hand1_landmarks) + len(hand2_landmarks)
                 }
         
-        # Stretch detection - hands moving apart
-        if len(self.gesture_history) > 5:
-            recent_positions = list(self.gesture_history)[-5:]
-            prev_distances = []
-            for i in range(len(recent_positions) - 1):
-                prev_distances.append(hand_distance)
+        # Stretch detection - hands moving apart (need enough history)
+        if len(self.two_hand_distance_history) >= 5:
+            prev_distances = [d['distance'] for d in list(self.two_hand_distance_history)[-5:-1]]
             
             if len(prev_distances) > 0 and hand_distance > max(prev_distances) * 1.3:
                 return {
@@ -816,6 +866,9 @@ def dashboard():
 
 @app.route('/video_feed')
 def video_feed():
+    # Accept refresh parameter to force new connection (used for cache busting, value not needed)
+    _ = request.args.get('refresh', None)  # noqa: F841 - intentionally unused for cache busting
+    
     def generate():
         while True:
             frame = gesture_service.get_video_frame()
