@@ -1,0 +1,45 @@
+{
+  "name": "@dixi/backend",
+  "version": "1.0.0",
+  "description": "Dixi backend - Express server with WebSocket support",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "nodemon --watch src --exec ts-node src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "jest",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "ws": "^8.14.2",
+    "axios": "^1.6.0",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "compression": "^1.7.4",
+    "@tensorflow/tfjs-node-gpu": "^4.14.0",
+    "onnxruntime-node": "^1.16.0",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.0.1",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/ws": "^8.5.10",
+    "@types/node": "^20.10.0",
+    "@types/morgan": "^1.9.9",
+    "@types/compression": "^1.7.5",
+    "typescript": "^5.3.2",
+    "ts-node": "^10.9.1",
+    "nodemon": "^3.0.2",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.10",
+    "ts-jest": "^29.1.1",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.2",
+    "@typescript-eslint/parser": "^6.13.2"
+  }
+}

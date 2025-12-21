@@ -1,0 +1,44 @@
+{
+  "name": "dixi",
+  "version": "1.0.0",
+  "description": "Digital Exploration and Curiosity - AI-powered interactive projection system",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "install:all": "npm install && npm run install:frontend && npm run install:backend && npm run install:vision",
+    "install:frontend": "cd packages/frontend && npm install",
+    "install:backend": "cd packages/backend && npm install",
+    "install:vision": "cd packages/vision && pip install -r requirements.txt",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd packages/backend && npm run dev",
+    "dev:frontend": "cd packages/frontend && npm run dev",
+    "dev:vision": "cd packages/vision && python main.py",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd packages/frontend && npm run build",
+    "build:backend": "cd packages/backend && npm run build",
+    "start": "npm run start:backend",
+    "start:backend": "cd packages/backend && npm run start",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "cd packages/frontend && npm run test",
+    "test:backend": "cd packages/backend && npm run test",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up",
+    "docker:down": "docker-compose down"
+  },
+  "keywords": [
+    "ai",
+    "computer-vision",
+    "gesture-recognition",
+    "interactive-projection",
+    "tensorflow",
+    "pytorch",
+    "mediapipe"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
