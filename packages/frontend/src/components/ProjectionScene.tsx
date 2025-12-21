@@ -1,153 +1,89 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { useFrame } from '@react-three/fiber';
-import { Mesh, Vector3 } from 'three';
+import React, { useEffect, useRef } from 'react';
+import { useThree } from '@react-three/fiber';
+import { GestureCursor } from './Scene/GestureCursor';
+import { AIResponseText } from './Scene/AIResponseText';
+import { AIResponseCards } from './Scene/AIResponseCards';
 import { useGestureStore } from '../store/gestureStore';
+import { useAIStore } from '../store/aiStore';
 
 const ProjectionScene: React.FC = () => {
-  const meshRef = useRef<Mesh>(null);
-  const particlesRef = useRef<Mesh>(null);
-  const cursorRef = useRef<Mesh>(null);
-  const spotlightRef = useRef<any>(null);
-  const selectionRingRef = useRef<Mesh>(null);
-  
+  const { scene } = useThree();
   const currentGesture = useGestureStore((state) => state.currentGesture);
-  const [targetPosition, setTargetPosition] = useState(new Vector3(0, 0, 0));
+  const lastGestureTypeRef = useRef<string | null>(null);
+  const gestureCooldownRef = useRef<{ [key: string]: number }>({});
+  const { clearResponse, sendQuery } = useAIStore();
 
-  // Update target position when gesture changes
+  // Set scene background to transparent
   useEffect(() => {
-    if (currentGesture && currentGesture.position) {
-      // Map normalized coordinates (-1 to 1) to 3D space (-5 to 5)
-      const x = currentGesture.position.x * 5;
-      const y = currentGesture.position.y * 5;
-      const z = currentGesture.position.z || 0;
-      setTargetPosition(new Vector3(x, y, z));
-    }
-  }, [currentGesture]);
+    scene.background = null;
+  }, [scene]);
 
-  useFrame((state, delta) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.x += delta * 0.2;
-      meshRef.current.rotation.y += delta * 0.3;
-    }
-    
-    if (particlesRef.current) {
-      particlesRef.current.rotation.y += delta * 0.1;
+  // Handle gesture actions
+  useEffect(() => {
+    if (!currentGesture) {
+      lastGestureTypeRef.current = null;
+      return;
     }
 
-    // Smoothly interpolate cursor position
-    if (cursorRef.current && currentGesture) {
-      cursorRef.current.position.lerp(targetPosition, delta * 5);
-      
-      // Show/hide based on gesture type
-      cursorRef.current.visible = currentGesture.type === 'point' || currentGesture.type === 'pinch';
-    }
+    const gestureType = currentGesture.type;
+    const currentTime = Date.now();
+    const COOLDOWN_MS = 2000; // 2 second cooldown per gesture type
 
-    // Update spotlight for point gesture
-    if (spotlightRef.current && currentGesture?.type === 'point') {
-      spotlightRef.current.target.position.lerp(targetPosition, delta * 5);
-      spotlightRef.current.position.lerp(
-        new Vector3(targetPosition.x, targetPosition.y + 2, targetPosition.z + 3),
-        delta * 5
-      );
-    }
+    // Only trigger if gesture type changed and cooldown expired
+    if (
+      gestureType !== lastGestureTypeRef.current &&
+      (!gestureCooldownRef.current[gestureType] || 
+       currentTime - gestureCooldownRef.current[gestureType] > COOLDOWN_MS)
+    ) {
+      gestureCooldownRef.current[gestureType] = currentTime;
+      lastGestureTypeRef.current = gestureType;
 
-    // Update selection ring for pinch gesture
-    if (selectionRingRef.current && currentGesture?.type === 'pinch') {
-      selectionRingRef.current.position.lerp(targetPosition, delta * 5);
-      selectionRingRef.current.visible = true;
-    } else if (selectionRingRef.current) {
-      selectionRingRef.current.visible = false;
-    }
-  });
+      switch (gestureType) {
+        case 'wave':
+          // Clear AI response
+          clearResponse();
+          console.log('Wave gesture: Cleared AI response');
+          break;
 
-  // Create particle field
-  const particleCount = 100;
-  const particles = new Float32Array(particleCount * 3);
-  for (let i = 0; i < particleCount * 3; i += 3) {
-    particles[i] = (Math.random() - 0.5) * 10;
-    particles[i + 1] = (Math.random() - 0.5) * 10;
-    particles[i + 2] = (Math.random() - 0.5) * 10;
-  }
+        case 'pinch':
+          // Log position for future zoom/selection
+          console.log('Pinch gesture detected at', {
+            x: currentGesture.position.x,
+            y: currentGesture.position.y,
+            confidence: currentGesture.confidence
+          });
+          break;
+
+        case 'point':
+          // Auto-query AI about pointed location
+          const x = currentGesture.position.x.toFixed(2);
+          const y = currentGesture.position.y.toFixed(2);
+          const query = `What might the user be pointing at coordinates [${x}, ${y}]?`;
+          sendQuery(query, {
+            gesture: {
+              type: 'point',
+              coordinates: {
+                x: currentGesture.position.x,
+                y: currentGesture.position.y
+              }
+            }
+          }).catch((error) => {
+            console.error('Failed to send point gesture query:', error);
+          });
+          break;
+
+        default:
+          break;
+      }
+    }
+  }, [currentGesture?.type, clearResponse, sendQuery]);
 
   return (
     <>
-      {/* Main projection surface */}
-      <mesh ref={meshRef} position={[0, 0, 0]}>
-        <torusKnotGeometry args={[1, 0.3, 128, 16]} />
-        <meshStandardMaterial
-          color="#00d4ff"
-          emissive="#7b2ff7"
-          emissiveIntensity={0.5}
-          wireframe={false}
-          metalness={0.8}
-          roughness={0.2}
-        />
-      </mesh>
-
-      {/* Particle field */}
-      <points ref={particlesRef}>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={particleCount}
-            array={particles}
-            itemSize={3}
-          />
-        </bufferGeometry>
-        <pointsMaterial
-          size={0.05}
-          color="#00d4ff"
-          transparent
-          opacity={0.6}
-          sizeAttenuation={true}
-        />
-      </points>
-
-      {/* 3D Cursor for point/pinch gestures */}
-      <mesh ref={cursorRef} position={[0, 0, 0]} visible={false}>
-        <sphereGeometry args={[0.1, 16, 16]} />
-        <meshStandardMaterial
-          color="#00ff00"
-          emissive="#00ff00"
-          emissiveIntensity={0.5}
-          transparent
-          opacity={0.8}
-        />
-      </mesh>
-
-      {/* Spotlight for point gesture */}
-      {currentGesture?.type === 'point' && (
-        <>
-          <spotLight
-            ref={spotlightRef}
-            position={[targetPosition.x, targetPosition.y + 2, targetPosition.z + 3]}
-            angle={0.3}
-            penumbra={0.5}
-            intensity={2}
-            color="#ffffff"
-          />
-          <mesh position={[targetPosition.x, targetPosition.y, targetPosition.z]}>
-            <sphereGeometry args={[0.05, 8, 8]} />
-            <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={1} />
-          </mesh>
-        </>
-      )}
-
-      {/* Selection ring for pinch gesture */}
-      <mesh ref={selectionRingRef} position={[0, 0, 0]} visible={false}>
-        <ringGeometry args={[0.3, 0.35, 32]} />
-        <meshStandardMaterial
-          color="#ff00ff"
-          emissive="#ff00ff"
-          emissiveIntensity={0.8}
-          side={2} // DoubleSide
-          transparent
-          opacity={0.7}
-        />
-      </mesh>
-
-      {/* Grid helper */}
-      <gridHelper args={[20, 20, '#333', '#111']} />
+      <ambientLight intensity={0.5} />
+      <GestureCursor />
+      <AIResponseText />
+      <AIResponseCards />
     </>
   );
 };

@@ -12,8 +12,7 @@ export const apiLimiter = rateLimit({
     logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
       error: 'Too many requests',
-      message: 'Please try again later.',
-      retryAfter: req.rateLimit?.resetTime
+      message: 'Please try again later.'
     });
   }
 });
@@ -29,8 +28,7 @@ export const aiLimiter = rateLimit({
     logger.warn(`AI rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
       error: 'AI inference rate limit exceeded',
-      message: 'Please reduce the frequency of AI queries.',
-      retryAfter: req.rateLimit?.resetTime
+      message: 'Please reduce the frequency of AI queries.'
     });
   }
 });
@@ -47,8 +45,7 @@ export const gestureLimiter = rateLimit({
     logger.warn(`Gesture control rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
       error: 'Too many gesture control requests',
-      message: 'Please wait before toggling gesture tracking again.',
-      retryAfter: req.rateLimit?.resetTime
+      message: 'Please wait before toggling gesture tracking again.'
     });
   }
 });

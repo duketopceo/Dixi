@@ -11,7 +11,7 @@ git add packages/frontend/Dockerfile
 
 echo.
 echo Committing changes...
-git commit -m "Fix CI/CD pipeline: Update cache paths and Dockerfile package.json handling" -m "- Fix backend/frontend test cache to use root package-lock.json" -m "- Change npm ci to npm install (works without lock files in subdirs)" -m "- Fix Dockerfiles to only copy package.json (not package*.json)" -m "- Resolves 'Some specified paths were not resolved' errors" -m "- Fixes Docker build failures"
+git commit -m "Fix CI/CD pipeline: Install from root with npm ci for deterministic builds" -m "- Fix cache-dependency-path to match npm execution location (root)" -m "- Use npm ci from workspace root for reproducible builds" -m "- Fix Dockerfiles to only copy package.json" -m "- Resolves 'Some specified paths were not resolved' errors" -m "- Fixes Docker build failures"
 
 echo.
 echo Pushing to trigger CI/CD...
