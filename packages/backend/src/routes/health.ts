@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
 import axios from 'axios';
-import * as tf from '@tensorflow/tfjs-node-gpu';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -15,7 +14,7 @@ router.get('/', (req: Request, res: Response) => {
     uptime: process.uptime(),
     services: {
       backend: 'running',
-      gpu: process.env.USE_GPU === 'true' ? 'enabled' : 'disabled'
+      ollama: process.env.OLLAMA_BASE_URL || 'http://localhost:11434'
     }
   });
 });
@@ -47,20 +46,18 @@ router.get('/deep', async (req: Request, res: Response) => {
     };
   }
 
-  // Check GPU/TensorFlow
+  // Check Ollama AI Service
   try {
-    const gpuInfo = {
-      backend: tf.getBackend(),
-      available: process.env.USE_GPU === 'true',
-      memory: tf.memory()
-    };
-    checks.gpu = {
+    const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    const ollamaResponse = await axios.get(`${ollamaUrl}/api/tags`, { timeout: 5000 });
+    checks.ollama = {
       status: 'healthy',
-      info: gpuInfo
+      url: ollamaUrl,
+      models: ollamaResponse.data.models?.map((m: any) => m.name) || []
     };
   } catch (error) {
-    logger.warn('GPU health check failed:', error);
-    checks.gpu = {
+    logger.warn('Ollama health check failed:', error);
+    checks.ollama = {
       status: 'unhealthy',
       error: error instanceof Error ? error.message : 'Unknown error'
     };
@@ -83,7 +80,7 @@ router.get('/deep', async (req: Request, res: Response) => {
 
   // Determine overall health
   const isHealthy = checks.vision.status === 'healthy' && 
-                    checks.gpu.status === 'healthy' &&
+                    checks.ollama.status === 'healthy' &&
                     checks.websocket.status === 'healthy';
 
   res.status(isHealthy ? 200 : 503).json({

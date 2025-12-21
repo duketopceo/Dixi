@@ -1,4 +1,4 @@
-import * as tf from '@tensorflow/tfjs-node-gpu';
+import axios from 'axios';
 import logger from '../utils/logger';
 
 export interface AIModelConfig {
@@ -17,42 +17,68 @@ export interface InferenceResponse {
 }
 
 export class AIService {
-  private model: any = null;
   private initialized: boolean = false;
-  private modelSize: string = '7B';
+  private ollamaBaseUrl: string;
+  private modelName: string;
 
   constructor() {
+    this.ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    // Use gemma3:4b if available, otherwise fallback to llama3.2
+    this.modelName = process.env.OLLAMA_MODEL || 'gemma3:4b';
     logger.info('🤖 AI Service initialized');
-    logger.info(`📊 TensorFlow.js version: ${tf.version.tfjs}`);
-    logger.info(`🎮 GPU Backend: ${process.env.USE_GPU === 'true' ? 'Enabled' : 'Disabled'}`);
+    logger.info(`🔗 Ollama Base URL: ${this.ollamaBaseUrl}`);
+    logger.info(`📦 Ollama Model: ${this.modelName}`);
   }
 
   async initialize(modelPath?: string, modelSize?: string): Promise<void> {
     try {
-      this.modelSize = modelSize || process.env.MODEL_SIZE || '7B';
+      if (modelSize) {
+        this.modelName = modelSize;
+      }
       
-      // In production, load actual model
-      // For now, we'll simulate model loading
-      logger.info(`Loading ${this.modelSize} quantized model...`);
-      
-      // Simulate model loading delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Test Ollama connection
+      logger.info(`Testing Ollama connection at ${this.ollamaBaseUrl}...`);
+      await this.testOllamaConnection();
       
       this.initialized = true;
-      logger.info(`✅ AI Model (${this.modelSize}) loaded successfully`);
+      logger.info(`✅ AI Service (Ollama: ${this.modelName}) initialized successfully`);
     } catch (error) {
       logger.error('Failed to initialize AI model:', error);
-      throw error;
+      throw new Error(`Failed to connect to Ollama: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  private async testOllamaConnection(): Promise<void> {
+    try {
+      const response = await axios.get(`${this.ollamaBaseUrl}/api/tags`, {
+        timeout: 5000
+      });
+      logger.info('✅ Ollama connection successful');
+    } catch (error: any) {
+      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+        throw new Error('Ollama is not running. Please start Ollama service.');
+      }
+      throw new Error(`Ollama connection failed: ${error.message}`);
     }
   }
 
   async getModelStatus(): Promise<any> {
+    let ollamaStatus = 'unknown';
+    try {
+      const response = await axios.get(`${this.ollamaBaseUrl}/api/tags`, {
+        timeout: 5000
+      });
+      ollamaStatus = 'connected';
+    } catch (error) {
+      ollamaStatus = 'disconnected';
+    }
+
     return {
       initialized: this.initialized,
-      modelSize: this.modelSize,
-      backend: tf.getBackend(),
-      gpuAvailable: process.env.USE_GPU === 'true',
-      memory: tf.memory()
+      modelName: this.modelName,
+      ollamaBaseUrl: this.ollamaBaseUrl,
+      ollamaStatus,
+      backend: 'ollama'
     };
   }
 
@@ -64,23 +90,43 @@ export class AIService {
     const startTime = Date.now();
 
     try {
-      // In production, this would call the actual model inference
-      // For now, we'll return a simulated response
-      const response = this.simulateInference(query, context);
-      
+      // Build prompt with context if provided
+      let prompt = query;
+      if (context) {
+        if (context.gesture) {
+          prompt = `User performed a ${context.gesture.type} gesture${context.gesture.coordinates ? ` at coordinates (${context.gesture.coordinates.x}, ${context.gesture.coordinates.y})` : ''}. ${query}`;
+        }
+      }
+
+      const response = await axios.post(
+        `${this.ollamaBaseUrl}/api/generate`,
+        {
+          model: this.modelName,
+          prompt: prompt,
+          stream: false
+        },
+        {
+          timeout: 60000 // 60 second timeout
+        }
+      );
+
       const inferenceTime = Date.now() - startTime;
+      const responseText = response.data.response || '';
 
       return {
-        text: response,
+        text: responseText,
         metadata: {
           inferenceTime,
-          tokenCount: response.split(' ').length,
+          tokenCount: responseText.split(' ').length,
           confidence: 0.95
         }
       };
-    } catch (error) {
-      logger.error('Inference failed:', error);
-      throw error;
+    } catch (error: any) {
+      logger.error('Ollama inference failed:', error);
+      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+        throw new Error('Ollama service is not available. Please ensure Ollama is running.');
+      }
+      throw new Error(`Ollama inference error: ${error.message}`);
     }
   }
 
@@ -93,33 +139,83 @@ export class AIService {
       await this.initialize();
     }
 
-    // Simulate streaming response
-    const response = this.simulateInference(query, context);
-    const words = response.split(' ');
+    try {
+      // Build prompt with context if provided
+      let prompt = query;
+      if (context) {
+        if (context.gesture) {
+          prompt = `User performed a ${context.gesture.type} gesture${context.gesture.coordinates ? ` at coordinates (${context.gesture.coordinates.x}, ${context.gesture.coordinates.y})` : ''}. ${query}`;
+        }
+      }
 
-    for (const word of words) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-      onChunk({ 
-        text: word + ' ',
-        done: false
+      const response = await axios.post(
+        `${this.ollamaBaseUrl}/api/generate`,
+        {
+          model: this.modelName,
+          prompt: prompt,
+          stream: true
+        },
+        {
+          timeout: 120000, // 2 minute timeout for streaming
+          responseType: 'stream'
+        }
+      );
+
+      let buffer = '';
+      response.data.on('data', (chunk: Buffer) => {
+        buffer += chunk.toString();
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              const data = JSON.parse(line);
+              if (data.response) {
+                onChunk({
+                  text: data.response,
+                  done: data.done || false
+                });
+              }
+            } catch (e) {
+              // Skip invalid JSON lines
+            }
+          }
+        }
       });
+
+      response.data.on('end', () => {
+        if (buffer.trim()) {
+          try {
+            const data = JSON.parse(buffer);
+            if (data.response) {
+              onChunk({
+                text: data.response,
+                done: true
+              });
+            }
+          } catch (e) {
+            // Skip invalid JSON
+          }
+        }
+        onChunk({ text: '', done: true });
+      });
+
+      response.data.on('error', (error: Error) => {
+        logger.error('Ollama streaming error:', error);
+        onChunk({ text: '', done: true });
+      });
+    } catch (error: any) {
+      logger.error('Ollama streaming failed:', error);
+      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+        throw new Error('Ollama service is not available. Please ensure Ollama is running.');
+      }
+      throw new Error(`Ollama streaming error: ${error.message}`);
     }
-
-    onChunk({ text: '', done: true });
-  }
-
-  private simulateInference(query: string, context?: any): string {
-    // This is a placeholder for actual AI inference
-    // In production, this would use TensorFlow.js or PyTorch to run the model
-    return `Based on your query "${query}", here's an AI-generated response from the ${this.modelSize} model. This system uses computer vision for gesture recognition and real-time AI inference with GPU acceleration on NVIDIA hardware. The projection system creates an interactive knowledge canvas on any surface.`;
   }
 
   async dispose(): Promise<void> {
-    if (this.model) {
-      this.model.dispose();
-      this.model = null;
-    }
     this.initialized = false;
-    logger.info('🗑️ AI Model disposed');
+    logger.info('🗑️ AI Service disposed');
   }
 }
