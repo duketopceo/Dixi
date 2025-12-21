@@ -13,5 +13,10 @@ Hey Khan, I'm bringing this repo up to speed as requested. I'll leave all my not
 ## Notes
 - I've resolved the legacy `AttributeError` by modernizing the code to use the latest Google AI Edge patterns.
 - I've downloaded the `hand_landmarker.task` model file; it's already integrated.
-- **New Debug UI**: You can now access a live debug feed at [http://localhost:5000/dashboard](http://localhost:5000/dashboard). It shows the camera feed with landmarks and real-time logs.
-- The repo is now fully up to speed. 
+- **New Debug UI**: Access the live debug feed at [http://localhost:5000/dashboard](http://localhost:5000/dashboard). Shows camera feed with landmarks and real-time logs.
+- **No Mock Data Policy**: Removed all fallback simulation code. If camera or model fails, you'll see an honest error instead of fake data.
+- The repo is now fully up to speed.
+
+## Copilot Instructions
+
+Created `.github/copilot-instructions.md` with comprehensive guidelines. The key rule: **No mock data, no fake features. Fully implement or mark as under development.**
