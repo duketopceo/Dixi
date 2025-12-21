@@ -6,9 +6,11 @@ const ControlPanel: React.FC = () => {
   const [gestureTracking, setGestureTracking] = useState(false);
   const [aiQuery, setAiQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleGestureToggle = async () => {
     setLoading(true);
+    setError(null);
     try {
       if (gestureTracking) {
         await apiService.stopGestureTracking();
@@ -17,6 +19,8 @@ const ControlPanel: React.FC = () => {
       }
       setGestureTracking(!gestureTracking);
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to toggle gesture tracking';
+      setError(message);
       console.error('Failed to toggle gesture tracking:', error);
     } finally {
       setLoading(false);
@@ -28,10 +32,13 @@ const ControlPanel: React.FC = () => {
     if (!aiQuery.trim()) return;
 
     setLoading(true);
+    setError(null);
     try {
       await apiService.sendAIQuery(aiQuery);
       setAiQuery('');
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to send AI query';
+      setError(message);
       console.error('Failed to send AI query:', error);
     } finally {
       setLoading(false);
@@ -41,6 +48,19 @@ const ControlPanel: React.FC = () => {
   return (
     <div className="control-panel">
       <h2>Control Panel</h2>
+
+      {error && (
+        <div className="error-message" style={{ 
+          padding: '10px', 
+          margin: '10px 0', 
+          backgroundColor: '#fee', 
+          border: '1px solid #fcc', 
+          borderRadius: '4px',
+          color: '#c33'
+        }}>
+          ⚠️ {error}
+        </div>
+      )}
 
       <section className="control-section">
         <h3>Gesture Tracking</h3>
@@ -81,16 +101,8 @@ const ControlPanel: React.FC = () => {
         <h3>System Info</h3>
         <div className="info-grid">
           <div className="info-item">
-            <span className="info-label">GPU:</span>
-            <span className="info-value">NVIDIA 5070 Ti</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Model:</span>
-            <span className="info-value">7B Quantized</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Render:</span>
-            <span className="info-value">WebGL</span>
+            <span className="info-label">Status:</span>
+            <span className="info-value">Ready</span>
           </div>
         </div>
       </section>
