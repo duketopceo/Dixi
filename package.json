@@ -23,6 +23,7 @@
     "test": "npm run test:frontend && npm run test:backend",
     "test:frontend": "cd packages/frontend && npm run test",
     "test:backend": "cd packages/backend && npm run test",
+    "kill-port": "powershell -ExecutionPolicy Bypass -File scripts/kill-port.ps1",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up",
     "docker:down": "docker-compose down"
