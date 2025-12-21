@@ -26,6 +26,18 @@ I also did a comprehensive diagnostic of the frontend and found a few issues:
 
 4. **Unused imports** - Cleaned up some unused imports that were causing TypeScript warnings.
 
+## Environment Setup
+
+I created a setup script (`scripts/setup_environment.ps1`) that:
+
+1. **Installs all dependencies** - Automatically installs Node.js dependencies for root, backend, and frontend packages
+2. **Configures PATH** - Adds Node.js (and Python if found) to your PATH environment variable
+3. **Handles Python** - If Python is installed, it will install vision service dependencies too
+
+The script detected Node.js and added it to your user PATH. Python wasn't found, but that's okay - the vision service is optional. If you install Python later, you can run the setup script again and it will add Python to PATH and install the vision dependencies.
+
+**Important:** You'll need to restart your terminal or IDE for PATH changes to take effect in new sessions. The current session should work right away though.
+
 ## Python Test Script
 
 I noticed the `system_test.py` script wasn't running because Python isn't in your PATH. I've:
@@ -45,6 +57,8 @@ Right now everything is up and running:
 - **Frontend** is live at http://localhost:3000 (or 5173 if 3000 is busy)
 - **Backend** is running on port 3001 and responding to requests
 - **Ollama** is connected and ready to go - using the `gemma3:4b` model
+- **Dependencies** are all installed (Node.js packages)
+- **PATH** is configured (Node.js added to user PATH)
 
 The AI service will initialize itself when you first make a request to it. I tested the connection and it's working fine. The backend can talk to Ollama, and the frontend can talk to the backend.
 
@@ -72,6 +86,7 @@ All the changes have been committed and pushed to the repository:
 - Updated Vite config for better network binding
 - Created .cursorrules for copilot instructions
 - Updated Python system test and added PowerShell wrapper
+- Created environment setup script for dependencies and PATH
 
 ## Technical Stuff (if you're curious)
 
@@ -88,6 +103,12 @@ The frontend uses Vite for development, and I've set it up to bind to all networ
 - Health check: http://localhost:3001/health
 - AI status: http://localhost:3001/api/ai/status
 
+## Setup Scripts
+
+- **Environment Setup**: `.\scripts\setup_environment.ps1` - Installs dependencies and configures PATH
+- **System Test (PowerShell)**: `.\scripts\test_everything.ps1` - Tests all services
+- **System Test (Python)**: `.\scripts\run_system_test.ps1` - Tests camera, MediaPipe, and services (requires Python)
+
 ## Things to Note
 
 The application is ready to use! You can open the frontend and start making AI queries. The system will automatically include gesture context when you're doing hand gestures, and responses can stream in for a better experience.
@@ -95,5 +116,7 @@ The application is ready to use! You can open the frontend and start making AI q
 I've also created a `.cursorrules` file with instructions for the AI copilot, so future changes should be more consistent with the project architecture.
 
 The Python test script (`system_test.py`) is ready to run once Python is installed. It will check camera access, MediaPipe setup, and verify all services are reachable. The PowerShell wrapper (`run_system_test.ps1`) makes it easier to run by automatically finding Python.
+
+**PATH Configuration:** Node.js has been added to your user PATH. You may need to restart your terminal or IDE for the changes to take effect in new sessions. The current session should work immediately.
 
 Everything should be working smoothly now. Let me know if you run into any issues!
