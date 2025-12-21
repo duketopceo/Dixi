@@ -46,7 +46,8 @@ def test_service_health():
     services = {
         "Vision Service": "http://localhost:5000/health",
         "Backend Service": "http://localhost:3001/health",
-        "Frontend": "http://localhost:5173"
+        "Frontend (port 3000)": "http://localhost:3000",
+        "Frontend (port 5173)": "http://localhost:5173"
     }
     
     for name, url in services.items():
@@ -56,8 +57,9 @@ def test_service_health():
                 print(f"✅ SUCCESS: {name} is reachable")
             else:
                 print(f"⚠️ WARNING: {name} returned status code {response.status_code}")
-        except Exception:
-            print(f"❌ FAILED: {name} is NOT reachable at {url} (expected if not running)")
+        except Exception as e:
+            print(f"❌ FAILED: {name} is NOT reachable at {url}")
+            print(f"   Error: {str(e)} (expected if service not running)")
 
 def main():
     print("========================================")
