@@ -14,11 +14,23 @@ The main thing was updating the AI service to actually talk to Ollama instead of
 
 I had to fix a few TypeScript errors that were preventing the backend from starting - mostly just cleaning up some old code that was trying to use TensorFlow.js features that don't exist anymore. The health check endpoint now verifies that Ollama is connected instead of checking for GPU stuff.
 
+## Frontend Fixes
+
+I also did a comprehensive diagnostic of the frontend and found a few issues:
+
+1. **Missing TypeScript definitions** - Created `vite-env.d.ts` so TypeScript knows about `import.meta.env` variables. This was causing compilation errors.
+
+2. **Network binding issue** - Updated `vite.config.ts` to bind to `0.0.0.0` so it works on both `localhost` and `127.0.0.1`. The frontend was accessible on `localhost:5173` but not `127.0.0.1:5173`, which was weird.
+
+3. **Port configuration** - The config says port 3000, but Vite might fall back to 5173 if 3000 is busy. I updated the test script to check both ports.
+
+4. **Unused imports** - Cleaned up some unused imports that were causing TypeScript warnings.
+
 ## Current Status
 
 Right now everything is up and running:
 
-- **Frontend** is live at http://localhost:3000 - you can open this in your browser
+- **Frontend** is live at http://localhost:3000 (or 5173 if 3000 is busy)
 - **Backend** is running on port 3001 and responding to requests
 - **Ollama** is connected and ready to go - using the `gemma3:4b` model
 
@@ -32,7 +44,7 @@ I ran a comprehensive test script that checked everything:
 - ✅ Ollama connection - working perfectly
 - ✅ Backend health - responding correctly
 - ✅ AI service status - connected to Ollama
-- ✅ Frontend - accessible and running
+- ✅ Frontend - accessible and running (checks both port 3000 and 5173)
 - ✅ WebSocket server - listening on port 3002
 
 All the core services passed their tests! The frontend and backend are both open in your browser now.
@@ -44,6 +56,9 @@ All the changes have been committed and pushed to the repository:
 - Fixed TypeScript compilation errors
 - Added comprehensive test script
 - Updated health checks for Ollama
+- Fixed frontend TypeScript definitions (vite-env.d.ts)
+- Updated Vite config for better network binding
+- Created .cursorrules for copilot instructions
 
 ## Technical Stuff (if you're curious)
 
@@ -51,9 +66,11 @@ The AI service is in `packages/backend/src/services/ai.ts` and it's making HTTP 
 
 The default model is set to `gemma3:4b` since that's what you have. If you want to use `llama3.2` instead, you can set the `OLLAMA_MODEL` environment variable, but you'd need to pull that model first with `ollama pull llama3.2`.
 
+The frontend uses Vite for development, and I've set it up to bind to all network interfaces so it works whether you access it via `localhost` or `127.0.0.1`. The test script now checks both the configured port (3000) and the fallback port (5173) to catch any port conflicts.
+
 ## Quick Access
 
-- Frontend: http://localhost:3000
+- Frontend: http://localhost:3000 (or http://localhost:5173)
 - Backend API: http://localhost:3001
 - Health check: http://localhost:3001/health
 - AI status: http://localhost:3001/api/ai/status
@@ -61,5 +78,7 @@ The default model is set to `gemma3:4b` since that's what you have. If you want 
 ## Things to Note
 
 The application is ready to use! You can open the frontend and start making AI queries. The system will automatically include gesture context when you're doing hand gestures, and responses can stream in for a better experience.
+
+I've also created a `.cursorrules` file with instructions for the AI copilot, so future changes should be more consistent with the project architecture.
 
 Everything should be working smoothly now. Let me know if you run into any issues!

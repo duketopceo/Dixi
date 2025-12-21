@@ -123,8 +123,22 @@ function Test-AIService {
 
 function Test-Frontend {
     Write-Host "`n--- Testing Frontend Service ---" -ForegroundColor Cyan
-    $result = Test-Service -Name "Frontend" -Url "http://localhost:3000"
-    return $result
+    
+    # Try port 3000 first (configured port)
+    $result3000 = Test-Service -Name "Frontend (port 3000)" -Url "http://localhost:3000"
+    if ($result3000.Success) {
+        return $result3000
+    }
+    
+    # Try port 5173 (Vite default fallback)
+    Write-Host "Port 3000 not available, trying port 5173..." -ForegroundColor Yellow
+    $result5173 = Test-Service -Name "Frontend (port 5173)" -Url "http://localhost:5173"
+    if ($result5173.Success) {
+        Write-Host "   ⚠️  Frontend running on port 5173 instead of configured port 3000" -ForegroundColor Yellow
+        return $result5173
+    }
+    
+    return @{ Success = $false; Error = "Frontend not accessible on ports 3000 or 5173" }
 }
 
 function Test-WebSocket {

@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useGestureStore } from '../store/gestureStore';
 import { useAIStore } from '../store/aiStore';
 
