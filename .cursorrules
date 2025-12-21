@@ -49,6 +49,10 @@ Dixi is an AI-powered interactive projection system using:
 - Always handle Ollama connection failures gracefully
 - Log errors using the logger utility
 - Provide user-friendly error messages
+- All API calls must have try-catch blocks with proper error handling
+- WebSocket operations must handle connection failures and retries
+- Port conflicts should be detected and provide helpful resolution instructions
+- Never let errors crash the application - always handle gracefully
 
 ### Testing
 - Run `scripts/test_everything.ps1` before major commits
@@ -68,6 +72,8 @@ Dixi is an AI-powered interactive projection system using:
 - Handle streaming vs non-streaming properly
 - Include gesture context in prompts when available
 - Set appropriate timeouts (60s for regular, 120s for streaming)
+- Streaming endpoint must wait for stream completion before resolving Promise
+- All errors must be caught and handled gracefully
 
 ### Frontend Development
 - Use environment variables for URLs (VITE_* prefix)
@@ -94,6 +100,11 @@ Dixi is an AI-powered interactive projection system using:
 
 ## Troubleshooting
 
+### Port Conflicts
+- If you get "EADDRINUSE" errors, use `npm run kill-port <port>` to kill the process
+- Or manually: `Get-NetTCPConnection -LocalPort <port> | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force }`
+- Backend now provides helpful error messages with instructions when ports are in use
+
 ### Frontend Not Loading
 - Check if port 3000 is in use (may fallback to 5173)
 - Verify vite.config.ts has `host: '0.0.0.0'` for network binding
@@ -109,10 +120,23 @@ Dixi is an AI-powered interactive projection system using:
 - Remove unused imports
 - Fix type mismatches immediately
 
+### WebSocket Connection Issues
+- Frontend automatically retries up to 5 times with exponential backoff
+- Check backend WebSocket server is running on port 3002
+- Verify firewall isn't blocking connections
+
+### Streaming Endpoint Issues
+- Streaming endpoint now properly waits for stream completion
+- Race condition fixed - all data is sent before response ends
+- Errors are sent as SSE events if headers are already set
+
 ## Never Do
 - ❌ Use TensorFlow.js (removed, use Ollama)
 - ❌ Hardcode ports (use environment variables)
 - ❌ Skip TypeScript error fixes
 - ❌ Commit without testing
 - ❌ Remove Ollama integration
+- ❌ Use fake/placeholder data (see .github/copilot-instructions.md)
+- ❌ Skip error handling in API calls or WebSocket operations
+- ❌ Let errors crash the application without graceful handling
 
