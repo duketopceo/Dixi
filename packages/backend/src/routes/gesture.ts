@@ -245,7 +245,7 @@ async function performContinuousAnalysis(): Promise<void> {
       let fullResponse = '';
       
       await aiService.inferStream(prompt, { analysisType: 'continuous' }, (chunk: any) => {
-        if (chunk.response) {
+        if (chunk.response && wsService) {
           fullResponse += chunk.response;
           // Stream each chunk to clients
           wsService.broadcastAIResponse({
@@ -262,16 +262,18 @@ async function performContinuousAnalysis(): Promise<void> {
       });
       
       // Final response when streaming completes
-      wsService.broadcastAIResponse({
-        query: 'Continuous gesture analysis',
-        response: fullResponse,
-        metadata: { 
-          analysisType: 'continuous',
-          streaming: false,
-          gestureCount: recentGestures.length
-        },
-        timestamp: Date.now()
-      });
+      if (wsService) {
+        wsService.broadcastAIResponse({
+          query: 'Continuous gesture analysis',
+          response: fullResponse,
+          metadata: { 
+            analysisType: 'continuous',
+            streaming: false,
+            gestureCount: recentGestures.length
+          },
+          timestamp: Date.now()
+        });
+      }
     }
     
     lastContinuousAnalysis = Date.now();
