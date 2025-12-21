@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response, render_template
 from flask_cors import CORS
 import cv2
 import mediapipe as mp
@@ -12,7 +12,6 @@ import os
 import sys
 import io
 import collections
-from flask import Flask, jsonify, request, Response, render_template
 from dotenv import load_dotenv
 import requests
 
@@ -97,14 +96,32 @@ class GestureRecognitionService:
     def _track_gestures(self):
         """Main tracking loop"""
         try:
-            self.camera = cv2.VideoCapture(0)
+            # Get camera device index from environment (default: 0)
+            camera_index = int(os.getenv('CAMERA_INDEX', '0'))
+            self.camera = cv2.VideoCapture(camera_index)
             
             if not self.camera.isOpened():
-                print("❌ Camera not available. No mock data will be generated.")
-                self.camera_error = "Camera could not be opened. Check permissions or if another app is using it."
+                print(f"❌ Camera not available at index {camera_index}. No mock data will be generated.")
+                self.camera_error = f"Camera could not be opened at index {camera_index}. Check permissions or if another app is using it."
                 return
             
-            print("📹 Camera opened successfully")
+            # Configure camera resolution if specified (for higher res USB cameras)
+            # Default: use camera's native resolution
+            target_width = os.getenv('CAMERA_WIDTH')
+            target_height = os.getenv('CAMERA_HEIGHT')
+            
+            if target_width and target_height:
+                self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, int(target_width))
+                self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, int(target_height))
+                print(f"📹 Camera configured: {target_width}x{target_height}")
+            else:
+                # Get actual resolution for logging
+                actual_width = int(self.camera.get(cv2.CAP_PROP_FRAME_WIDTH))
+                actual_height = int(self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                print(f"📹 Camera opened successfully at index {camera_index} ({actual_width}x{actual_height})")
+            
+            # Optimize for performance: set buffer size to 1 to reduce latency
+            self.camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             
             while self.is_tracking:
                 ret, frame = self.camera.read()
@@ -319,7 +336,23 @@ class GestureRecognitionService:
         with self.lock:
             if self.latest_frame is None:
                 return None
-            ret, jpeg = cv2.imencode('.jpg', self.latest_frame)
+            
+            # For higher resolution cameras, resize for streaming to reduce bandwidth
+            # while keeping full resolution for gesture detection
+            max_stream_width = int(os.getenv('STREAM_MAX_WIDTH', '1280'))
+            frame = self.latest_frame
+            
+            # Resize if frame is larger than max stream width
+            h, w = frame.shape[:2]
+            if w > max_stream_width:
+                scale = max_stream_width / w
+                new_width = max_stream_width
+                new_height = int(h * scale)
+                frame = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_AREA)
+            
+            # Encode with quality setting (lower for higher res to reduce bandwidth)
+            encode_params = [cv2.IMWRITE_JPEG_QUALITY, 85]
+            ret, jpeg = cv2.imencode('.jpg', frame, encode_params)
             return jpeg.tobytes() if ret else None
 
 # Initialize service

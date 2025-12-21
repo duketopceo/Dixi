@@ -41,32 +41,39 @@ const AIInputBar: React.FC = () => {
   if (!isVisible) {
     return (
       <div className="ai-input-hint">
-        Press SPACE to ask AI
+        ⌨ SPACE TO QUERY
       </div>
     );
   }
 
   return (
     <form onSubmit={handleSubmit} className="ai-input-bar">
-      <input
-        type="text"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="Ask anything..."
-        autoFocus
-        disabled={isLoading}
-        onBlur={(e) => {
-          // Don't hide if clicking submit button
-          if (!e.relatedTarget || (e.relatedTarget as HTMLElement).type !== 'submit') {
-            // Small delay to allow submit
-            setTimeout(() => {
-              if (!input.trim()) {
-                setIsVisible(false);
-              }
-            }, 100);
-          }
-        }}
-      />
+      <div className="ai-input-wrapper">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Ask anything..."
+          autoFocus
+          disabled={isLoading}
+          onBlur={(e) => {
+            // Don't hide if clicking submit button
+            if (!e.relatedTarget || (e.relatedTarget as HTMLElement).type !== 'submit') {
+              // Small delay to allow submit
+              setTimeout(() => {
+                if (!input.trim()) {
+                  setIsVisible(false);
+                }
+              }, 100);
+            }
+          }}
+        />
+        {isLoading && (
+          <div className="ai-loading-indicator">
+            <span className="loading-dot" />
+          </div>
+        )}
+      </div>
     </form>
   );
 };

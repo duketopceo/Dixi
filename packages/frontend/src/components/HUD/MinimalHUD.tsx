@@ -41,30 +41,28 @@ const MinimalHUD: React.FC = () => {
 
   return (
     <div className="minimal-hud">
-      <div className="hud-section">
-        <div className="hud-item">
-          <span className="hud-label">Status:</span>
-          <span className={`connection-dot ${isConnected ? 'connected' : 'disconnected'}`} />
-        </div>
-        {currentGesture && (
-          <div className="hud-item">
-            <span className="hud-label">Gesture:</span>
-            <span className="hud-value">
-              {currentGesture.type} ({(currentGesture.confidence * 100).toFixed(0)}%)
-            </span>
-          </div>
-        )}
-        <div className="hud-item">
-          <span className="hud-label">FPS:</span>
-          <span className="hud-value">{fps}</span>
-        </div>
-        {isProcessing && (
-          <div className="hud-item">
-            <span className="loading-dot" />
-            <span className="hud-value">Processing...</span>
-          </div>
-        )}
+      <div className="hud-item">
+        <span className={`connection-dot ${isConnected ? 'connected' : 'disconnected'}`} />
+        <span className="hud-label">{isConnected ? 'LIVE' : 'OFFLINE'}</span>
       </div>
+      {currentGesture && (
+        <div className="hud-item">
+          <span className="hud-label">GESTURE:</span>
+          <span className="hud-value">
+            {currentGesture.type.toUpperCase()} {(currentGesture.confidence * 100).toFixed(0)}%
+          </span>
+        </div>
+      )}
+      <div className="hud-item fps-item">
+        <span className="hud-label">FPS:</span>
+        <span className="hud-value">{fps}</span>
+      </div>
+      {isProcessing && (
+        <div className="hud-item">
+          <span className="loading-dot" />
+          <span className="hud-value">PROCESSING</span>
+        </div>
+      )}
     </div>
   );
 };

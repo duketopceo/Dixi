@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
-import { GestureCursor } from './GestureCursor';
-import { AIResponseText } from './AIResponseText';
-import { useGestureStore } from '../../store/gestureStore';
-import { useAIStore } from '../../store/aiStore';
+import { GestureCursor } from './Scene/GestureCursor';
+import { AIResponseText } from './Scene/AIResponseText';
+import { useGestureStore } from '../store/gestureStore';
+import { useAIStore } from '../store/aiStore';
 
 const ProjectionScene: React.FC = () => {
   const { scene } = useThree();

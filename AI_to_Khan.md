@@ -2,43 +2,38 @@
 
 **Last Updated:** December 21, 2025
 
-Hey Khan! I scanned the repo for errors and fixed a few leftover issues. Everything's clean and consistent now.
+Hey Khan! Just finished a massive UI overhaul and added test coverage. The app now has a premium spatial computing interface.
 
-## What I Fixed
+## Major UI Overhaul
 
-Found some old TensorFlow.js references that needed cleaning up:
+Applied Apple Vision Pro + Nothing Phone + Robinhood + SpaceX design system:
+- Glassmorphism effects (frosted glass with blur)
+- Nothing Phone status dots with glow
+- SpaceX targeting system (corner brackets, crosshair)
+- Apple Vision Pro floating glass cards for AI responses
+- Monospace fonts for technical data
+- Colors: Cyan (#00F5FF) active, Green (#00FF87) success, Pink (#FF006E) error
 
-- Removed unused TensorFlow.js and ONNX dependencies from backend package.json
-- Fixed misleading "GPU Acceleration" log message (now shows Ollama connection info)
-- Wrote a proper health test for the vision service (was just an empty file)
-- Updated package keywords (removed "tensorflow", added "ollama")
+**Components:** MinimalHUD (floating text), AIInputBar (glassmorphism, Space toggle), GestureCursor (SpaceX reticle), AIResponseText (glass card), ControlPanel (glass styling).
 
-All changes pass linting with zero errors. The codebase is now fully consistent with the Ollama architecture.
+**Layout:** Full-screen camera feed, transparent 3D overlay, minimal HUD top-left, bottom input.
 
-## How It Works
+## Test Coverage
 
-The system uses Ollama for all AI stuff. When you send a query, the backend builds a prompt (includes gesture info if available) and sends it to Ollama's API. Handles both regular and streaming responses. Default model is `gemma3:4b` - change it with `OLLAMA_MODEL` if needed.
+Vitest with React Testing Library: MinimalHUD, AIInputBar, AIStore tests. Run: `cd packages/frontend && npm test`
 
-Dependencies are cleaned up - no more TensorFlow.js or ONNX. Frontend works on both `localhost` and `127.0.0.1`. Python stuff is in `.venv`.
+## USB Camera Support
+
+Updated for higher resolution USB cameras:
+- Configurable via `CAMERA_INDEX` env var (default: 0)
+- Optional resolution via `CAMERA_WIDTH`/`CAMERA_HEIGHT`
+- Auto-resizes stream to 1280px max (full res for detection)
+- Optimized for performance
 
 ## Current Status
 
-Everything's working. Frontend at http://localhost:3000 (or 5173), backend on 3001, Ollama connected. AI service initializes on first request. All dependencies installed (Node.js packages and Python in `.venv`). Vision service ready for gesture tracking - start it with `python packages/vision/main.py`.
+Everything working. Frontend http://localhost:3000 (or 5173), backend 3001, Ollama connected.
 
-## Quick Reference
+**Quick Ref:** Frontend 3000/5173, Backend 3001, Health /health, Tests `npm test` in frontend.
 
-- Frontend: http://localhost:3000 (or 5173)
-- Backend: http://localhost:3001
-- Health: http://localhost:3001/health
-- AI Status: http://localhost:3001/api/ai/status
-
-**Scripts:**
-- Setup: `scripts/setup_environment.ps1`
-- Test: `scripts/test_everything.ps1` or `scripts/run_system_test.ps1`
-- Kill port: `npm run kill-port <port>`
-
-## Troubleshooting
-
-Port conflicts? Backend will tell you how to fix it. Use `npm run kill-port <port>` or the suggested PowerShell command. WebSocket issues? Frontend auto-retries. API errors show in the UI.
-
-Everything is clean, consistent, and working. Let me know if you run into anything!
+Everything clean, tested, and ready!

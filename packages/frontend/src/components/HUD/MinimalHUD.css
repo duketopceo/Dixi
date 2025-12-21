@@ -1,20 +1,19 @@
 .minimal-hud {
   position: fixed;
-  top: 16px;
-  left: 16px;
+  top: 24px;
+  left: 24px;
   z-index: 100;
   pointer-events: none;
-}
-
-.hud-section {
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 12px 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  /* Improved visibility with glassmorphism */
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(8px);
+  padding: 12px 16px;
+  border-radius: 8px;
 }
 
 .hud-item {
@@ -23,41 +22,55 @@
   gap: 8px;
   font-size: 12px;
   color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
 .hud-label {
-  opacity: 0.7;
+  color: rgba(255, 255, 255, 0.6);
   font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .hud-value {
   font-weight: 600;
-  color: #00f2ff;
+  color: #ffffff;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+/* FPS counter - brighter and bolder for visibility */
+.fps-item .hud-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #00ff88;
 }
 
 .connection-dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   display: inline-block;
+  flex-shrink: 0;
 }
 
 .connection-dot.connected {
-  background: #00ff87;
-  box-shadow: 0 0 8px rgba(0, 255, 135, 0.6);
+  background: #00FF87;
+  box-shadow: 0 0 12px rgba(0, 255, 135, 0.8);
 }
 
 .connection-dot.disconnected {
-  background: #ff006e;
-  box-shadow: 0 0 8px rgba(255, 0, 110, 0.6);
+  background: #FF006E;
+  box-shadow: 0 0 12px rgba(255, 0, 110, 0.8);
 }
 
 .loading-dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #00f2ff;
-  animation: pulse 1s infinite;
+  background: #00F5FF;
+  box-shadow: 0 0 12px rgba(0, 245, 255, 0.8);
+  animation: pulse 2s infinite ease-in-out;
+  flex-shrink: 0;
 }
 
 @keyframes pulse {
@@ -66,8 +79,8 @@
     transform: scale(1);
   }
   50% {
-    opacity: 0.5;
-    transform: scale(1.2);
+    opacity: 0.6;
+    transform: scale(1.1);
   }
 }
 
