@@ -4,6 +4,7 @@ import ControlPanel from './components/ControlPanel';
 import MinimalHUD from './components/HUD/MinimalHUD';
 import AIInputBar from './components/HUD/AIInputBar';
 import { useWebSocket } from './hooks/useWebSocket';
+import './config/firebase'; // Initialize Firebase
 import './App.css';
 
 const App: React.FC = () => {

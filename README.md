@@ -228,6 +228,45 @@ OLLAMA_MODEL=llama3.2
 
 ## 🚀 Deployment
 
+### Firebase Hosting
+
+1. **Install Firebase CLI**
+   ```bash
+   npm install -g firebase-tools
+   ```
+
+2. **Login to Firebase**
+   ```bash
+   firebase login
+   ```
+
+3. **Setup Firebase** (first time only)
+   ```bash
+   # Windows PowerShell
+   .\scripts\setup_firebase.ps1
+   
+   # Or manually:
+   # Update .firebaserc with your Firebase project ID
+   # firebase use --add  # Select or create a project
+   ```
+
+4. **Build frontend**
+   ```bash
+   npm run build:frontend
+   ```
+
+5. **Deploy to Firebase**
+   ```bash
+   # Deploy everything
+   firebase deploy
+   
+   # Or deploy only hosting
+   firebase deploy --only hosting
+   
+   # Or deploy only functions (backend)
+   firebase deploy --only functions
+   ```
+
 ### GCP Cloud Run
 
 1. **Build and push containers**

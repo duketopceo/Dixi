@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
 import { GestureCursor } from './Scene/GestureCursor';
 import { AIResponseText } from './Scene/AIResponseText';
+import { AIResponseCards } from './Scene/AIResponseCards';
 import { useGestureStore } from '../store/gestureStore';
 import { useAIStore } from '../store/aiStore';
 
@@ -82,6 +83,7 @@ const ProjectionScene: React.FC = () => {
       <ambientLight intensity={0.5} />
       <GestureCursor />
       <AIResponseText />
+      <AIResponseCards />
     </>
   );
 };

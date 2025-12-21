@@ -38,17 +38,20 @@ const ProjectionCanvas: React.FC = () => {
         )}
       </div>
 
-      {/* 3D Canvas overlay - transparent */}
+      {/* 3D Canvas overlay - transparent, covering camera area */}
       <Canvas
         gl={{ alpha: true, antialias: true }}
         frameloop="always"
         dpr={[1, 2]}
         style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '70vw',
+          maxWidth: '1200px',
+          height: '70vh',
+          maxHeight: '800px',
           zIndex: 10,
           pointerEvents: 'none'
         }}

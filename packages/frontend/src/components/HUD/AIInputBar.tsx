@@ -29,12 +29,23 @@ const AIInputBar: React.FC = () => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
     
+    const queryText = input.trim();
+    setInput('');
+    
     try {
-      await sendQuery(input);
-      setInput('');
-      setIsVisible(false);
+      await sendQuery(queryText);
+      // Keep input bar visible after sending
     } catch (error) {
       console.error('Failed to send query:', error);
+      // Restore input on error
+      setInput(queryText);
+    }
+  };
+  
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e as any);
     }
   };
 
@@ -53,7 +64,8 @@ const AIInputBar: React.FC = () => {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask anything..."
+          onKeyDown={handleKeyDown}
+          placeholder="Ask anything... (Press Enter to send)"
           autoFocus
           disabled={isLoading}
           onBlur={(e) => {

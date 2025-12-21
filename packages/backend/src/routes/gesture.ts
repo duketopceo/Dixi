@@ -18,6 +18,17 @@ const gestureCooldowns: { [key: string]: number } = {
 };
 const GESTURE_COOLDOWN_MS = 2000; // Prevent multiple AI calls for same gesture
 
+// Continuous analysis state with rate limiting
+const gestureBuffer: any[] = [];
+const MAX_BUFFER_SIZE = 10; // Reduced from 20 for better performance
+const CONTINUOUS_ANALYSIS_INTERVAL = 5000; // Increased to 5 seconds (was 3)
+const MIN_GESTURE_INTERVAL = 2000; // 2 seconds between gesture-triggered analyses
+const COOLDOWN_AFTER_ANALYSIS = 5000; // 5 second cooldown after each analysis
+let lastContinuousAnalysis = 0;
+let lastGestureAnalysis = 0;
+let continuousAnalysisTimer: NodeJS.Timeout | null = null;
+let analysisInProgress = false;
+
 // Get current gesture data
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -63,31 +74,71 @@ async function triggerAIForGesture(gestureData: any): Promise<void> {
       logger.warn('AI service initialization failed, will attempt inference anyway:', initError);
     }
     
-    // Create gesture-specific prompts
+    // Create gesture-specific prompts for all gesture types
     let prompt: string;
     let queryText: string;
+    const x = gestureData.position?.x?.toFixed(2) || '0.00';
+    const y = gestureData.position?.y?.toFixed(2) || '0.00';
+    const confidence = (gestureData.confidence * 100).toFixed(0);
     
-    switch (gestureType) {
-      case 'wave':
-        prompt = `The user just waved their hand in front of the camera. Describe this gesture in a natural, friendly way. Keep it brief (1-2 sentences).`;
-        queryText = 'Wave gesture detected';
-        break;
-      case 'point':
-        const x = gestureData.position?.x?.toFixed(2) || '0.00';
-        const y = gestureData.position?.y?.toFixed(2) || '0.00';
-        prompt = `The user is pointing at coordinates [${x}, ${y}] in the interaction space. Describe what could be there or what action this might represent. Keep it brief (1-2 sentences).`;
-        queryText = `Point gesture at coordinates [${x}, ${y}]`;
-        break;
-      case 'pinch':
-        const px = gestureData.position?.x?.toFixed(2) || '0.00';
-        const py = gestureData.position?.y?.toFixed(2) || '0.00';
-        prompt = `The user is performing a pinch gesture at coordinates [${px}, ${py}]. This typically means selection or grabbing. Describe this interaction in a natural way. Keep it brief (1-2 sentences).`;
-        queryText = `Pinch gesture at coordinates [${px}, ${py}]`;
-        break;
-      default:
-        prompt = `The user performed a ${gestureType} gesture. Describe this interaction. Keep it brief (1-2 sentences).`;
-        queryText = `${gestureType} gesture detected`;
+    // Gesture-specific prompts
+    const gesturePrompts: { [key: string]: string } = {
+      'wave': `The user just waved their hand. This is a friendly greeting gesture.`,
+      'point': `The user is pointing at coordinates [${x}, ${y}]. They might be indicating something specific.`,
+      'point_up': `The user is pointing upward. This could indicate something above or a positive direction.`,
+      'point_down': `The user is pointing downward. This could indicate something below or a negative direction.`,
+      'point_left': `The user is pointing left. This could indicate direction or navigation.`,
+      'point_right': `The user is pointing right. This could indicate direction or navigation.`,
+      'pinch': `The user is performing a pinch gesture at [${x}, ${y}]. This typically means selection or grabbing.`,
+      'fist': `The user made a fist. This could indicate determination, agreement, or a closed state.`,
+      'open_palm': `The user has an open palm. This could indicate openness, stopping, or showing something.`,
+      'thumbs_up': `The user gave a thumbs up. This is a positive affirmation or approval gesture.`,
+      'thumbs_down': `The user gave a thumbs down. This is a negative or disapproval gesture.`,
+      'peace': `The user made a peace sign (V-sign). This is a friendly or victory gesture.`,
+      'ok': `The user made an OK sign. This indicates approval or that something is correct.`,
+      'rock': `The user made a rock on gesture. This is a playful or celebratory gesture.`,
+      'spiderman': `The user made a Spiderman web-shooting gesture. This is a playful action gesture.`,
+      'gun': `The user made a pointing gun gesture. This could indicate targeting or selection.`,
+      'three': `The user is showing three fingers. This could indicate a number or count.`,
+      'four': `The user is showing four fingers. This could indicate a number or count.`,
+      'five': `The user is showing an open hand with all fingers extended.`,
+      'swipe_left': `The user swiped left. This typically means moving backward, dismissing, or going to previous.`,
+      'swipe_right': `The user swiped right. This typically means moving forward, accepting, or going to next.`,
+      'swipe_up': `The user swiped up. This could mean scrolling up, revealing, or moving upward.`,
+      'swipe_down': `The user swiped down. This could mean scrolling down, hiding, or moving downward.`,
+      'circle': `The user made a circular motion. This could indicate rotation, completion, or a circular pattern.`,
+      'figure_eight': `The user made a figure-eight motion. This is a complex gesture indicating infinity or a pattern.`,
+      'zoom_in': `The user is zooming in (pinch expanding). They want to see more detail or get closer.`,
+      'zoom_out': `The user is zooming out (pinch contracting). They want to see a wider view or move back.`,
+      'grab': `The user is grabbing or closing their hand. This indicates selection or taking hold of something.`,
+      'release': `The user is releasing or opening their hand. This indicates letting go or deselecting.`,
+      'rotate_clockwise': `The user is rotating clockwise. This could indicate turning something or a clockwise motion.`,
+      'rotate_counterclockwise': `The user is rotating counter-clockwise. This could indicate turning something or a counter-clockwise motion.`,
+      'shake': `The user is shaking their hand rapidly. This could indicate uncertainty, rejection, or a negative response.`,
+      'double_tap': `The user performed a double tap (two quick pinches). This typically means selection or activation.`,
+      'clap': `The user clapped their hands together. This is a celebratory or approval gesture.`,
+      'stretch': `The user stretched their hands apart. This could indicate expansion, zooming out, or separation.`,
+      'point_both': `The user is pointing with both hands. This emphasizes a specific location or direction.`
+    };
+    
+    prompt = gesturePrompts[gestureType] || `The user performed a ${gestureType} gesture at coordinates [${x}, ${y}] with ${confidence}% confidence.`;
+    queryText = `${gestureType.charAt(0).toUpperCase() + gestureType.slice(1)} gesture detected`;
+    
+    // Add context about gesture details if available
+    if (gestureData.finger_states || gestureData.orientation || gestureData.motion) {
+      const contextParts = [];
+      if (gestureData.motion?.pattern && gestureData.motion.pattern !== 'none') {
+        contextParts.push(`motion pattern: ${gestureData.motion.pattern}`);
+      }
+      if (gestureData.orientation) {
+        contextParts.push(`hand orientation: pitch ${gestureData.orientation.pitch.toFixed(0)}°, yaw ${gestureData.orientation.yaw.toFixed(0)}°`);
+      }
+      if (contextParts.length > 0) {
+        prompt += ` Context: ${contextParts.join(', ')}.`;
+      }
     }
+    
+    prompt += ` Describe this interaction naturally and helpfully. Keep it brief (1-2 sentences).`;
     
     // Get AI response
     const context = `Gesture detected: ${gestureType}, position: (${gestureData.position?.x?.toFixed(2)}, ${gestureData.position?.y?.toFixed(2)}), confidence: ${(gestureData.confidence * 100).toFixed(0)}%`;
@@ -156,12 +207,96 @@ router.post('/stop', gestureLimiter, async (req: Request, res: Response) => {
   }
 });
 
+// Continuous analysis function with rate limiting
+async function performContinuousAnalysis(): Promise<void> {
+  // Rate limiting checks
+  const currentTime = Date.now();
+  if (analysisInProgress) {
+    logger.debug('Analysis already in progress, skipping');
+    return;
+  }
+  
+  if (currentTime - lastContinuousAnalysis < COOLDOWN_AFTER_ANALYSIS) {
+    logger.debug('Analysis cooldown active, skipping');
+    return;
+  }
+  
+  if (gestureBuffer.length < 5) return; // Need at least 5 gestures for analysis
+  
+  analysisInProgress = true;
+  
+  try {
+    const recentGestures = gestureBuffer.slice(-10); // Last 10 gestures
+    const gestureTypes = recentGestures.map(g => g.type).filter(t => t !== 'unknown');
+    const uniqueTypes = [...new Set(gestureTypes)];
+    
+    if (uniqueTypes.length === 0) return;
+    
+    // Build analysis prompt
+    const gestureSummary = uniqueTypes.map(type => {
+      const count = gestureTypes.filter(t => t === type).length;
+      return `${type} (${count}x)`;
+    }).join(', ');
+    
+    const prompt = `Analyze the user's recent gesture activity. They performed: ${gestureSummary}. Provide a brief, natural analysis of what the user might be trying to communicate or interact with. Keep it conversational and helpful (2-3 sentences max).`;
+    
+    // Use streaming for continuous analysis
+    if (wsService) {
+      let fullResponse = '';
+      
+      await aiService.inferStream(prompt, { analysisType: 'continuous' }, (chunk: any) => {
+        if (chunk.response) {
+          fullResponse += chunk.response;
+          // Stream each chunk to clients
+          wsService.broadcastAIResponse({
+            query: 'Continuous gesture analysis',
+            response: fullResponse,
+            metadata: { 
+              ...chunk.metadata,
+              analysisType: 'continuous',
+              streaming: true
+            },
+            timestamp: Date.now()
+          });
+        }
+      });
+      
+      // Final response when streaming completes
+      wsService.broadcastAIResponse({
+        query: 'Continuous gesture analysis',
+        response: fullResponse,
+        metadata: { 
+          analysisType: 'continuous',
+          streaming: false,
+          gestureCount: recentGestures.length
+        },
+        timestamp: Date.now()
+      });
+    }
+    
+    lastContinuousAnalysis = Date.now();
+  } catch (error) {
+    logger.error('Continuous analysis failed:', error);
+  } finally {
+    analysisInProgress = false;
+  }
+}
+
 // Process gesture event (with validation)
 router.post('/process', validateGestureProcess, async (req: Request, res: Response) => {
   try {
     const gestureData = req.body;
     
     logger.debug('Processing gesture', { type: gestureData.type, confidence: gestureData.confidence });
+    
+    // Add to buffer for continuous analysis
+    gestureBuffer.push({
+      ...gestureData,
+      timestamp: Date.now()
+    });
+    if (gestureBuffer.length > MAX_BUFFER_SIZE) {
+      gestureBuffer.shift(); // Remove oldest
+    }
     
     // Broadcast to all connected clients via WebSocket
     if (wsService) {
@@ -173,17 +308,42 @@ router.post('/process', validateGestureProcess, async (req: Request, res: Respon
       });
     }
     
-    // Automatically trigger AI inference when gesture is detected
+    // Automatically trigger AI inference when gesture is detected (with rate limiting)
     if (gestureData.type && gestureData.type !== 'unknown') {
       const currentTime = Date.now();
       const gestureType = gestureData.type;
-      // Only trigger if enough time has passed since last gesture of this type (cooldown)
-      if (currentTime - (gestureCooldowns[gestureType] || 0) > GESTURE_COOLDOWN_MS) {
+      
+      // Rate limiting: Only trigger if enough time has passed
+      const timeSinceLastGesture = currentTime - (gestureCooldowns[gestureType] || 0);
+      const timeSinceLastAnalysis = currentTime - lastGestureAnalysis;
+      
+      if (timeSinceLastGesture > GESTURE_COOLDOWN_MS && 
+          timeSinceLastAnalysis > MIN_GESTURE_INTERVAL &&
+          !analysisInProgress) {
         gestureCooldowns[gestureType] = currentTime;
+        lastGestureAnalysis = currentTime;
         triggerAIForGesture(gestureData).catch((error) => {
           logger.error(`Failed to trigger AI for ${gestureType} gesture:`, error);
         });
       }
+    }
+    
+    // Trigger continuous analysis if enough time has passed (with stricter rate limiting)
+    const currentTime = Date.now();
+    const timeSinceLastAnalysis = currentTime - lastContinuousAnalysis;
+    if (timeSinceLastAnalysis > CONTINUOUS_ANALYSIS_INTERVAL && 
+        gestureBuffer.length >= 5 && 
+        !analysisInProgress) {
+      // Clear any existing timer
+      if (continuousAnalysisTimer) {
+        clearTimeout(continuousAnalysisTimer);
+      }
+      // Schedule analysis (non-blocking) with delay to batch recent gestures
+      continuousAnalysisTimer = setTimeout(() => {
+        performContinuousAnalysis().catch((error) => {
+          logger.error('Scheduled continuous analysis failed:', error);
+        });
+      }, 1000); // Increased delay to batch more gestures
     }
     
     res.json({ 

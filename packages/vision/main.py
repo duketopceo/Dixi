@@ -62,11 +62,28 @@ class GestureRecognitionService:
         self.camera_error = None
         self.lock = threading.Lock()
         self.gesture_history = collections.deque(maxlen=30)
+        self.motion_history = collections.deque(maxlen=50)  # Extended for complex motion patterns
         # Push architecture: backend URL and last pushed gesture
         self.backend_url = os.getenv('BACKEND_URL', 'http://localhost:3001')
         self.last_pushed_gesture = None
         self.last_push_time = 0
         self.push_cooldown_ms = 200  # Minimum time between pushes (ms)
+        # Gesture state tracking
+        self.last_gesture_type = None
+        self.gesture_hold_time = {}  # Track how long a gesture has been held
+        self.last_pinch_time = None
+        self.last_pinch_distance = None
+        self.previous_finger_count = None
+        
+        # Gesture priority hierarchy to prevent conflicts
+        self.GESTURE_PRIORITY = {
+            'high': ['pinch', 'ok', 'peace', 'double_tap'],  # Check first - most specific
+            'medium': ['point_up', 'point_down', 'point_left', 'point_right', 
+                      'swipe_left', 'swipe_right', 'swipe_up', 'swipe_down',
+                      'zoom_in', 'zoom_out', 'grab', 'release'],  # Directional/motion
+            'low': ['fist', 'open_palm', 'thumbs_up', 'thumbs_down', 
+                   'three', 'four', 'five', 'wave', 'rock', 'spiderman', 'gun']  # Generic shapes - check last
+        }
 
     def start_tracking(self):
         """Start gesture tracking from camera"""
@@ -142,20 +159,41 @@ class GestureRecognitionService:
                     result = self.landmarker.detect_for_video(mp_image, timestamp_ms)
                     
                     if result.hand_landmarks:
-                        # Extract the first hand's landmarks
-                        hand_landmarks = result.hand_landmarks[0]
-                        gesture_data = self._analyze_gesture(hand_landmarks, timestamp_ms)
+                        num_hands = len(result.hand_landmarks)
+                        
+                        # Handle two-hand gestures
+                        if num_hands == 2:
+                            hand1_landmarks = result.hand_landmarks[0]
+                            hand2_landmarks = result.hand_landmarks[1]
+                            
+                            # Detect two-hand gestures
+                            two_hand_gesture = self._detect_two_hand_gesture(hand1_landmarks, hand2_landmarks, timestamp_ms)
+                            if two_hand_gesture:
+                                gesture_data = two_hand_gesture
+                            else:
+                                # Default to primary hand (first detected)
+                                gesture_data = self._analyze_gesture(hand1_landmarks, timestamp_ms)
+                                gesture_data['hand'] = 'both'
+                            
+                            # Draw both hands
+                            self._draw_landmarks(frame, hand1_landmarks)
+                            self._draw_landmarks(frame, hand2_landmarks)
+                        else:
+                            # Single hand
+                            hand_landmarks = result.hand_landmarks[0]
+                            gesture_data = self._analyze_gesture(hand_landmarks, timestamp_ms)
+                            gesture_data['hand'] = 'single'
+                            self._draw_landmarks(frame, hand_landmarks)
+                        
                         self.current_gesture = gesture_data
                         
                         # Push gesture to backend if it changed or cooldown expired
                         self._push_gesture_to_backend(gesture_data, timestamp_ms)
-                        
-                        # Draw landmarks for the debug feed
-                        self._draw_landmarks(frame, hand_landmarks)
                     else:
                         self.current_gesture = None
                         # Clear history when hand is lost
                         self.gesture_history.clear()
+                        self.motion_history.clear()
                     
                     with self.lock:
                         self.latest_frame = frame.copy()
@@ -173,44 +211,298 @@ class GestureRecognitionService:
                 self.camera.release()
 
 
-    def _analyze_gesture(self, hand_landmarks, timestamp_ms: int) -> Dict:
-        """Analyze hand landmarks to determine gesture type"""
-        # Tasks API landmark object is slightly different but has x, y, z
+    def _detect_finger_states(self, hand_landmarks) -> Dict[str, bool]:
+        """Detect which fingers are extended (True) or bent (False)"""
+        # Landmark indices: 0=wrist, 4=thumb_tip, 8=index_tip, 12=middle_tip, 16=ring_tip, 20=pinky_tip
+        # For each finger, check if tip is above the joint before it
         thumb_tip = hand_landmarks[4]
+        thumb_ip = hand_landmarks[3]  # Thumb IP joint
+        thumb_extended = thumb_tip.x > thumb_ip.x if thumb_tip.x > hand_landmarks[0].x else thumb_tip.x < thumb_ip.x
+        
         index_tip = hand_landmarks[8]
+        index_pip = hand_landmarks[6]  # Index PIP joint
+        index_extended = index_tip.y < index_pip.y
+        
+        middle_tip = hand_landmarks[12]
+        middle_pip = hand_landmarks[10]
+        middle_extended = middle_tip.y < middle_pip.y
+        
+        ring_tip = hand_landmarks[16]
+        ring_pip = hand_landmarks[14]
+        ring_extended = ring_tip.y < ring_pip.y
+        
+        pinky_tip = hand_landmarks[20]
+        pinky_pip = hand_landmarks[18]
+        pinky_extended = pinky_tip.y < pinky_pip.y
+        
+        return {
+            'thumb': thumb_extended,
+            'index': index_extended,
+            'middle': middle_extended,
+            'ring': ring_extended,
+            'pinky': pinky_extended
+        }
+    
+    def _detect_hand_orientation(self, hand_landmarks) -> Dict[str, float]:
+        """Calculate hand orientation (pitch, yaw, roll)"""
+        wrist = hand_landmarks[0]
+        middle_mcp = hand_landmarks[9]  # Middle finger MCP
+        index_mcp = hand_landmarks[5]   # Index finger MCP
+        
+        # Calculate vectors
+        # Roll: rotation around the axis from wrist to middle finger
+        wrist_to_middle = np.array([middle_mcp.x - wrist.x, middle_mcp.y - wrist.y])
+        roll = np.arctan2(wrist_to_middle[1], wrist_to_middle[0])
+        
+        # Pitch: vertical orientation (how much hand is tilted up/down)
+        index_to_pinky = np.array([
+            hand_landmarks[17].x - index_mcp.x,
+            hand_landmarks[17].y - index_mcp.y
+        ])
+        pitch = np.arctan2(index_to_pinky[1], index_to_pinky[0])
+        
+        # Yaw: horizontal orientation (pointing left/right)
+        wrist_to_index = np.array([index_mcp.x - wrist.x, index_mcp.y - wrist.y])
+        yaw = np.arctan2(wrist_to_index[1], wrist_to_index[0])
+        
+        return {
+            'pitch': float(np.degrees(pitch)),
+            'yaw': float(np.degrees(yaw)),
+            'roll': float(np.degrees(roll))
+        }
+    
+    def _detect_motion_pattern(self, timestamp_ms: int) -> Dict[str, any]:
+        """Analyze motion patterns from gesture history"""
+        if len(self.motion_history) < 10:
+            return {'pattern': 'none', 'velocity': 0.0, 'direction': 0.0}
+        
+        recent = list(self.motion_history)[-20:]
+        if len(recent) < 10:
+            return {'pattern': 'none', 'velocity': 0.0, 'direction': 0.0}
+        
+        # Calculate velocities
+        velocities = []
+        directions = []
+        for i in range(1, len(recent)):
+            dt = (recent[i]['timestamp'] - recent[i-1]['timestamp']) / 1000.0
+            if dt > 0:
+                dx = recent[i]['x'] - recent[i-1]['x']
+                dy = recent[i]['y'] - recent[i-1]['y']
+                vel = np.sqrt(dx**2 + dy**2) / dt
+                direction = np.arctan2(dy, dx)
+                velocities.append(vel)
+                directions.append(direction)
+        
+        if len(velocities) < 5:
+            return {'pattern': 'none', 'velocity': 0.0, 'direction': 0.0}
+        
+        avg_velocity = np.mean(velocities)
+        avg_direction = np.mean(directions)
+        
+        # Detect patterns
+        x_positions = [p['x'] for p in recent]
+        y_positions = [p['y'] for p in recent]
+        x_range = max(x_positions) - min(x_positions)
+        y_range = max(y_positions) - min(y_positions)
+        
+        # Circular motion detection
+        center_x = np.mean(x_positions)
+        center_y = np.mean(y_positions)
+        distances_from_center = [np.sqrt((p['x'] - center_x)**2 + (p['y'] - center_y)**2) for p in recent]
+        distance_variance = np.var(distances_from_center)
+        is_circular = distance_variance < 0.01 and avg_velocity > 0.1
+        
+        # Figure-8 detection (two circles)
+        if is_circular and len(recent) > 15:
+            # Check for two distinct centers
+            mid_point = len(recent) // 2
+            center1 = (np.mean([p['x'] for p in recent[:mid_point]]), np.mean([p['y'] for p in recent[:mid_point]]))
+            center2 = (np.mean([p['x'] for p in recent[mid_point:]]), np.mean([p['y'] for p in recent[mid_point:]]))
+            center_distance = np.sqrt((center1[0] - center2[0])**2 + (center1[1] - center2[1])**2)
+            is_figure_eight = center_distance > 0.1 and distance_variance < 0.015
+        
+        # Swipe detection
+        is_swipe_left = x_range > 0.15 and avg_direction < -2.5 and avg_velocity > 0.2
+        is_swipe_right = x_range > 0.15 and avg_direction > 0.5 and avg_velocity > 0.2
+        is_swipe_up = y_range > 0.15 and -1.5 < avg_direction < -0.5 and avg_velocity > 0.2
+        is_swipe_down = y_range > 0.15 and 0.5 < avg_direction < 1.5 and avg_velocity > 0.2
+        
+        # Shake detection (rapid back and forth)
+        direction_changes = sum(1 for i in range(1, len(directions)) 
+                               if abs(directions[i] - directions[i-1]) > 2.0)
+        is_shake = direction_changes > 3 and avg_velocity > 0.3
+        
+        pattern = 'none'
+        if is_figure_eight:
+            pattern = 'figure_eight'
+        elif is_circular:
+            # Determine rotation direction
+            angle_changes = [directions[i] - directions[i-1] for i in range(1, len(directions))]
+            avg_angle_change = np.mean([a if abs(a) < np.pi else (a - 2*np.pi if a > 0 else a + 2*np.pi) for a in angle_changes])
+            pattern = 'rotate_clockwise' if avg_angle_change > 0 else 'rotate_counterclockwise'
+        elif is_swipe_left:
+            pattern = 'swipe_left'
+        elif is_swipe_right:
+            pattern = 'swipe_right'
+        elif is_swipe_up:
+            pattern = 'swipe_up'
+        elif is_swipe_down:
+            pattern = 'swipe_down'
+        elif is_shake:
+            pattern = 'shake'
+        
+        return {
+            'pattern': pattern,
+            'velocity': float(avg_velocity),
+            'direction': float(np.degrees(avg_direction))
+        }
+    
+    def _analyze_gesture(self, hand_landmarks, timestamp_ms: int) -> Dict:
+        """Analyze hand landmarks to determine gesture type - supports 30+ gestures"""
+        # Get key landmarks
+        thumb_tip = hand_landmarks[4]
+        thumb_ip = hand_landmarks[3]
+        index_tip = hand_landmarks[8]
+        index_pip = hand_landmarks[6]
+        index_mcp = hand_landmarks[5]
+        middle_tip = hand_landmarks[12]
+        middle_pip = hand_landmarks[10]
+        ring_tip = hand_landmarks[16]
+        ring_pip = hand_landmarks[14]
+        pinky_tip = hand_landmarks[20]
+        pinky_pip = hand_landmarks[18]
         wrist = hand_landmarks[0]
         
-        # Calculate average position (using wrist as reference for stability)
+        # Calculate position
         avg_x = wrist.x
         avg_y = wrist.y
         
-        # Simple pinch detection
-        dist = np.sqrt((thumb_tip.x - index_tip.x)**2 + (thumb_tip.y - index_tip.y)**2)
-        
-        # Add current position to history for wave detection
+        # Add to history
         current_pos = {
             'x': float(avg_x),
             'y': float(avg_y),
             'timestamp': timestamp_ms
         }
         self.gesture_history.append(current_pos)
+        self.motion_history.append(current_pos)
         
-        # Detect wave gesture using motion analysis
-        wave_detected = self._detect_wave()
+        # Get finger states, orientation, and motion
+        finger_states = self._detect_finger_states(hand_landmarks)
+        orientation = self._detect_hand_orientation(hand_landmarks)
+        motion = self._detect_motion_pattern(timestamp_ms)
         
-        # Determine gesture type (wave takes priority)
-        if wave_detected:
-            gesture_type = 'wave'
+        # Calculate distances
+        thumb_index_dist = np.sqrt((thumb_tip.x - index_tip.x)**2 + (thumb_tip.y - index_tip.y)**2)
+        index_middle_dist = np.sqrt((index_tip.x - middle_tip.x)**2 + (index_tip.y - middle_tip.y)**2)
+        
+        # Count extended fingers
+        extended_count = sum([finger_states['thumb'], finger_states['index'], 
+                             finger_states['middle'], finger_states['ring'], finger_states['pinky']])
+        
+        gesture_type = 'unknown'
+        confidence = 0.5
+        
+        # Gesture detection with priority hierarchy to prevent conflicts
+        detected = False
+        
+        # Priority 1: Motion-based gestures (highest priority - they override static)
+        if motion['pattern'] != 'none':
+            gesture_type = motion['pattern']
             confidence = 0.85
-        elif dist < 0.05:
-            gesture_type = 'pinch'
-            confidence = 0.9
-        elif index_tip.y < wrist.y - 0.1:
-            gesture_type = 'point'
-            confidence = 0.9
+            detected = True
+        
+        # Priority 2: High-priority specific gestures (pinch, ok, peace, etc.)
+        if not detected:
+            # Special handling for double_tap (needs timing)
+            if 'double_tap' in self.GESTURE_PRIORITY['high']:
+                if thumb_index_dist < 0.05:
+                    current_time = timestamp_ms
+                    if self.last_pinch_time is not None:
+                        time_since_last = current_time - self.last_pinch_time
+                        if 200 < time_since_last < 800:  # 200-800ms between pinches
+                            gesture_type = 'double_tap'
+                            confidence = 0.85
+                            detected = True
+                            self.last_pinch_time = None
+                        else:
+                            self.last_pinch_time = current_time
+                            self.last_pinch_distance = thumb_index_dist
+                    else:
+                        self.last_pinch_time = current_time
+                        self.last_pinch_distance = thumb_index_dist
+            
+            # Check other high-priority gestures
+            if not detected:
+                for gesture_name in self.GESTURE_PRIORITY['high']:
+                    if gesture_name == 'double_tap':
+                        continue  # Already handled above
+                    if self._check_gesture(gesture_name, hand_landmarks, finger_states, thumb_index_dist, orientation):
+                        gesture_type = gesture_name
+                        confidence = 0.9
+                        detected = True
+                        break
+        
+        # Priority 3: Medium-priority directional/motion gestures
+        if not detected:
+            # Special handling for zoom_in/zoom_out (needs distance tracking)
+            if thumb_index_dist < 0.05 and self.last_pinch_distance is not None:
+                if thumb_index_dist > self.last_pinch_distance * 1.2:
+                    gesture_type = 'zoom_in'
+                    confidence = 0.8
+                    detected = True
+                elif thumb_index_dist < self.last_pinch_distance * 0.8:
+                    gesture_type = 'zoom_out'
+                    confidence = 0.8
+                    detected = True
+                self.last_pinch_distance = thumb_index_dist
+            
+            # Special handling for grab/release (needs finger count tracking)
+            if not detected:
+                current_finger_count = extended_count
+                if self.previous_finger_count is not None:
+                    if self.previous_finger_count > current_finger_count + 1:
+                        gesture_type = 'grab'
+                        confidence = 0.8
+                        detected = True
+                    elif self.previous_finger_count < current_finger_count - 1:
+                        gesture_type = 'release'
+                        confidence = 0.8
+                        detected = True
+                self.previous_finger_count = current_finger_count
+            
+            # Check other medium-priority gestures
+            if not detected:
+                for gesture_name in self.GESTURE_PRIORITY['medium']:
+                    if gesture_name in ['zoom_in', 'zoom_out', 'grab', 'release']:
+                        continue  # Already handled above
+                    if self._check_gesture(gesture_name, hand_landmarks, finger_states, thumb_index_dist, orientation):
+                        gesture_type = gesture_name
+                        confidence = 0.85
+                        detected = True
+                        break
+        
+        # Priority 4: Low-priority generic shapes (check last)
+        if not detected:
+            # Wave detection (special case - uses motion history)
+            if self._detect_wave():
+                gesture_type = 'wave'
+                confidence = 0.85
+                detected = True
+            else:
+                for gesture_name in self.GESTURE_PRIORITY['low']:
+                    if self._check_gesture(gesture_name, hand_landmarks, finger_states, thumb_index_dist, orientation):
+                        gesture_type = gesture_name
+                        confidence = 0.85
+                        detected = True
+                        break
+        
+        # Update gesture hold time
+        if gesture_type == self.last_gesture_type:
+            self.gesture_hold_time[gesture_type] = self.gesture_hold_time.get(gesture_type, 0) + 1
         else:
-            gesture_type = 'unknown'
-            confidence = 0.5
+            self.gesture_hold_time.clear()
+            self.gesture_hold_time[gesture_type] = 1
+            self.last_gesture_type = gesture_type
         
         return {
             'type': gesture_type,
@@ -222,8 +514,135 @@ class GestureRecognitionService:
             'confidence': confidence,
             'timestamp': timestamp_ms,
             'hand': 'detected',
-            'landmarks_count': len(hand_landmarks)
+            'landmarks_count': len(hand_landmarks),
+            'finger_states': finger_states,
+            'orientation': orientation,
+            'motion': motion
         }
+    
+    def _check_gesture(self, gesture_name: str, hand_landmarks, finger_states: Dict, 
+                      thumb_index_dist: float, orientation: Optional[Dict] = None) -> bool:
+        """Check if a specific gesture matches current hand state"""
+        thumb_tip = hand_landmarks[4]
+        index_tip = hand_landmarks[8]
+        middle_tip = hand_landmarks[12]
+        ring_tip = hand_landmarks[16]
+        pinky_tip = hand_landmarks[20]
+        wrist = hand_landmarks[0]
+        
+        extended_count = sum([finger_states['thumb'], finger_states['index'], 
+                             finger_states['middle'], finger_states['ring'], finger_states['pinky']])
+        
+        gesture_checks = {
+            'fist': not finger_states['thumb'] and not finger_states['index'] and \
+                   not finger_states['middle'] and not finger_states['ring'] and not finger_states['pinky'],
+            'open_palm': extended_count == 5,
+            'thumbs_up': finger_states['thumb'] and not finger_states['index'] and \
+                        not finger_states['middle'] and not finger_states['ring'] and not finger_states['pinky'] and \
+                        thumb_tip.y < wrist.y,
+            'thumbs_down': finger_states['thumb'] and not finger_states['index'] and \
+                          not finger_states['middle'] and not finger_states['ring'] and not finger_states['pinky'] and \
+                          thumb_tip.y > wrist.y,
+            'peace': finger_states['index'] and finger_states['middle'] and \
+                    not finger_states['ring'] and not finger_states['pinky'],
+            'ok': thumb_index_dist < 0.05 and finger_states['middle'] and \
+                 finger_states['ring'] and finger_states['pinky'],
+            'rock': finger_states['index'] and finger_states['pinky'] and \
+                   not finger_states['middle'] and not finger_states['ring'],
+            'spiderman': not finger_states['middle'] and not finger_states['ring'] and \
+                        finger_states['thumb'] and finger_states['index'] and finger_states['pinky'],
+            'gun': finger_states['index'] and not finger_states['middle'] and \
+                  not finger_states['ring'] and not finger_states['pinky'] and thumb_tip.y < index_tip.y,
+            'three': finger_states['thumb'] and finger_states['index'] and finger_states['middle'] and \
+                    not finger_states['ring'] and not finger_states['pinky'],
+            'four': not finger_states['thumb'] and finger_states['index'] and \
+                   finger_states['middle'] and finger_states['ring'] and finger_states['pinky'],
+            'five': extended_count == 5,
+            'pinch': thumb_index_dist < 0.05,
+            'point': finger_states['index'] and index_tip.y < wrist.y - 0.1,
+            'point_up': finger_states['index'] and not finger_states['middle'] and \
+                       index_tip.y < wrist.y - 0.15 and orientation and -45 < orientation['yaw'] < 45,
+            'point_down': finger_states['index'] and not finger_states['middle'] and \
+                         index_tip.y < wrist.y - 0.15 and orientation and (orientation['yaw'] > 135 or orientation['yaw'] < -135),
+            'point_left': finger_states['index'] and not finger_states['middle'] and \
+                         index_tip.y < wrist.y - 0.15 and orientation and -135 < orientation['yaw'] < -45,
+            'point_right': finger_states['index'] and not finger_states['middle'] and \
+                          index_tip.y < wrist.y - 0.15 and orientation and 45 < orientation['yaw'] < 135,
+        }
+        
+        return gesture_checks.get(gesture_name, False)
+    
+    def _detect_two_hand_gesture(self, hand1_landmarks, hand2_landmarks, timestamp_ms: int) -> Optional[Dict]:
+        """Detect gestures requiring two hands"""
+        wrist1 = hand1_landmarks[0]
+        wrist2 = hand2_landmarks[0]
+        
+        # Calculate distance between hands
+        hand_distance = np.sqrt((wrist1.x - wrist2.x)**2 + (wrist1.y - wrist2.y)**2)
+        
+        # Clap detection - hands coming together
+        if len(self.gesture_history) > 5:
+            recent_positions = list(self.gesture_history)[-5:]
+            prev_distances = []
+            for i in range(len(recent_positions) - 1):
+                # Simplified - would need to track both hand positions
+                prev_distances.append(hand_distance)
+            
+            if len(prev_distances) > 0 and hand_distance < min(prev_distances) * 0.7:
+                return {
+                    'type': 'clap',
+                    'position': {
+                        'x': float(((wrist1.x + wrist2.x) / 2) * 2 - 1),
+                        'y': float(1 - ((wrist1.y + wrist2.y) / 2) * 2),
+                        'z': float((wrist1.z + wrist2.z) / 2)
+                    },
+                    'confidence': 0.85,
+                    'timestamp': timestamp_ms,
+                    'hand': 'both',
+                    'landmarks_count': len(hand1_landmarks) + len(hand2_landmarks)
+                }
+        
+        # Stretch detection - hands moving apart
+        if len(self.gesture_history) > 5:
+            recent_positions = list(self.gesture_history)[-5:]
+            prev_distances = []
+            for i in range(len(recent_positions) - 1):
+                prev_distances.append(hand_distance)
+            
+            if len(prev_distances) > 0 and hand_distance > max(prev_distances) * 1.3:
+                return {
+                    'type': 'stretch',
+                    'position': {
+                        'x': float(((wrist1.x + wrist2.x) / 2) * 2 - 1),
+                        'y': float(1 - ((wrist1.y + wrist2.y) / 2) * 2),
+                        'z': float((wrist1.z + wrist2.z) / 2)
+                    },
+                    'confidence': 0.85,
+                    'timestamp': timestamp_ms,
+                    'hand': 'both',
+                    'landmarks_count': len(hand1_landmarks) + len(hand2_landmarks)
+                }
+        
+        # Point both - both hands pointing
+        finger_states1 = self._detect_finger_states(hand1_landmarks)
+        finger_states2 = self._detect_finger_states(hand2_landmarks)
+        
+        if finger_states1['index'] and finger_states2['index'] and \
+           not finger_states1['middle'] and not finger_states2['middle']:
+            return {
+                'type': 'point_both',
+                'position': {
+                    'x': float(((wrist1.x + wrist2.x) / 2) * 2 - 1),
+                    'y': float(1 - ((wrist1.y + wrist2.y) / 2) * 2),
+                    'z': float((wrist1.z + wrist2.z) / 2)
+                },
+                'confidence': 0.8,
+                'timestamp': timestamp_ms,
+                'hand': 'both',
+                'landmarks_count': len(hand1_landmarks) + len(hand2_landmarks)
+            }
+        
+        return None
     
     def _detect_wave(self) -> bool:
         """Detect wave gesture by analyzing motion patterns"""

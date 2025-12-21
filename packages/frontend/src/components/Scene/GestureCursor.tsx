@@ -29,11 +29,52 @@ export const GestureCursor: React.FC = () => {
 
   if (!currentGesture) return null;
 
-  const color = {
+  // Extended color mapping for 30+ gestures
+  const colorMap: { [key: string]: string } = {
+    // Basic gestures
     wave: '#00F5FF',
     pinch: '#FF006E',
-    point: '#00FF87'
-  }[currentGesture.type] || '#ffffff';
+    point: '#00FF87',
+    // Hand shapes
+    fist: '#8B0000',
+    open_palm: '#FFFFFF',
+    thumbs_up: '#00FF87',
+    thumbs_down: '#FF006E',
+    peace: '#00F5FF',
+    ok: '#FFD700',
+    rock: '#FF4500',
+    spiderman: '#FF0000',
+    gun: '#C0C0C0',
+    three: '#9D4EDD',
+    four: '#4A90E2',
+    five: '#FFFFFF',
+    // Directional
+    point_up: '#00FF87',
+    point_down: '#FF006E',
+    point_left: '#FFA500',
+    point_right: '#00F5FF',
+    swipe_left: '#FF6B6B',
+    swipe_right: '#4ECDC4',
+    swipe_up: '#95E1D3',
+    swipe_down: '#F38181',
+    // Complex motion
+    circle: '#9D4EDD',
+    figure_eight: '#E056FD',
+    zoom_in: '#00CED1',
+    zoom_out: '#FF1493',
+    grab: '#FF8C00',
+    release: '#32CD32',
+    rotate_clockwise: '#1E90FF',
+    rotate_counterclockwise: '#FF69B4',
+    shake: '#FF0000',
+    double_tap: '#FFD700',
+    // Two-hand
+    clap: '#FF1493',
+    stretch: '#00CED1',
+    point_both: '#00F5FF'
+  };
+
+  const color = colorMap[currentGesture.type] || '#ffffff';
 
   const bracketSize = 0.05;
   const bracketThickness = 0.01;
@@ -102,8 +143,8 @@ export const GestureCursor: React.FC = () => {
         </mesh>
       </group>
 
-      {/* Gesture-specific visual */}
-      {currentGesture.type === 'pinch' && (
+      {/* Gesture-specific visuals for various gesture types */}
+      {['pinch', 'ok', 'double_tap'].includes(currentGesture.type) && (
         <mesh ref={gestureVisualRef}>
           <octahedronGeometry args={[0.08, 0]} />
           <meshBasicMaterial 
@@ -115,10 +156,91 @@ export const GestureCursor: React.FC = () => {
         </mesh>
       )}
 
-      {currentGesture.type === 'point' && (
+      {['point', 'point_up', 'point_down', 'point_left', 'point_right', 'point_both', 'gun'].includes(currentGesture.type) && (
         <mesh ref={gestureVisualRef} rotation={[Math.PI / 2, 0, 0]}>
           <coneGeometry args={[0.08, 0.25, 8]} />
           <meshBasicMaterial color={color} transparent opacity={0.8} />
+        </mesh>
+      )}
+
+      {['fist'].includes(currentGesture.type) && (
+        <mesh ref={gestureVisualRef}>
+          <sphereGeometry args={[0.1, 16, 16]} />
+          <meshBasicMaterial color={color} transparent opacity={0.7} />
+        </mesh>
+      )}
+
+      {['open_palm', 'five'].includes(currentGesture.type) && (
+        <mesh ref={gestureVisualRef}>
+          <planeGeometry args={[0.2, 0.2]} />
+          <meshBasicMaterial color={color} transparent opacity={0.5} />
+        </mesh>
+      )}
+
+      {['thumbs_up'].includes(currentGesture.type) && (
+        <mesh ref={gestureVisualRef} rotation={[-Math.PI / 4, 0, 0]}>
+          <cylinderGeometry args={[0.05, 0.05, 0.15, 8]} />
+          <meshBasicMaterial color={color} transparent opacity={0.8} />
+        </mesh>
+      )}
+
+      {['peace', 'two'].includes(currentGesture.type) && (
+        <mesh ref={gestureVisualRef}>
+          <torusGeometry args={[0.1, 0.02, 8, 16, Math.PI]} />
+          <meshBasicMaterial color={color} transparent opacity={0.6} />
+        </mesh>
+      )}
+
+      {['circle', 'rotate_clockwise', 'rotate_counterclockwise'].includes(currentGesture.type) && (
+        <mesh ref={gestureVisualRef}>
+          <torusGeometry args={[0.12, 0.02, 16, 32]} />
+          <meshBasicMaterial color={color} transparent opacity={0.6} />
+        </mesh>
+      )}
+
+      {['figure_eight'].includes(currentGesture.type) && (
+        <group ref={gestureVisualRef}>
+          <mesh>
+            <torusGeometry args={[0.08, 0.015, 16, 32, Math.PI]} />
+            <meshBasicMaterial color={color} transparent opacity={0.6} />
+          </mesh>
+          <mesh position={[0, -0.16, 0]}>
+            <torusGeometry args={[0.08, 0.015, 16, 32, Math.PI]} />
+            <meshBasicMaterial color={color} transparent opacity={0.6} />
+          </mesh>
+        </group>
+      )}
+
+      {['zoom_in', 'zoom_out'].includes(currentGesture.type) && (
+        <group ref={gestureVisualRef}>
+          <mesh>
+            <ringGeometry args={[0.1, 0.12, 32]} />
+            <meshBasicMaterial color={color} transparent opacity={0.6} />
+          </mesh>
+          <mesh>
+            <ringGeometry args={[0.14, 0.16, 32]} />
+            <meshBasicMaterial color={color} transparent opacity={0.4} />
+          </mesh>
+        </group>
+      )}
+
+      {['clap'].includes(currentGesture.type) && (
+        <group ref={gestureVisualRef}>
+          <mesh position={[-0.08, 0, 0]}>
+            <planeGeometry args={[0.1, 0.15]} />
+            <meshBasicMaterial color={color} transparent opacity={0.7} />
+          </mesh>
+          <mesh position={[0.08, 0, 0]}>
+            <planeGeometry args={[0.1, 0.15]} />
+            <meshBasicMaterial color={color} transparent opacity={0.7} />
+          </mesh>
+        </group>
+      )}
+
+      {['swipe_left', 'swipe_right', 'swipe_up', 'swipe_down'].includes(currentGesture.type) && (
+        <mesh ref={gestureVisualRef}>
+          <boxGeometry args={[0.15, 0.05, 0.01]} />
+          <meshBasicMaterial color={color} transparent opacity={0.7} />
         </mesh>
       )}
     </group>

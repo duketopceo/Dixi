@@ -54,7 +54,21 @@ export const useWebSocket = () => {
               setCurrentGesture(message.data);
               break;
             case 'ai_response':
-              setLatestResponse(message.data);
+              // Handle streaming responses
+              if (message.data.streaming) {
+                // Update streaming text incrementally
+                if (message.data.response) {
+                  useAIStore.getState().updateStreamingResponse(
+                    message.data.response,
+                    message.data.metadata
+                  );
+                }
+              } else {
+                // Final response
+                setLatestResponse(message.data);
+                // Clear streaming state
+                useAIStore.getState().setProcessing(false);
+              }
               break;
             case 'projection':
               // Handle projection updates

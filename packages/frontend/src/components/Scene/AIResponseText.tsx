@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAIStore } from '../../store/aiStore';
@@ -8,8 +8,61 @@ export const AIResponseText: React.FC = () => {
   const groupRef = useRef<THREE.Group>(null);
   const textRef = useRef<any>(null);
   const cardRef = useRef<THREE.Mesh>(null);
-  const { latestResponse } = useAIStore();
+  const glowRef = useRef<THREE.Mesh>(null);
+  const { latestResponse, isStreaming } = useAIStore();
   const currentGesture = useGestureStore((state) => state.currentGesture);
+  const [displayedText, setDisplayedText] = useState('');
+  const [wordIndex, setWordIndex] = useState(0);
+  const animationFrameRef = useRef<number>();
+
+  // Handle streaming text animation
+  useEffect(() => {
+    if (!latestResponse || !latestResponse.response) {
+      setDisplayedText('');
+      setWordIndex(0);
+      return;
+    }
+
+    if (isStreaming || latestResponse.streaming) {
+      // For streaming, show text as it arrives (already streamed from backend)
+      setDisplayedText(latestResponse.response);
+    } else {
+      // Non-streaming: show full text immediately
+      setDisplayedText(latestResponse.response);
+      setWordIndex(0);
+    }
+  }, [latestResponse?.response, isStreaming, latestResponse?.streaming]);
+
+  // Reset word index when new response starts
+  useEffect(() => {
+    if (latestResponse) {
+      setWordIndex(0);
+      setDisplayedText('');
+    }
+  }, [latestResponse?.timestamp]);
+
+  // Pulsing glow effect during streaming
+  useEffect(() => {
+    if (glowRef.current && (isStreaming || latestResponse?.streaming)) {
+      let time = 0;
+      const animate = () => {
+        time += 0.05;
+        if (glowRef.current) {
+          const opacity = 0.1 + Math.sin(time) * 0.1;
+          (glowRef.current.material as THREE.MeshBasicMaterial).opacity = opacity;
+        }
+        animationFrameRef.current = requestAnimationFrame(animate);
+      };
+      animate();
+      return () => {
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+        }
+      };
+    } else if (glowRef.current) {
+      (glowRef.current.material as THREE.MeshBasicMaterial).opacity = 0.1;
+    }
+  }, [isStreaming, latestResponse?.streaming]);
 
   useEffect(() => {
     if (groupRef.current && currentGesture && latestResponse) {
@@ -63,7 +116,7 @@ export const AIResponseText: React.FC = () => {
         <meshBasicMaterial color="#00F5FF" transparent opacity={0.3} />
       </mesh>
 
-      {/* Text content */}
+      {/* Text content with streaming animation */}
       <Text
         ref={textRef}
         fontSize={0.18}
@@ -76,16 +129,17 @@ export const AIResponseText: React.FC = () => {
         anchorY="middle"
         position={[0, 0, 0.01]}
       >
-        {latestResponse.response}
+        {displayedText || latestResponse.response}
+        {(isStreaming || latestResponse.streaming) && displayedText.length < latestResponse.response.length && '▋'}
       </Text>
 
-      {/* Subtle glow effect */}
-      <mesh position={[0, 0, -0.01]}>
+      {/* Pulsing glow effect during streaming */}
+      <mesh ref={glowRef} position={[0, 0, -0.01]}>
         <planeGeometry args={[cardWidth + 0.1, cardHeight + 0.1]} />
         <meshBasicMaterial
           color="#00F5FF"
           transparent
-          opacity={0.1}
+          opacity={isStreaming || latestResponse.streaming ? 0.2 : 0.1}
         />
       </mesh>
     </group>
