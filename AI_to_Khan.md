@@ -26,6 +26,18 @@ I also did a comprehensive diagnostic of the frontend and found a few issues:
 
 4. **Unused imports** - Cleaned up some unused imports that were causing TypeScript warnings.
 
+## Python Test Script
+
+I noticed the `system_test.py` script wasn't running because Python isn't in your PATH. I've:
+
+1. **Updated the Python test** - Now checks both frontend ports (3000 and 5173) and has better error messages
+2. **Created a PowerShell wrapper** - `run_system_test.ps1` that will automatically find Python and check dependencies before running the test
+3. **Better error handling** - The wrapper will tell you if Python is missing or if dependencies need to be installed
+
+The Python test checks camera access, MediaPipe setup, and service connectivity. Once you have Python installed and in your PATH, you can run it with either:
+- `python scripts/system_test.py` (direct)
+- `.\scripts\run_system_test.ps1` (wrapper that finds Python for you)
+
 ## Current Status
 
 Right now everything is up and running:
@@ -59,6 +71,7 @@ All the changes have been committed and pushed to the repository:
 - Fixed frontend TypeScript definitions (vite-env.d.ts)
 - Updated Vite config for better network binding
 - Created .cursorrules for copilot instructions
+- Updated Python system test and added PowerShell wrapper
 
 ## Technical Stuff (if you're curious)
 
@@ -80,5 +93,7 @@ The frontend uses Vite for development, and I've set it up to bind to all networ
 The application is ready to use! You can open the frontend and start making AI queries. The system will automatically include gesture context when you're doing hand gestures, and responses can stream in for a better experience.
 
 I've also created a `.cursorrules` file with instructions for the AI copilot, so future changes should be more consistent with the project architecture.
+
+The Python test script (`system_test.py`) is ready to run once Python is installed. It will check camera access, MediaPipe setup, and verify all services are reachable. The PowerShell wrapper (`run_system_test.ps1`) makes it easier to run by automatically finding Python.
 
 Everything should be working smoothly now. Let me know if you run into any issues!
