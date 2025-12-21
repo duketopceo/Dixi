@@ -1,0 +1,102 @@
+.control-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.control-panel h2 {
+  font-size: 1.5rem;
+  color: #00d4ff;
+  margin-bottom: 0.5rem;
+}
+
+.control-section {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.control-section h3 {
+  font-size: 1rem;
+  color: #ccc;
+  margin-bottom: 0.75rem;
+}
+
+.control-button {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #00d4ff, #7b2ff7);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.control-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4);
+}
+
+.control-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.control-button.active {
+  background: linear-gradient(135deg, #ff4444, #ff8844);
+}
+
+.control-status {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.query-input {
+  width: 100%;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: white;
+  font-family: inherit;
+  font-size: 0.95rem;
+  resize: vertical;
+  margin-bottom: 0.75rem;
+}
+
+.query-input:focus {
+  outline: none;
+  border-color: #00d4ff;
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+}
+
+.info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+.info-label {
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.info-value {
+  color: #00d4ff;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
