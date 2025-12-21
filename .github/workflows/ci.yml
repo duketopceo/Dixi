@@ -21,9 +21,8 @@ jobs:
           cache: 'npm'
           cache-dependency-path: package-lock.json
       
-      - name: Install dependencies
-        working-directory: packages/backend
-        run: npm install
+      - name: Install dependencies (workspace root)
+        run: npm ci
       
       - name: Lint
         working-directory: packages/backend
@@ -51,9 +50,8 @@ jobs:
           cache: 'npm'
           cache-dependency-path: package-lock.json
       
-      - name: Install dependencies
-        working-directory: packages/frontend
-        run: npm install
+      - name: Install dependencies (workspace root)
+        run: npm ci
       
       - name: Lint
         working-directory: packages/frontend
