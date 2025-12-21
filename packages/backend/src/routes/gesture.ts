@@ -171,7 +171,7 @@ async function triggerAIForGesture(gestureData: GestureBufferItem): Promise<void
     let queryText: string;
     const x = gestureData.position?.x?.toFixed(2) || '0.00';
     const y = gestureData.position?.y?.toFixed(2) || '0.00';
-    const confidence = (gestureData.confidence * 100).toFixed(0);
+    const confidence = ((gestureData.confidence ?? 0) * 100).toFixed(0);
     
     // Gesture-specific prompts
     const gesturePrompts: { [key: string]: string } = {
@@ -377,36 +377,35 @@ async function performContinuousAnalysis(isManual: boolean = false): Promise<voi
     if (wsService) {
       let fullResponse = '';
       
-      await aiService.inferStream(prompt, analysisContext, (chunk: { response?: string; metadata?: Record<string, unknown> }) => {
-        if (chunk.response && wsService) {
-          fullResponse += chunk.response;
+      await aiService.inferStream(prompt, analysisContext, (chunk: { text: string; done: boolean }) => {
+        if (chunk.text && wsService) {
+          fullResponse += chunk.text;
           // Stream each chunk to clients
           wsService.broadcastAIResponse({
             query: queryText,
             response: fullResponse,
             metadata: { 
-              ...chunk.metadata,
               analysisType: isManual ? 'manual' : 'continuous',
-              streaming: true
+              streaming: !chunk.done
+            },
+            timestamp: Date.now()
+          });
+        }
+        
+        // Final response when streaming completes
+        if (chunk.done && wsService) {
+          wsService.broadcastAIResponse({
+            query: queryText,
+            response: fullResponse,
+            metadata: { 
+              analysisType: isManual ? 'manual' : 'continuous',
+              streaming: false,
+              gestureCount: recentGestures.length
             },
             timestamp: Date.now()
           });
         }
       });
-      
-      // Final response when streaming completes
-      if (wsService) {
-        wsService.broadcastAIResponse({
-          query: queryText,
-          response: fullResponse,
-          metadata: { 
-            analysisType: isManual ? 'manual' : 'continuous',
-            streaming: false,
-            gestureCount: recentGestures.length
-          },
-          timestamp: Date.now()
-        });
-      }
     }
     
     lastContinuousAnalysis = Date.now();

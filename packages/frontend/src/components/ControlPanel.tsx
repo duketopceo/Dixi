@@ -3,14 +3,63 @@ import { apiService } from '../services/api';
 import { useGestureStore } from '../store/gestureStore';
 import { useAIStore } from '../store/aiStore';
 import { useWebSocket } from '../hooks/useWebSocket';
+import logger from '../utils/logger';
 import './ControlPanel.css';
 
 interface DebugLog {
   timestamp: number;
   type: 'info' | 'error' | 'warning' | 'success' | 'websocket' | 'api' | 'gesture' | 'ai';
   message: string;
-  data?: any;
+  data?: unknown;
 }
+
+interface AccordionSectionProps {
+  id: string;
+  title: string;
+  icon?: string;
+  defaultExpanded?: boolean;
+  children: React.ReactNode;
+}
+
+const AccordionSection: React.FC<AccordionSectionProps> = ({ id, title, icon, defaultExpanded = false, children }) => {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [maxHeight, setMaxHeight] = useState<string>(defaultExpanded ? '1000px' : '0px');
+
+  useEffect(() => {
+    if (isExpanded && contentRef.current) {
+      setMaxHeight(`${contentRef.current.scrollHeight}px`);
+    } else {
+      setMaxHeight('0px');
+    }
+  }, [isExpanded]);
+
+  return (
+    <div className={`accordion-section ${isExpanded ? 'expanded' : ''}`}>
+      <button
+        className="accordion-header"
+        onClick={() => setIsExpanded(!isExpanded)}
+        aria-expanded={isExpanded}
+        aria-controls={`accordion-content-${id}`}
+      >
+        <div className="accordion-header-content">
+          {icon && <span className="accordion-icon">{icon}</span>}
+          <span className="accordion-title">{title}</span>
+        </div>
+        <span className="accordion-chevron">{isExpanded ? '▼' : '▶'}</span>
+      </button>
+      <div
+        id={`accordion-content-${id}`}
+        className="accordion-content"
+        style={{ maxHeight }}
+      >
+        <div className="accordion-content-inner" ref={contentRef}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ControlPanel: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(true);
@@ -20,8 +69,7 @@ const ControlPanel: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
-  const [showDebug, setShowDebug] = useState(true);
-  const [systemStatus, setSystemStatus] = useState<any>({});
+  const [systemStatus, setSystemStatus] = useState<Record<string, unknown>>({});
   const logEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   
@@ -32,7 +80,7 @@ const ControlPanel: React.FC = () => {
   const isProcessing = useAIStore((state) => state.isProcessing);
   const { isConnected: wsConnected, error: wsError } = useWebSocket();
 
-  const addDebugLog = (type: DebugLog['type'], message: string, data?: any) => {
+  const addDebugLog = (type: DebugLog['type'], message: string, data?: unknown) => {
     const log: DebugLog = {
       timestamp: Date.now(),
       type,
@@ -40,7 +88,7 @@ const ControlPanel: React.FC = () => {
       data
     };
     setDebugLogs((prev) => [...prev.slice(-99), log]); // Keep last 100 logs
-    console.log(`[${type.toUpperCase()}]`, message, data || '');
+    logger.log(`[${type.toUpperCase()}]`, message, data || '');
   };
 
   useEffect(() => {
@@ -70,9 +118,8 @@ const ControlPanel: React.FC = () => {
       }
     );
 
-    // Periodic system status check - actually verifies services are working
+    // Periodic system status check
     const checkSystemStatus = async () => {
-      // Cancel any in-flight requests before starting new ones
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
@@ -93,7 +140,7 @@ const ControlPanel: React.FC = () => {
             backendHealth = { status: 'unhealthy', error: `HTTP ${response.status}` };
           }
         } catch (err) {
-          if ((err as Error).name === 'AbortError') return; // Request was cancelled
+          if ((err as Error).name === 'AbortError') return;
           backendHealth = { status: 'unavailable', error: err instanceof Error ? err.message : 'Connection failed' };
         }
         
@@ -110,7 +157,7 @@ const ControlPanel: React.FC = () => {
             visionHealth = { status: 'unhealthy', error: `HTTP ${response.status}` };
           }
         } catch (err) {
-          if ((err as Error).name === 'AbortError') return; // Request was cancelled
+          if ((err as Error).name === 'AbortError') return;
           visionHealth = { status: 'unavailable', error: err instanceof Error ? err.message : 'Connection failed' };
         }
         
@@ -127,15 +174,11 @@ const ControlPanel: React.FC = () => {
             ollamaHealth = { status: 'unhealthy', error: `HTTP ${response.status}` };
           }
         } catch (err) {
-          if ((err as Error).name === 'AbortError') return; // Request was cancelled
+          if ((err as Error).name === 'AbortError') return;
           ollamaHealth = { status: 'unavailable', error: err instanceof Error ? err.message : 'Connection failed' };
         }
         
-        // DISABLED: Gesture status polling removed to prevent camera freeze
-        // The gesture data is received via WebSocket, no need to poll
-        const gestureStatus = null;
-        
-        // Get AI status (if backend is up) - only check model status, not trigger inference
+        // Get AI status
         let aiStatus = null;
         if (backendHealth?.status === 'healthy') {
           try {
@@ -149,12 +192,11 @@ const ControlPanel: React.FC = () => {
           backend: backendHealth,
           vision: visionHealth,
           ollama: ollamaHealth,
-          gesture: gestureStatus,
           ai: aiStatus,
           timestamp: Date.now()
         });
       } catch (err) {
-        if ((err as Error).name === 'AbortError') return; // Request was cancelled
+        if ((err as Error).name === 'AbortError') return;
         addDebugLog('error', 'Failed to check system status', err);
         setSystemStatus({
           backend: { status: 'error', error: 'Status check failed' },
@@ -163,17 +205,13 @@ const ControlPanel: React.FC = () => {
       }
     };
     
-    // Initial check
     checkSystemStatus();
-    
-    // Periodic checks every 10 seconds (reduced from 5 to lower request frequency)
     const statusInterval = setInterval(checkSystemStatus, 10000);
 
     return () => {
       unsubscribe();
       unsubscribeAI();
       clearInterval(statusInterval);
-      // Cancel any in-flight requests on unmount
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
@@ -198,31 +236,29 @@ const ControlPanel: React.FC = () => {
       const message = error instanceof Error ? error.message : 'Failed to toggle gesture tracking';
       setError(message);
       addDebugLog('error', 'Failed to toggle gesture tracking', error);
-      console.error('Failed to toggle gesture tracking:', error);
+      logger.error('Failed to toggle gesture tracking:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleContinuousAnalysisToggle = async () => {
-    if (loading) return; // Prevent double-clicks
+    if (loading) return;
     setError(null);
     const newState = !continuousAnalysis;
     addDebugLog('api', `Attempting to ${newState ? 'enable' : 'disable'} continuous analysis`);
     
-    // Optimistic update for better UX
     setContinuousAnalysis(newState);
     
     try {
       await apiService.toggleContinuousAnalysis(newState);
       addDebugLog('success', `Continuous analysis ${newState ? 'enabled' : 'disabled'}`);
     } catch (error) {
-      // Revert on error
       setContinuousAnalysis(!newState);
       const message = error instanceof Error ? error.message : 'Failed to toggle continuous analysis';
       setError(message);
       addDebugLog('error', 'Failed to toggle continuous analysis', error);
-      console.error('Failed to toggle continuous analysis:', error);
+      logger.error('Failed to toggle continuous analysis:', error);
     }
   };
 
@@ -244,7 +280,7 @@ const ControlPanel: React.FC = () => {
       const message = error instanceof Error ? error.message : 'Failed to send AI query';
       setError(message);
       addDebugLog('error', 'Failed to send AI query', error);
-      console.error('Failed to send AI query:', error);
+      logger.error('Failed to send AI query:', error);
     } finally {
       setLoading(false);
     }
@@ -286,6 +322,7 @@ const ControlPanel: React.FC = () => {
         className="control-panel-toggle"
         onClick={() => setIsCollapsed(false)}
         title="Show Control Panel"
+        aria-label="Open Control Panel"
       >
         ⚙️
       </button>
@@ -300,259 +337,232 @@ const ControlPanel: React.FC = () => {
           className="control-panel-close"
           onClick={() => setIsCollapsed(true)}
           title="Hide Control Panel"
+          aria-label="Close Control Panel"
         >
           ×
         </button>
       </div>
 
       {error && (
-        <div className="error-message" style={{ 
-          padding: '10px', 
-          margin: '10px 0', 
-          backgroundColor: '#fee', 
-          border: '1px solid #fcc', 
-          borderRadius: '4px',
-          color: '#c33'
-        }}>
-          ⚠️ {error}
+        <div className="error-message">
+          <span className="error-icon">⚠️</span>
+          <span className="error-text">{error}</span>
         </div>
       )}
 
-      <section className="control-section">
-        <h3>Connection Status</h3>
-        <div className="info-grid">
-          <div className="info-item">
-            <span className="info-label">WebSocket:</span>
-            <span className="info-value" style={{ color: wsConnected ? '#00FF87' : '#FF006E' }}>
-              {wsConnected ? '🟢 Connected' : '🔴 Disconnected'}
-            </span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Backend:</span>
-            <span className="info-value" style={{ color: systemStatus.backend?.status === 'healthy' ? '#00FF87' : '#FF006E' }}>
-              {systemStatus.backend?.status === 'healthy' ? '🟢 Online' : '🔴 Offline'}
-              {systemStatus.backend?.error && ` (${systemStatus.backend.error})`}
-            </span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Vision Service:</span>
-            <span className="info-value" style={{ color: systemStatus.vision?.status === 'healthy' ? '#00FF87' : '#FF006E' }}>
-              {systemStatus.vision?.status === 'healthy' ? '🟢 Connected' : '🔴 Disconnected'}
-              {systemStatus.vision?.error && ` (${systemStatus.vision.error})`}
-            </span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Ollama:</span>
-            <span className="info-value" style={{ color: systemStatus.ollama?.status === 'available' ? '#00FF87' : '#FF006E' }}>
-              {systemStatus.ollama?.status === 'available' ? '🟢 Available' : '🔴 Unavailable'}
-              {systemStatus.ollama?.error && ` (${systemStatus.ollama.error})`}
-            </span>
-          </div>
-          {wsError && (
-            <div className="info-item">
-              <span className="info-label">WS Error:</span>
-              <span className="info-value" style={{ color: '#FF006E', fontSize: '0.8rem' }}>
-                {wsError}
+      <div className="accordion-container">
+        {/* Connection Status */}
+        <AccordionSection id="connections" title="Connection Status" icon="🔌" defaultExpanded={true}>
+          <div className="status-grid">
+            <div className="status-item">
+              <div className="status-header">
+                <span className="status-label">WebSocket</span>
+                <span className={`status-dot ${wsConnected ? 'online' : 'offline'}`} />
+              </div>
+              <span className={`status-value ${wsConnected ? 'online' : 'offline'}`}>
+                {wsConnected ? 'Connected' : 'Disconnected'}
               </span>
+            </div>
+            <div className="status-item">
+              <div className="status-header">
+                <span className="status-label">Backend</span>
+                <span className={`status-dot ${systemStatus.backend?.status === 'healthy' ? 'online' : 'offline'}`} />
+              </div>
+              <span className={`status-value ${systemStatus.backend?.status === 'healthy' ? 'online' : 'offline'}`}>
+                {systemStatus.backend?.status === 'healthy' ? 'Online' : 'Offline'}
+              </span>
+            </div>
+            <div className="status-item">
+              <div className="status-header">
+                <span className="status-label">Vision Service</span>
+                <span className={`status-dot ${systemStatus.vision?.status === 'healthy' ? 'online' : 'offline'}`} />
+              </div>
+              <span className={`status-value ${systemStatus.vision?.status === 'healthy' ? 'online' : 'offline'}`}>
+                {systemStatus.vision?.status === 'healthy' ? 'Connected' : 'Disconnected'}
+              </span>
+            </div>
+            <div className="status-item">
+              <div className="status-header">
+                <span className="status-label">Ollama</span>
+                <span className={`status-dot ${systemStatus.ollama?.status === 'available' ? 'online' : 'offline'}`} />
+              </div>
+              <span className={`status-value ${systemStatus.ollama?.status === 'available' ? 'online' : 'offline'}`}>
+                {systemStatus.ollama?.status === 'available' ? 'Available' : 'Unavailable'}
+              </span>
+            </div>
+            {wsError && (
+              <div className="status-item error">
+                <span className="status-label">Error</span>
+                <span className="status-value error">{wsError}</span>
+              </div>
+            )}
+          </div>
+          <button className="control-button" onClick={testConnections}>
+            Test Connections
+          </button>
+        </AccordionSection>
+
+        {/* Gesture Tracking */}
+        <AccordionSection id="gestures" title="Gesture Tracking" icon="👋" defaultExpanded={true}>
+          <button
+            className={`control-button ${gestureTracking ? 'active' : ''}`}
+            onClick={handleGestureToggle}
+            disabled={loading}
+          >
+            {gestureTracking ? '⏸️ Stop Tracking' : '▶️ Start Tracking'}
+          </button>
+          {currentGesture && (
+            <div className="gesture-info">
+              <div className="info-row">
+                <span className="info-label">Type:</span>
+                <span className="info-value">{currentGesture.type}</span>
+              </div>
+              <div className="info-row">
+                <span className="info-label">Confidence:</span>
+                <span className="info-value">{(currentGesture.confidence * 100).toFixed(1)}%</span>
+              </div>
+              <div className="info-row">
+                <span className="info-label">Position:</span>
+                <span className="info-value">
+                  ({currentGesture.position.x.toFixed(2)}, {currentGesture.position.y.toFixed(2)})
+                </span>
+              </div>
+              <div className="info-row">
+                <span className="info-label">History:</span>
+                <span className="info-value">{gestureHistory.length} gestures</span>
+              </div>
             </div>
           )}
-        </div>
-        <button className="control-button" onClick={testConnections} style={{ marginTop: '10px' }}>
-          🔍 Test Connections
-        </button>
-      </section>
+        </AccordionSection>
 
-      <section className="control-section">
-        <h3>👋 Gesture Tracking</h3>
-        <button
-          className={`control-button ${gestureTracking ? 'active' : ''}`}
-          onClick={handleGestureToggle}
-          disabled={loading}
-        >
-          {gestureTracking ? '⏸️ Stop Tracking' : '▶️ Start Tracking'}
-        </button>
-        <p className="control-status">
-          Status: {gestureTracking ? '🟢 Active' : '🔴 Inactive'}
-        </p>
-        {currentGesture && (
-          <div className="info-grid" style={{ marginTop: '10px' }}>
-            <div className="info-item">
-              <span className="info-label">Type:</span>
-              <span className="info-value">{currentGesture.type}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Confidence:</span>
-              <span className="info-value">{(currentGesture.confidence * 100).toFixed(1)}%</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Position:</span>
-              <span className="info-value">
-                ({currentGesture.position.x.toFixed(2)}, {currentGesture.position.y.toFixed(2)})
-              </span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">History:</span>
-              <span className="info-value">{gestureHistory.length} gestures</span>
-            </div>
-          </div>
-        )}
-      </section>
-
-      <section className="control-section">
-        <h3>Continuous AI Analysis</h3>
-        <div className="toggle-switch-container">
-          <div 
-            className={`toggle-switch ${continuousAnalysis ? 'on' : 'off'}`}
-            onClick={handleContinuousAnalysisToggle}
-            role="switch"
-            aria-checked={continuousAnalysis}
-            aria-label="Continuous AI Analysis"
-          >
-            <div className="toggle-slider" />
-            <span className="toggle-label">
-              {continuousAnalysis ? 'ON' : 'OFF'}
-            </span>
-          </div>
-        </div>
-        <p className="control-status" style={{ fontSize: '0.85rem', color: '#aaa', marginTop: '10px' }}>
-          {continuousAnalysis 
-            ? '🟢 AI analyzes gestures every 10 seconds automatically' 
-            : '🔴 Manual analysis only (use button below)'}
-        </p>
-        
-        {/* Manual Analysis Button - Only show when continuous is OFF */}
-        {!continuousAnalysis && (
-          <button
-            className="control-button"
-            onClick={async () => {
-              try {
-                setLoading(true);
-                setError(null);
-                addDebugLog('info', 'Triggering manual gesture analysis...');
-                const result = await apiService.triggerManualAnalysis();
-                addDebugLog('success', 'Manual analysis triggered', result);
-              } catch (err: any) {
-                const message = err.message || 'Failed to trigger analysis';
-                setError(message);
-                addDebugLog('error', 'Manual analysis failed', err);
-                console.error('Failed to trigger manual analysis:', err);
-              } finally {
-                setLoading(false);
-              }
-            }}
-            disabled={loading || isProcessing}
-            style={{ marginTop: '12px', width: '100%' }}
-          >
-            {loading || isProcessing ? '⏳ Analyzing...' : '🔍 Analyze Gestures Now'}
-          </button>
-        )}
-      </section>
-
-      <section className="control-section">
-        <h3>🤖 AI Query</h3>
-        <form onSubmit={handleAIQuery}>
-          <textarea
-            className="query-input"
-            value={aiQuery}
-            onChange={(e) => setAiQuery(e.target.value)}
-            placeholder="Ask anything..."
-            rows={4}
-            disabled={loading}
-          />
-          <button
-            type="submit"
-            className="control-button"
-            disabled={loading || !aiQuery.trim()}
-          >
-            {loading ? '⏳ Processing...' : '🚀 Send Query'}
-          </button>
-        </form>
-        {latestResponse && (
-          <div style={{ marginTop: '10px', padding: '10px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px' }}>
-            <div className="info-item">
-              <span className="info-label">Last Response:</span>
-              <span className="info-value" style={{ fontSize: '0.85rem' }}>
-                {latestResponse.response.substring(0, 100)}...
-              </span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">History:</span>
-              <span className="info-value">{responseHistory.length} responses</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Processing:</span>
-              <span className="info-value" style={{ color: isProcessing ? '#00F5FF' : '#888' }}>
-                {isProcessing ? 'Yes' : 'No'}
-              </span>
-            </div>
-          </div>
-        )}
-      </section>
-
-      <section className="control-section">
-        <h3>⚙️ System Info</h3>
-        <div className="info-grid">
-          <div className="info-item">
-            <span className="info-label">Environment:</span>
-            <span className="info-value">{import.meta.env.MODE}</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">API URL:</span>
-            <span className="info-value" style={{ fontSize: '0.8rem' }}>
-              {import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}
-            </span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">WS URL:</span>
-            <span className="info-value" style={{ fontSize: '0.8rem' }}>
-              {import.meta.env.VITE_WS_URL || 'ws://localhost:3002'}
-            </span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Vision URL:</span>
-            <span className="info-value" style={{ fontSize: '0.8rem' }}>
-              {import.meta.env.VITE_VISION_SERVICE_URL || 'http://localhost:5000'}
-            </span>
-          </div>
-        </div>
-      </section>
-
-      <section className="control-section">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <h3 style={{ margin: 0 }}>📊 Debug Logs ({debugLogs.length})</h3>
-          <div>
-            <button 
-              className="control-button" 
-              onClick={() => setShowDebug(!showDebug)}
-              style={{ padding: '4px 8px', fontSize: '12px', marginRight: '5px' }}
+        {/* AI Analysis */}
+        <AccordionSection id="ai-analysis" title="AI Analysis" icon="🤖" defaultExpanded={true}>
+          <div className="toggle-switch-container">
+            <div 
+              className={`toggle-switch ${continuousAnalysis ? 'on' : 'off'}`}
+              onClick={handleContinuousAnalysisToggle}
+              role="switch"
+              aria-checked={continuousAnalysis}
+              aria-label="Continuous AI Analysis"
             >
-              {showDebug ? 'Hide' : 'Show'}
+              <div className="toggle-slider" />
+              <span className="toggle-label">
+                {continuousAnalysis ? 'ON' : 'OFF'}
+              </span>
+            </div>
+          </div>
+          <p className="toggle-description">
+            {continuousAnalysis 
+              ? '🟢 AI analyzes gestures every 10 seconds automatically' 
+              : '🔴 Manual analysis only'}
+          </p>
+          {!continuousAnalysis && (
+            <button
+              className="control-button"
+              onClick={async () => {
+                try {
+                  setLoading(true);
+                  setError(null);
+                  addDebugLog('info', 'Triggering manual gesture analysis...');
+                  await apiService.triggerManualAnalysis();
+                  addDebugLog('success', 'Manual analysis triggered');
+                } catch (err: unknown) {
+                  const message = (err as Error).message || 'Failed to trigger analysis';
+                  setError(message);
+                  addDebugLog('error', 'Manual analysis failed', err);
+                  logger.error('Failed to trigger manual analysis:', err);
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              disabled={loading || isProcessing}
+            >
+              {loading || isProcessing ? '⏳ Analyzing...' : '🔍 Analyze Gestures Now'}
             </button>
+          )}
+        </AccordionSection>
+
+        {/* AI Query */}
+        <AccordionSection id="ai-query" title="AI Query" icon="💬" defaultExpanded={false}>
+          <form onSubmit={handleAIQuery} className="ai-query-form">
+            <textarea
+              className="query-input"
+              value={aiQuery}
+              onChange={(e) => setAiQuery(e.target.value)}
+              placeholder="Ask anything..."
+              rows={4}
+              disabled={loading}
+            />
+            <button
+              type="submit"
+              className="control-button"
+              disabled={loading || !aiQuery.trim()}
+            >
+              {loading ? '⏳ Processing...' : '🚀 Send Query'}
+            </button>
+          </form>
+          {latestResponse && (
+            <div className="response-preview">
+              <div className="info-row">
+                <span className="info-label">Last Response:</span>
+                <span className="info-value truncated">
+                  {latestResponse.response.substring(0, 80)}...
+                </span>
+              </div>
+              <div className="info-row">
+                <span className="info-label">History:</span>
+                <span className="info-value">{responseHistory.length} responses</span>
+              </div>
+            </div>
+          )}
+        </AccordionSection>
+
+        {/* System Info */}
+        <AccordionSection id="system" title="System Info" icon="⚙️" defaultExpanded={false}>
+          <div className="info-grid">
+            <div className="info-row">
+              <span className="info-label">Environment:</span>
+              <span className="info-value">{import.meta.env.MODE}</span>
+            </div>
+            <div className="info-row">
+              <span className="info-label">API URL:</span>
+              <span className="info-value small">
+                {import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}
+              </span>
+            </div>
+            <div className="info-row">
+              <span className="info-label">WS URL:</span>
+              <span className="info-value small">
+                {import.meta.env.VITE_WS_URL || 'ws://localhost:3002'}
+              </span>
+            </div>
+            <div className="info-row">
+              <span className="info-label">Vision URL:</span>
+              <span className="info-value small">
+                {import.meta.env.VITE_VISION_SERVICE_URL || 'http://localhost:5000'}
+              </span>
+            </div>
+          </div>
+        </AccordionSection>
+
+        {/* Debug Logs */}
+        <AccordionSection id="debug" title="Debug Logs" icon="📊" defaultExpanded={false}>
+          <div className="debug-header">
+            <span className="debug-count">{debugLogs.length} logs</span>
             <button 
-              className="control-button" 
+              className="control-button small"
               onClick={clearDebugLogs}
-              style={{ padding: '4px 8px', fontSize: '12px' }}
             >
               Clear
             </button>
           </div>
-        </div>
-        {showDebug && (
-          <div style={{ 
-            maxHeight: '300px', 
-            overflowY: 'auto', 
-            background: 'rgba(0,0,0,0.5)', 
-            padding: '10px', 
-            borderRadius: '8px',
-            fontFamily: 'monospace',
-            fontSize: '11px'
-          }}>
+          <div className="debug-logs">
             {debugLogs.length === 0 ? (
-              <div style={{ color: '#888', fontStyle: 'italic' }}>No debug logs yet...</div>
+              <div className="debug-empty">No debug logs yet...</div>
             ) : (
               debugLogs.map((log, idx) => {
                 const time = new Date(log.timestamp).toLocaleTimeString();
-                const colorMap = {
+                const colorMap: Record<string, string> = {
                   info: '#00F5FF',
                   error: '#FF006E',
                   warning: '#FFA500',
@@ -565,30 +575,18 @@ const ControlPanel: React.FC = () => {
                 return (
                   <div 
                     key={idx} 
-                    style={{ 
-                      marginBottom: '5px', 
-                      padding: '4px',
-                      borderLeft: `3px solid ${colorMap[log.type] || '#888'}`,
-                      background: 'rgba(255,255,255,0.05)'
-                    }}
+                    className="debug-log-item"
+                    style={{ borderLeftColor: colorMap[log.type] || '#888' }}
                   >
-                    <span style={{ color: '#888' }}>[{time}]</span>{' '}
-                    <span style={{ color: colorMap[log.type] || '#fff', fontWeight: 'bold' }}>
+                    <span className="debug-time">[{time}]</span>
+                    <span className="debug-type" style={{ color: colorMap[log.type] || '#fff' }}>
                       [{log.type.toUpperCase()}]
-                    </span>{' '}
-                    <span style={{ color: '#fff' }}>{log.message}</span>
+                    </span>
+                    <span className="debug-message">{log.message}</span>
                     {log.data && (
-                      <details style={{ marginTop: '4px', marginLeft: '20px' }}>
-                        <summary style={{ cursor: 'pointer', color: '#888' }}>Data</summary>
-                        <pre style={{ 
-                          margin: '4px 0', 
-                          padding: '4px', 
-                          background: 'rgba(0,0,0,0.3)',
-                          overflow: 'auto',
-                          fontSize: '10px'
-                        }}>
-                          {JSON.stringify(log.data, null, 2)}
-                        </pre>
+                      <details className="debug-details">
+                        <summary>Data</summary>
+                        <pre>{JSON.stringify(log.data, null, 2)}</pre>
                       </details>
                     )}
                   </div>
@@ -597,8 +595,8 @@ const ControlPanel: React.FC = () => {
             )}
             <div ref={logEndRef} />
           </div>
-        )}
-      </section>
+        </AccordionSection>
+      </div>
     </div>
   );
 };

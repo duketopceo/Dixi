@@ -1,21 +1,25 @@
+/* Control Panel - Modern Glassmorphism Design */
+
 .control-panel {
   position: fixed;
   top: 24px;
   right: 24px;
-  width: 380px; /* Increased from 320px for better layout */
+  width: 420px;
   max-height: calc(100vh - 48px);
   overflow-y: auto;
+  overflow-x: hidden;
   background: rgba(15, 15, 15, 0.85);
   backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
-  padding: 1.5rem;
+  padding: 20px;
   z-index: 200;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  animation: slideIn 250ms ease-in-out;
+  animation: slideIn 250ms ease-out;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
 }
 
 @keyframes slideIn {
@@ -29,17 +33,30 @@
   }
 }
 
+/* Header */
 .control-panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.control-panel h2 {
+  font-size: 16px;
+  color: #00F5FF;
+  margin: 0;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
 }
 
 .control-panel-close {
   background: transparent;
   border: none;
-  color: #fff;
+  color: rgba(255, 255, 255, 0.7);
   font-size: 24px;
   cursor: pointer;
   padding: 0;
@@ -48,20 +65,22 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  transition: background 0.2s;
+  border-radius: 8px;
+  transition: all 200ms ease-out;
 }
 
 .control-panel-close:hover {
   background: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
 
+/* Toggle Button */
 .control-panel-toggle {
   position: fixed;
   top: 24px;
   right: 24px;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   background: rgba(15, 15, 15, 0.85);
   backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -80,7 +99,7 @@
 .control-panel-toggle:hover {
   background: rgba(15, 15, 15, 0.95);
   border-color: rgba(0, 245, 255, 0.5);
-  transform: scale(1.05);
+  transform: scale(1.1);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 245, 255, 0.3);
 }
 
@@ -88,63 +107,247 @@
   transform: scale(0.95);
 }
 
-.control-panel h2 {
-  font-size: 18px;
-  color: #00F5FF;
-  margin-bottom: 0.5rem;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+/* Error Message */
+.error-message {
+  padding: 12px 16px;
+  background: rgba(255, 0, 110, 0.15);
+  border: 1px solid rgba(255, 0, 110, 0.3);
+  border-radius: 8px;
+  color: #FF006E;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 8px;
 }
 
-.control-section {
-  background: rgba(255, 255, 255, 0.05);
-  padding: 1rem;
+.error-icon {
+  font-size: 16px;
+}
+
+.error-text {
+  flex: 1;
+}
+
+/* Accordion Container */
+.accordion-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Accordion Section */
+.accordion-section {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
   transition: all 200ms ease-out;
 }
 
-.control-section:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(0, 245, 255, 0.3);
+.accordion-section:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(0, 245, 255, 0.2);
 }
 
-.control-section h3 {
-  font-size: 0.9rem;
-  color: #00F5FF;
-  margin-bottom: 1rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+.accordion-section.expanded {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(0, 245, 255, 0.25);
+}
+
+/* Accordion Header */
+.accordion-header {
+  width: 100%;
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 200ms ease-out;
+  text-align: left;
+}
+
+.accordion-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.accordion-header-content {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 10px;
 }
 
-.control-section h3::before {
-  content: '▸';
-  font-size: 0.7rem;
-  opacity: 0.7;
+.accordion-icon {
+  font-size: 16px;
+  opacity: 0.8;
 }
 
+.accordion-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #00F5FF;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.accordion-chevron {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  transition: transform 200ms ease-out;
+}
+
+.accordion-section.expanded .accordion-chevron {
+  transform: rotate(90deg);
+}
+
+/* Accordion Content */
+.accordion-content {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 300ms ease-out, opacity 200ms ease-out 50ms;
+}
+
+.accordion-section.expanded .accordion-content {
+  opacity: 1;
+}
+
+.accordion-content-inner {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Status Grid */
+.status-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.status-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 200ms ease-out;
+}
+
+.status-item:hover {
+  background: rgba(0, 0, 0, 0.4);
+  border-color: rgba(0, 245, 255, 0.2);
+}
+
+.status-item.error {
+  border-color: rgba(255, 0, 110, 0.3);
+  background: rgba(255, 0, 110, 0.1);
+}
+
+.status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.status-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: pulse 2s infinite;
+}
+
+.status-dot.online {
+  background: #00FF87;
+  box-shadow: 0 0 8px rgba(0, 255, 135, 0.6);
+}
+
+.status-dot.offline {
+  background: #FF006E;
+  box-shadow: 0 0 8px rgba(255, 0, 110, 0.6);
+}
+
+.status-value {
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.status-value.online {
+  color: #00FF87;
+}
+
+.status-value.offline {
+  color: #FF006E;
+}
+
+.status-value.error {
+  color: #FF006E;
+  font-size: 11px;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* Control Buttons */
 .control-button {
   width: 100%;
-  padding: 0.75rem 1rem;
-  background: rgba(0, 245, 255, 0.2);
+  padding: 12px 16px;
+  background: rgba(0, 245, 255, 0.15);
   border: 1px solid rgba(0, 245, 255, 0.3);
   color: #ffffff;
-  border-radius: 12px;
-  font-size: 15px;
+  border-radius: 10px;
+  font-size: 14px;
   font-weight: 600;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
   cursor: pointer;
   transition: all 200ms ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.control-button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translate(-50%, -50%);
+  transition: width 0.4s, height 0.4s;
+}
+
+.control-button:hover:not(:disabled)::before {
+  width: 300px;
+  height: 300px;
 }
 
 .control-button:hover:not(:disabled) {
-  background: rgba(0, 245, 255, 0.3);
+  background: rgba(0, 245, 255, 0.25);
   border-color: rgba(0, 245, 255, 0.5);
   transform: translateY(-1px);
   box-shadow: 0 4px 16px rgba(0, 245, 255, 0.2);
@@ -161,76 +364,26 @@
 
 .control-button.active {
   background: rgba(0, 255, 135, 0.2);
+  border-color: rgba(0, 255, 135, 0.4);
+}
+
+.control-button.active:hover:not(:disabled) {
+  background: rgba(0, 255, 135, 0.3);
   border-color: rgba(0, 255, 135, 0.5);
+  box-shadow: 0 4px 16px rgba(0, 255, 135, 0.2);
 }
 
-.control-status {
-  margin-top: 0.5rem;
-  font-size: 0.9rem;
-  color: #888;
+.control-button.small {
+  padding: 8px 12px;
+  font-size: 12px;
 }
 
-.query-input {
-  width: 100%;
-  padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: white;
-  font-family: inherit;
-  font-size: 0.95rem;
-  resize: vertical;
-  margin-bottom: 0.75rem;
-}
-
-.query-input:focus {
-  outline: none;
-  border-color: #00d4ff;
-  box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
-}
-
-.info-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.info-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  transition: all 200ms ease-out;
-}
-
-.info-item:hover {
-  background: rgba(0, 0, 0, 0.5);
-  border-color: rgba(0, 245, 255, 0.2);
-}
-
-.info-label {
-  color: #888;
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.info-value {
-  color: #00F5FF;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-/* Toggle Switch for Continuous AI */
+/* Toggle Switch */
 .toggle-switch-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin: 1rem 0;
+  margin: 12px 0;
 }
 
 .toggle-switch {
@@ -238,7 +391,7 @@
   width: 120px;
   height: 48px;
   background: rgba(255, 0, 110, 0.2);
-  border: 2px solid rgba(255, 0, 110, 0.5);
+  border: 2px solid rgba(255, 0, 110, 0.4);
   border-radius: 24px;
   cursor: pointer;
   transition: all 300ms ease-out;
@@ -250,7 +403,7 @@
 
 .toggle-switch.on {
   background: rgba(0, 255, 135, 0.2);
-  border-color: rgba(0, 255, 135, 0.5);
+  border-color: rgba(0, 255, 135, 0.4);
   box-shadow: 0 4px 16px rgba(0, 255, 135, 0.2);
 }
 
@@ -283,124 +436,234 @@
   width: 100%;
   text-align: center;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   color: #fff;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
   pointer-events: none;
   z-index: 1;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
 }
 
-/* Enhanced Button Styles */
-.control-button {
-  position: relative;
-  overflow: hidden;
+.toggle-description {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 8px;
+  text-align: center;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
 }
 
-.control-button::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  transform: translate(-50%, -50%);
-  transition: width 0.6s, height 0.6s;
-}
-
-.control-button:hover::before {
-  width: 300px;
-  height: 300px;
-}
-
-/* Status Indicators */
-.status-indicator {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 6px;
-  animation: pulse 2s infinite;
-}
-
-.status-indicator.online {
-  background: #00FF87;
-  box-shadow: 0 0 8px rgba(0, 255, 135, 0.5);
-}
-
-.status-indicator.offline {
-  background: #FF006E;
-  box-shadow: 0 0 8px rgba(255, 0, 110, 0.5);
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-/* Scrollbar Styling */
-.control-panel::-webkit-scrollbar {
-  width: 8px;
-}
-
-.control-panel::-webkit-scrollbar-track {
+/* Gesture Info */
+.gesture-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
   background: rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.control-panel::-webkit-scrollbar-thumb {
-  background: rgba(0, 245, 255, 0.3);
-  border-radius: 4px;
-}
-
-.control-panel::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 245, 255, 0.5);
-}
-
-/* Enhanced Info Grid */
+/* Info Grid & Rows */
 .info-grid {
-  gap: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.info-item {
-  padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.4);
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.3);
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.05);
   transition: all 200ms ease-out;
 }
 
-.info-item:hover {
-  background: rgba(0, 0, 0, 0.5);
+.info-row:hover {
+  background: rgba(0, 0, 0, 0.4);
   border-color: rgba(0, 245, 255, 0.2);
 }
 
 .info-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.info-value {
+  font-size: 13px;
+  color: #00F5FF;
+  font-weight: 600;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.info-value.small {
+  font-size: 11px;
+}
+
+.info-value.truncated {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* AI Query Form */
+.ai-query-form {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 12px;
 }
 
-/* Scrollbar Styling */
-.control-panel::-webkit-scrollbar {
-  width: 8px;
+.query-input {
+  width: 100%;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-size: 14px;
+  resize: vertical;
+  transition: all 200ms ease-out;
 }
 
-.control-panel::-webkit-scrollbar-track {
+.query-input:focus {
+  outline: none;
+  border-color: #00F5FF;
+  box-shadow: 0 0 0 1px rgba(0, 245, 255, 0.3);
+}
+
+.query-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.response-preview {
+  margin-top: 8px;
+  padding: 12px;
   background: rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.control-panel::-webkit-scrollbar-thumb {
+/* Debug Logs */
+.debug-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.debug-count {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.debug-logs {
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-size: 11px;
+}
+
+.debug-empty {
+  color: rgba(255, 255, 255, 0.4);
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+}
+
+.debug-log-item {
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid #888;
+  border-radius: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  transition: all 200ms ease-out;
+}
+
+.debug-log-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.debug-time {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.debug-type {
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.debug-message {
+  color: #fff;
+  flex: 1;
+  min-width: 100%;
+}
+
+.debug-details {
+  margin-top: 4px;
+  margin-left: 20px;
+  width: 100%;
+}
+
+.debug-details summary {
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+  user-select: none;
+}
+
+.debug-details pre {
+  margin: 6px 0 0 0;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 4px;
+  overflow: auto;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.8);
+  max-height: 200px;
+}
+
+/* Scrollbar */
+.control-panel::-webkit-scrollbar,
+.debug-logs::-webkit-scrollbar {
+  width: 6px;
+}
+
+.control-panel::-webkit-scrollbar-track,
+.debug-logs::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.control-panel::-webkit-scrollbar-thumb,
+.debug-logs::-webkit-scrollbar-thumb {
   background: rgba(0, 245, 255, 0.3);
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
-.control-panel::-webkit-scrollbar-thumb:hover {
+.control-panel::-webkit-scrollbar-thumb:hover,
+.debug-logs::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 245, 255, 0.5);
 }
