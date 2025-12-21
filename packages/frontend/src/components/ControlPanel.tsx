@@ -3,6 +3,7 @@ import { apiService } from '../services/api';
 import './ControlPanel.css';
 
 const ControlPanel: React.FC = () => {
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [gestureTracking, setGestureTracking] = useState(false);
   const [aiQuery, setAiQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -45,9 +46,30 @@ const ControlPanel: React.FC = () => {
     }
   };
 
+  if (isCollapsed) {
+    return (
+      <button
+        className="control-panel-toggle"
+        onClick={() => setIsCollapsed(false)}
+        title="Show Control Panel"
+      >
+        ⚙️
+      </button>
+    );
+  }
+
   return (
     <div className="control-panel">
-      <h2>Control Panel</h2>
+      <div className="control-panel-header">
+        <h2>Control Panel</h2>
+        <button
+          className="control-panel-close"
+          onClick={() => setIsCollapsed(true)}
+          title="Hide Control Panel"
+        >
+          ×
+        </button>
+      </div>
 
       {error && (
         <div className="error-message" style={{ 

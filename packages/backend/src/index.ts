@@ -86,7 +86,7 @@ try {
 logger.info('🚀 Dixi Backend starting...');
 logger.info(`📡 HTTP Server: http://localhost:${PORT}`);
 logger.info(`🔌 WebSocket Server: ws://localhost:${WS_PORT}`);
-logger.info(`🎮 GPU Acceleration: ${process.env.USE_GPU === 'true' ? 'Enabled' : 'Disabled'}`);
+logger.info(`🤖 AI Service: Ollama (${process.env.OLLAMA_BASE_URL || 'http://localhost:11434'})`);
 
 server.on('error', (error: Error & { code?: string }) => {
   if (error.code === 'EADDRINUSE') {

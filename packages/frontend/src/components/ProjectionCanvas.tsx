@@ -19,7 +19,7 @@ const ProjectionCanvas: React.FC = () => {
 
   return (
     <div className="projection-canvas">
-      {/* Camera feed background */}
+      {/* Camera feed background - full screen */}
       <div className="camera-background">
         {!cameraError ? (
           <img
@@ -30,30 +30,36 @@ const ProjectionCanvas: React.FC = () => {
           />
         ) : (
           <div className="camera-placeholder">
-            <p>📹 Camera feed unavailable</p>
-            <p>Check vision service at {VISION_SERVICE_URL}</p>
+            <div className="camera-error-message">
+              <p>📹 Camera feed unavailable</p>
+              <p>Check vision service at {VISION_SERVICE_URL}</p>
+            </div>
           </div>
         )}
       </div>
 
-      {/* 3D Canvas overlay */}
-      <Canvas>
+      {/* 3D Canvas overlay - transparent */}
+      <Canvas
+        gl={{ alpha: true, antialias: true }}
+        frameloop="always"
+        dpr={[1, 2]}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 10,
+          pointerEvents: 'none'
+        }}
+      >
         <PerspectiveCamera makeDefault position={[0, 0, 5]} />
-        <OrbitControls enableZoom={true} enablePan={true} />
+        <OrbitControls enableZoom={false} enablePan={false} />
         
         <ambientLight intensity={0.5} />
-        <directionalLight position={[10, 10, 5]} intensity={1} />
-        <pointLight position={[-10, -10, -5]} intensity={0.5} />
         
         <ProjectionScene />
       </Canvas>
-      
-      <div className="canvas-overlay">
-        <div className="info-panel">
-          <p>👋 Use gestures to interact</p>
-          <p>🎨 Interactive knowledge canvas</p>
-        </div>
-      </div>
     </div>
   );
 };

@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { apiService } from '../services/api';
+import { useGestureStore } from './gestureStore';
 
 interface AIResponse {
   query: string;
@@ -14,9 +16,11 @@ interface AIStore {
   setLatestResponse: (response: AIResponse) => void;
   setProcessing: (isProcessing: boolean) => void;
   clearResponses: () => void;
+  sendQuery: (query: string, context?: any) => Promise<void>;
+  clearResponse: () => void;
 }
 
-export const useAIStore = create<AIStore>((set) => ({
+export const useAIStore = create<AIStore>((set, get) => ({
   latestResponse: null,
   responseHistory: [],
   isProcessing: false,
@@ -32,5 +36,41 @@ export const useAIStore = create<AIStore>((set) => ({
     set({ isProcessing }),
   
   clearResponses: () =>
-    set({ latestResponse: null, responseHistory: [] })
+    set({ latestResponse: null, responseHistory: [] }),
+  
+  clearResponse: () =>
+    set({ latestResponse: null }),
+  
+  sendQuery: async (query: string, context?: any) => {
+    set({ isProcessing: true });
+    try {
+      // Get current gesture for context if not provided
+      const currentGesture = useGestureStore.getState().currentGesture;
+      const gestureContext = context || (currentGesture ? {
+        gesture: {
+          type: currentGesture.type,
+          coordinates: {
+            x: currentGesture.position.x,
+            y: currentGesture.position.y
+          }
+        }
+      } : undefined);
+      
+      const response = await apiService.sendAIQuery(query, gestureContext);
+      
+      // Response comes back as { text, metadata }
+      set({
+        latestResponse: {
+          query,
+          response: response.text || response.response || '',
+          metadata: response.metadata,
+          timestamp: Date.now()
+        },
+        isProcessing: false
+      });
+    } catch (error) {
+      set({ isProcessing: false });
+      throw error;
+    }
+  }
 }));

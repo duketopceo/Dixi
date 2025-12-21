@@ -33,7 +33,7 @@
     "computer-vision",
     "gesture-recognition",
     "interactive-projection",
-    "tensorflow",
+    "ollama",
     "pytorch",
     "mediapipe"
   ],
