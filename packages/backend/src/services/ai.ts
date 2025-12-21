@@ -161,49 +161,66 @@ export class AIService {
         }
       );
 
-      let buffer = '';
-      response.data.on('data', (chunk: Buffer) => {
-        buffer += chunk.toString();
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+      // Return a Promise that resolves only when the stream completes
+      return new Promise<void>((resolve, reject) => {
+        let buffer = '';
+        let streamEnded = false;
 
-        for (const line of lines) {
-          if (line.trim()) {
+        const finish = () => {
+          if (!streamEnded) {
+            streamEnded = true;
+            resolve();
+          }
+        };
+
+        response.data.on('data', (chunk: Buffer) => {
+          buffer += chunk.toString();
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.trim()) {
+              try {
+                const data = JSON.parse(line);
+                if (data.response) {
+                  onChunk({
+                    text: data.response,
+                    done: data.done || false
+                  });
+                }
+              } catch (e) {
+                // Skip invalid JSON lines
+              }
+            }
+          }
+        });
+
+        response.data.on('end', () => {
+          if (buffer.trim()) {
             try {
-              const data = JSON.parse(line);
+              const data = JSON.parse(buffer);
               if (data.response) {
                 onChunk({
                   text: data.response,
-                  done: data.done || false
+                  done: true
                 });
               }
             } catch (e) {
-              // Skip invalid JSON lines
+              // Skip invalid JSON
             }
           }
-        }
-      });
+          onChunk({ text: '', done: true });
+          finish();
+        });
 
-      response.data.on('end', () => {
-        if (buffer.trim()) {
-          try {
-            const data = JSON.parse(buffer);
-            if (data.response) {
-              onChunk({
-                text: data.response,
-                done: true
-              });
-            }
-          } catch (e) {
-            // Skip invalid JSON
+        response.data.on('error', (error: Error) => {
+          logger.error('Ollama streaming error:', error);
+          onChunk({ text: '', done: true });
+          if (!streamEnded) {
+            streamEnded = true;
+            reject(error);
           }
-        }
-        onChunk({ text: '', done: true });
-      });
-
-      response.data.on('error', (error: Error) => {
-        logger.error('Ollama streaming error:', error);
-        onChunk({ text: '', done: true });
+        });
       });
     } catch (error: any) {
       logger.error('Ollama streaming failed:', error);

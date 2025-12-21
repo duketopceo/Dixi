@@ -86,18 +86,38 @@ router.post('/stream', aiLimiter, validateAIInfer, async (req: Request, res: Res
     res.setHeader('Connection', 'keep-alive');
 
     await aiService.inferStream(query, context, (chunk) => {
-      res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+      // Check if response is still writable before writing
+      if (!res.writableEnded) {
+        res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+      }
     });
 
-    res.write('data: [DONE]\n\n');
-    res.end();
-    logger.info('AI streaming completed');
+    // Only send [DONE] and end if response is still writable
+    if (!res.writableEnded) {
+      res.write('data: [DONE]\n\n');
+      res.end();
+      logger.info('AI streaming completed');
+    }
   } catch (error) {
     logger.error('Failed to stream AI inference:', error);
-    res.status(500).json({ 
-      error: 'Failed to stream AI inference',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
+    
+    // If SSE headers are already set, send error as SSE event
+    if (res.getHeader('Content-Type') === 'text/event-stream') {
+      if (!res.writableEnded) {
+        res.write(`data: ${JSON.stringify({ 
+          error: 'Failed to stream AI inference',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
+    } else {
+      // Otherwise send JSON error response
+      res.status(500).json({ 
+        error: 'Failed to stream AI inference',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
   }
 });
 
