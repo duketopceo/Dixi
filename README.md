@@ -5,7 +5,7 @@ An AI-powered interactive projection system that uses computer vision, gesture r
 ## 🚀 Features
 
 - **Computer Vision**: Real-time gesture recognition using OpenCV and MediaPipe
-- **AI Inference**: Local-first AI with 7B-30B quantized models running on NVIDIA 5070 Ti GPU
+- **AI Inference**: Ollama-powered AI integration for natural language understanding and generation
 - **Interactive Projection**: WebGL-based rendering for immersive visual experiences
 - **Real-time Communication**: WebSocket-based bidirectional data flow
 - **Scalable Architecture**: Microservices design with Docker and GCP Cloud Run support
@@ -14,16 +14,21 @@ An AI-powered interactive projection system that uses computer vision, gesture r
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│   Frontend  │────▶│   Backend    │────▶│   Vision    │
-│   (React)   │◀────│ (Node.js +   │◀────│  (Python +  │
+│   Frontend  │────▶│   Backend    │◀────│   Vision    │
+│   (React)   │◀────│ (Node.js +   │     │  (Python +  │
 │             │     │   Express)   │     │  MediaPipe) │
 └─────────────┘     └──────────────┘     └─────────────┘
       │                     │                     │
       │                     ▼                     │
       │              ┌──────────────┐             │
-      └──────────────│  AI Service  │◀────────────┘
-                     │(TensorFlow.js)│
-                     └──────────────┘
+      └──────────────│   Ollama     │             │
+                     │  AI Service  │             │
+                     │  (llama3.2)  │             │
+                     └──────────────┘             │
+                            ▲                     │
+                            │                     │
+                            └─────────────────────┘
+                     (Gesture data triggers AI)
 ```
 
 ## 📦 Tech Stack
@@ -39,8 +44,8 @@ An AI-powered interactive projection system that uses computer vision, gesture r
 - **Node.js 20** with Express
 - **TypeScript** for type safety
 - **WebSocket** (ws) for real-time communication
-- **TensorFlow.js** with GPU acceleration
-- **ONNX Runtime** for model inference
+- **Ollama** API integration for AI inference
+- **Axios** for HTTP client communication
 
 ### Computer Vision
 - **Python 3.11** with Flask
@@ -59,9 +64,9 @@ An AI-powered interactive projection system that uses computer vision, gesture r
 
 - Node.js 20+
 - Python 3.11+
-- Docker & Docker Compose
-- NVIDIA GPU (for optimal performance)
-- NVIDIA Container Runtime (for Docker GPU support)
+- **Ollama** (required) - Install from https://ollama.ai
+- Docker & Docker Compose (optional, for containerized deployment)
+- Webcam/camera (for gesture recognition)
 
 ### Local Development
 
@@ -71,19 +76,29 @@ An AI-powered interactive projection system that uses computer vision, gesture r
    cd Dixi
    ```
 
-2. **Install dependencies**
+2. **Install and start Ollama** (REQUIRED)
    ```bash
-   npm install
-   npm run install:all
+   # Install Ollama from https://ollama.ai
+   # Then start the Ollama service:
+   ollama serve
+   
+   # In a separate terminal, pull the model:
+   ollama pull llama3.2
    ```
 
 3. **Set up environment variables**
    ```bash
    cp .env.example .env
-   # Edit .env with your configuration
+   # Edit .env if needed (defaults work for local development)
    ```
 
-4. **Start development servers**
+4. **Install dependencies**
+   ```bash
+   npm install
+   npm run install:all
+   ```
+
+5. **Start development servers**
    ```bash
    # Start all services
    npm run dev
@@ -124,10 +139,9 @@ npm run docker:down
    - Responses appear in real-time on the canvas
 
 4. **Supported Gestures**
-   - 👉 **Point**: Direct interaction
-   - 🤏 **Pinch**: Zoom/select
-   - ✋ **Open Palm**: Menu/options
-   - 👈 **Swipe**: Navigate
+   - 👋 **Wave**: Triggers AI-generated description of the gesture
+   - 👉 **Point**: Direct interaction (coordinates sent to AI)
+   - 🤏 **Pinch**: Selection/grab action (coordinates sent to AI)
 
 ## 📡 API Endpoints
 
@@ -180,24 +194,15 @@ GET  /status              # Service status
 NODE_ENV=development
 PORT=3001
 FRONTEND_URL=http://localhost:3000
+WS_PORT=3002
 
 # Vision Service
 VISION_SERVICE_URL=http://localhost:5000
 VISION_SERVICE_PORT=5000
 
-# AI Model
-MODEL_PATH=./models
-MODEL_TYPE=quantized
-MODEL_SIZE=7B
-USE_GPU=true
-GPU_DEVICE=cuda:0
-
-# WebSocket
-WS_PORT=3002
-
-# Rendering
-RENDER_API=webgl
-ENABLE_GPU_ACCELERATION=true
+# Ollama Configuration (REQUIRED)
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.2
 ```
 
 ## 🚀 Deployment
@@ -229,7 +234,7 @@ MIT License - see LICENSE file for details
 ## 🙏 Acknowledgments
 
 - MediaPipe for gesture recognition
-- TensorFlow.js for AI inference
+- Ollama for AI inference
 - Three.js for 3D rendering
 - OpenCV for computer vision
 

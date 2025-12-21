@@ -14,6 +14,7 @@ import io
 import collections
 from flask import Flask, jsonify, request, Response, render_template
 from dotenv import load_dotenv
+import requests
 
 load_dotenv()
 
@@ -61,6 +62,12 @@ class GestureRecognitionService:
         self.latest_frame = None
         self.camera_error = None
         self.lock = threading.Lock()
+        self.gesture_history = collections.deque(maxlen=30)
+        # Push architecture: backend URL and last pushed gesture
+        self.backend_url = os.getenv('BACKEND_URL', 'http://localhost:3001')
+        self.last_pushed_gesture = None
+        self.last_push_time = 0
+        self.push_cooldown_ms = 200  # Minimum time between pushes (ms)
 
     def start_tracking(self):
         """Start gesture tracking from camera"""
@@ -120,13 +127,18 @@ class GestureRecognitionService:
                     if result.hand_landmarks:
                         # Extract the first hand's landmarks
                         hand_landmarks = result.hand_landmarks[0]
-                        gesture_data = self._analyze_gesture(hand_landmarks)
+                        gesture_data = self._analyze_gesture(hand_landmarks, timestamp_ms)
                         self.current_gesture = gesture_data
+                        
+                        # Push gesture to backend if it changed or cooldown expired
+                        self._push_gesture_to_backend(gesture_data, timestamp_ms)
                         
                         # Draw landmarks for the debug feed
                         self._draw_landmarks(frame, hand_landmarks)
                     else:
                         self.current_gesture = None
+                        # Clear history when hand is lost
+                        self.gesture_history.clear()
                     
                     with self.lock:
                         self.latest_frame = frame.copy()
@@ -144,26 +156,44 @@ class GestureRecognitionService:
                 self.camera.release()
 
 
-    def _analyze_gesture(self, hand_landmarks) -> Dict:
+    def _analyze_gesture(self, hand_landmarks, timestamp_ms: int) -> Dict:
         """Analyze hand landmarks to determine gesture type"""
         # Tasks API landmark object is slightly different but has x, y, z
         thumb_tip = hand_landmarks[4]
         index_tip = hand_landmarks[8]
         wrist = hand_landmarks[0]
         
-        # Calculate average position
-        avg_x = (thumb_tip.x + index_tip.x) / 2
-        avg_y = (thumb_tip.y + index_tip.y) / 2
+        # Calculate average position (using wrist as reference for stability)
+        avg_x = wrist.x
+        avg_y = wrist.y
         
         # Simple pinch detection
         dist = np.sqrt((thumb_tip.x - index_tip.x)**2 + (thumb_tip.y - index_tip.y)**2)
         
-        if dist < 0.05:
+        # Add current position to history for wave detection
+        current_pos = {
+            'x': float(avg_x),
+            'y': float(avg_y),
+            'timestamp': timestamp_ms
+        }
+        self.gesture_history.append(current_pos)
+        
+        # Detect wave gesture using motion analysis
+        wave_detected = self._detect_wave()
+        
+        # Determine gesture type (wave takes priority)
+        if wave_detected:
+            gesture_type = 'wave'
+            confidence = 0.85
+        elif dist < 0.05:
             gesture_type = 'pinch'
-        elif index_tip.y < wrist.y:
+            confidence = 0.9
+        elif index_tip.y < wrist.y - 0.1:
             gesture_type = 'point'
+            confidence = 0.9
         else:
             gesture_type = 'unknown'
+            confidence = 0.5
         
         return {
             'type': gesture_type,
@@ -172,11 +202,60 @@ class GestureRecognitionService:
                 'y': float(1 - avg_y * 2),
                 'z': float(thumb_tip.z)
             },
-            'confidence': 0.9,
-            'timestamp': int(time.time() * 1000),
+            'confidence': confidence,
+            'timestamp': timestamp_ms,
             'hand': 'detected',
             'landmarks_count': len(hand_landmarks)
         }
+    
+    def _detect_wave(self) -> bool:
+        """Detect wave gesture by analyzing motion patterns"""
+        if len(self.gesture_history) < 10:
+            return False
+        
+        # Get recent positions (last 1 second worth, assuming ~30fps)
+        recent_positions = list(self.gesture_history)[-20:]
+        
+        if len(recent_positions) < 10:
+            return False
+        
+        # Calculate horizontal and vertical movement
+        x_positions = [p['x'] for p in recent_positions]
+        y_positions = [p['y'] for p in recent_positions]
+        
+        # Calculate velocity changes (direction changes indicate oscillation)
+        x_velocities = []
+        y_velocities = []
+        
+        for i in range(1, len(recent_positions)):
+            dt = (recent_positions[i]['timestamp'] - recent_positions[i-1]['timestamp']) / 1000.0
+            if dt > 0:
+                x_vel = (x_positions[i] - x_positions[i-1]) / dt
+                y_vel = (y_positions[i] - y_positions[i-1]) / dt
+                x_velocities.append(x_vel)
+                y_velocities.append(y_vel)
+        
+        if len(x_velocities) < 5:
+            return False
+        
+        # Count direction changes (sign changes in velocity)
+        x_direction_changes = sum(1 for i in range(1, len(x_velocities)) 
+                                 if (x_velocities[i] > 0) != (x_velocities[i-1] > 0))
+        y_direction_changes = sum(1 for i in range(1, len(y_velocities)) 
+                                 if (y_velocities[i] > 0) != (y_velocities[i-1] > 0))
+        
+        # Calculate movement amplitude
+        x_range = max(x_positions) - min(x_positions)
+        y_range = max(y_positions) - min(y_positions)
+        
+        # Wave detection criteria:
+        # - At least 3 direction changes in horizontal OR vertical movement
+        # - Significant movement amplitude (>0.1 in normalized coordinates)
+        # - Movement is primarily in one direction (horizontal OR vertical)
+        horizontal_wave = x_direction_changes >= 3 and x_range > 0.1 and x_range > y_range * 1.5
+        vertical_wave = y_direction_changes >= 3 and y_range > 0.1 and y_range > x_range * 1.5
+        
+        return horizontal_wave or vertical_wave
 
     def _draw_landmarks(self, frame, hand_landmarks):
         """Draw landmarks on the frame for visual debugging"""
@@ -199,6 +278,41 @@ class GestureRecognitionService:
 
     def get_current_gesture(self) -> Optional[Dict]:
         return self.current_gesture
+
+    def _push_gesture_to_backend(self, gesture_data: Dict, timestamp_ms: int):
+        """Push gesture data to backend when detected (push architecture)"""
+        try:
+            # Only push if:
+            # 1. Gesture type changed, OR
+            # 2. Enough time has passed since last push (cooldown), OR
+            # 3. It's a wave gesture (always push waves immediately)
+            current_time = timestamp_ms
+            gesture_changed = (
+                self.last_pushed_gesture is None or
+                self.last_pushed_gesture.get('type') != gesture_data.get('type')
+            )
+            cooldown_expired = (current_time - self.last_push_time) >= self.push_cooldown_ms
+            is_wave = gesture_data.get('type') == 'wave'
+            
+            if gesture_changed or (cooldown_expired and is_wave) or (cooldown_expired and gesture_data.get('type') != 'unknown'):
+                # Push to backend
+                try:
+                    response = requests.post(
+                        f"{self.backend_url}/api/gestures/process",
+                        json=gesture_data,
+                        timeout=1.0  # Short timeout to avoid blocking
+                    )
+                    if response.status_code == 200:
+                        self.last_pushed_gesture = gesture_data.copy()
+                        self.last_push_time = current_time
+                except requests.exceptions.RequestException as e:
+                    # Log error but don't crash - backend might be down
+                    # Only log occasionally to avoid spam
+                    if (current_time - self.last_push_time) > 5000:  # Log every 5 seconds max
+                        print(f"⚠️ Failed to push gesture to backend: {e}")
+        except Exception as e:
+            # Don't let push errors break tracking
+            print(f"⚠️ Error pushing gesture: {e}")
 
     def get_video_frame(self):
         """Get the latest frame for the MJPEG stream"""

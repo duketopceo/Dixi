@@ -32,14 +32,15 @@ Dixi is a microservices-based AI-powered interactive projection system designed 
 - Node.js 20 with Express
 - TypeScript
 - WebSocket (ws)
-- TensorFlow.js with GPU support
-- ONNX Runtime
+- Ollama API integration for AI inference
+- Axios for HTTP client communication
 
 **Responsibilities:**
 - API gateway for all services
 - WebSocket server for real-time communication
-- AI model management and inference
+- Ollama API integration for AI inference
 - Coordinate between frontend and vision service
+- Auto-trigger AI responses on gesture detection
 
 **Key Files:**
 - `src/index.ts` - Express server setup
@@ -80,35 +81,42 @@ Dixi is a microservices-based AI-powered interactive projection system designed 
 ```
 1. Camera → Vision Service (MediaPipe) → Gesture Data
                     ↓
-2. Gesture Data → Backend (WebSocket) → Frontend
+2. Gesture Data → Backend (HTTP POST) → Process & Trigger AI
                     ↓
-3. User Query → Backend → AI Service → AI Response
+3. Backend → Ollama API → AI Response
                     ↓
-4. AI Response → WebSocket → Frontend → Display
+4. Gesture + AI Response → WebSocket → Frontend → Display
 ```
+
+**Key Flow Details:**
+- Vision service pushes gesture data to backend when detected (not polling)
+- Backend automatically triggers Ollama inference for wave gestures
+- All data flows via WebSocket to frontend for real-time display
 
 ## Communication Patterns
 
 ### REST API
 - Frontend ↔ Backend: Control operations (start/stop tracking, AI queries)
-- Backend ↔ Vision Service: Gesture data polling
+- Vision Service → Backend: Gesture data push (POST /api/gestures/process)
+- Backend → Ollama: AI inference requests (POST /api/generate)
 
 ### WebSocket
 - Backend → Frontend: Real-time gesture updates
 - Backend → Frontend: AI response streaming
 - Backend → Frontend: Projection updates
 
-## GPU Acceleration
+## AI Integration
 
-### NVIDIA GPU Support
-- **Backend**: TensorFlow.js with CUDA support for AI inference
-- **Vision Service**: PyTorch with CUDA for deep learning models
+### Ollama Service
+- **Backend**: Communicates with Ollama API (HTTP REST)
+- **Model**: llama3.2 (default, configurable via OLLAMA_MODEL)
+- **Location**: External service (must be running separately)
+- **Connection**: Tested on initialization, graceful error handling
+
+### GPU Acceleration (Optional)
+- **Ollama**: Can utilize GPU if available (managed by Ollama service)
 - **Frontend**: WebGL for 3D rendering acceleration
-
-### Docker GPU Runtime
-- Uses NVIDIA Container Runtime
-- Requires `nvidia-docker2` installed
-- Configured in `docker-compose.yml`
+- **Vision Service**: MediaPipe runs efficiently on CPU
 
 ## Deployment
 
@@ -141,7 +149,7 @@ Dixi is a microservices-based AI-powered interactive projection system designed 
 - CORS configured for frontend domain
 - Helmet.js for HTTP security headers
 - Input validation on all endpoints
-- Rate limiting for API endpoints (TODO)
+- Rate limiting for API endpoints (✅ Implemented)
 - Authentication/Authorization (TODO)
 
 ## Performance Optimization

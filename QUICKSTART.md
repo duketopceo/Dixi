@@ -7,12 +7,14 @@
 Before starting, ensure you have:
 - ✅ Node.js 20+ (`node --version`)
 - ✅ Python 3.11+ (`python --version`)
-- ✅ Docker & Docker Compose (`docker --version`)
+- ✅ **Ollama installed and running** (REQUIRED)
+  - Install: https://ollama.ai
+  - Verify: `ollama --version`
+  - Start service: `ollama serve` (must be running)
+  - Pull model: `ollama pull llama3.2`
+- ✅ Docker & Docker Compose (`docker --version`) - Optional
 - ✅ Git (`git --version`)
-
-Optional but recommended:
-- NVIDIA GPU with CUDA support
-- NVIDIA Container Runtime (for Docker GPU support)
+- ✅ Webcam/camera (for gesture recognition)
 
 ### Option 1: Docker (Recommended) 🐳
 
@@ -23,10 +25,17 @@ The fastest way to get Dixi running:
 git clone https://github.com/duketopceo/Dixi.git
 cd Dixi
 
-# 2. Copy environment file
+# 2. Install and start Ollama (REQUIRED)
+# Install from https://ollama.ai if not already installed
+ollama serve  # Start Ollama service (keep running)
+
+# In a separate terminal:
+ollama pull llama3.2  # Download the AI model
+
+# 3. Copy environment file
 cp .env.example .env
 
-# 3. Build and start all services
+# 4. Build and start all services
 docker-compose up --build
 
 # 4. Open your browser
@@ -46,16 +55,23 @@ For development with hot reload:
 git clone https://github.com/duketopceo/Dixi.git
 cd Dixi
 
-# 2. Copy environment file
+# 2. Install and start Ollama (REQUIRED)
+# Install from https://ollama.ai if not already installed
+ollama serve  # Start Ollama service (keep running in this terminal)
+
+# In a separate terminal:
+ollama pull llama3.2  # Download the AI model
+
+# 3. Copy environment file
 cp .env.example .env
 
-# 3. Install root dependencies
+# 4. Install root dependencies
 npm install
 
-# 4. Install all package dependencies
+# 5. Install all package dependencies
 npm run install:all
 
-# 5. Start all services (in separate terminals)
+# 6. Start all services (in separate terminals)
 
 # Terminal 1 - Backend
 cd packages/backend
@@ -94,26 +110,26 @@ cd packages/vision && pip install -r requirements.txt && python main.py
 2. **Start Gesture Tracking**: Click "Start Tracking" in the control panel
 3. **Allow Camera Access**: Grant permission when prompted
 4. **Try Gestures**: Move your hands in front of the camera
-   - 👉 Point
-   - 🤏 Pinch
-   - ✋ Open palm
-5. **Query AI**: Type a question in the AI Query box and hit send
+   - 👋 Wave (triggers AI description automatically)
+   - 👉 Point (sends coordinates to AI)
+   - 🤏 Pinch (sends coordinates to AI)
+5. **Query AI**: Type a question in the AI Query box and hit send, or wave to trigger automatic AI response
 
 ## 🔧 Configuration
 
 Edit `.env` file to customize:
 
 ```env
-# Ports
+# Backend
 PORT=3001
+WS_PORT=3002
+
+# Vision Service
 VISION_SERVICE_PORT=5000
 
-# AI Model
-MODEL_SIZE=7B          # Options: 7B, 13B, 30B
-USE_GPU=true          # Enable GPU acceleration
-
-# Vision
-ENABLE_CAMERA=true    # Use real camera or simulation
+# Ollama Configuration (REQUIRED)
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.2
 ```
 
 ## 🐛 Troubleshooting
@@ -132,10 +148,13 @@ ENABLE_CAMERA=true    # Use real camera or simulation
 - Remove node_modules: `rm -rf node_modules package-lock.json`
 - Reinstall: `npm install`
 
-### GPU Not Detected
-- Ensure NVIDIA drivers are installed
-- Check CUDA installation: `nvidia-smi`
-- Set `USE_GPU=false` in `.env` to run on CPU
+### Ollama Not Working
+- Ensure Ollama is installed: `ollama --version`
+- Check Ollama is running: `curl http://localhost:11434/api/tags`
+- Start Ollama: `ollama serve`
+- Verify model is available: `ollama list` (should show llama3.2)
+- Pull model if missing: `ollama pull llama3.2`
+- Check OLLAMA_BASE_URL in `.env` matches your Ollama service URL
 
 ## 📚 Next Steps
 
