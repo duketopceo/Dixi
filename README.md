@@ -285,7 +285,31 @@ OLLAMA_MODEL=llama3.2
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please see our [Contributing Guidelines](./CONTRIBUTING.md) for details on:
+
+- Setting up your development environment
+- Our branch structure (`main` and `development`)
+- Submitting Pull Requests
+- Code style guidelines
+- Testing requirements
+
+Quick start for contributors:
+```bash
+# Fork and clone the repository
+git clone https://github.com/your-username/Dixi.git
+cd Dixi
+
+# Create a feature branch from development
+git checkout development
+git checkout -b feature/your-feature-name
+
+# Make changes, commit, and push
+git push origin feature/your-feature-name
+
+# Open a PR targeting the development branch
+```
+
+See [BRANCH_STRUCTURE.md](./BRANCH_STRUCTURE.md) for detailed branch workflow.
 
 ## 📄 License
 
