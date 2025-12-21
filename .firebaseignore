@@ -1,0 +1,15 @@
+node_modules/
+.venv/
+.git/
+*.log
+.env
+.env.local
+.DS_Store
+coverage/
+dist/
+build/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+

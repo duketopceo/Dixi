@@ -98,16 +98,37 @@ An AI-powered interactive projection system that uses computer vision, gesture r
    npm run install:all
    ```
 
-5. **Start development servers**
+5. **Set up Python virtual environment** (for vision service)
+   ```bash
+   # Windows
+   python -m venv .venv
+   .venv\Scripts\activate
+   
+   # Install vision service dependencies
+   cd packages/vision
+   pip install -r requirements.txt
+   
+   # Download MediaPipe model if missing
+   # The model file should be at packages/vision/hand_landmarker.task
+   # If missing, download from:
+   # https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task
+   ```
+
+6. **Start development servers**
    ```bash
    # Start all services
    npm run dev
 
    # Or start individually
-   npm run dev:backend    # Backend server
-   npm run dev:frontend   # Frontend dev server
-   npm run dev:vision     # Vision service
+   npm run dev:backend    # Backend server (port 3001)
+   npm run dev:frontend   # Frontend dev server (port 3000)
+   
+   # Vision service (port 5000) - REQUIRED for camera feed
+   cd packages/vision
+   python main.py
    ```
+   
+   **Important**: The vision service must be running for the camera feed to work. Without it, you'll see a black screen with an error message.
 
 ### Docker Deployment
 
@@ -206,6 +227,45 @@ OLLAMA_MODEL=llama3.2
 ```
 
 ## 🚀 Deployment
+
+### Firebase Hosting
+
+1. **Install Firebase CLI**
+   ```bash
+   npm install -g firebase-tools
+   ```
+
+2. **Login to Firebase**
+   ```bash
+   firebase login
+   ```
+
+3. **Setup Firebase** (first time only)
+   ```bash
+   # Windows PowerShell
+   .\scripts\setup_firebase.ps1
+   
+   # Or manually:
+   # Update .firebaserc with your Firebase project ID
+   # firebase use --add  # Select or create a project
+   ```
+
+4. **Build frontend**
+   ```bash
+   npm run build:frontend
+   ```
+
+5. **Deploy to Firebase**
+   ```bash
+   # Deploy everything
+   firebase deploy
+   
+   # Or deploy only hosting
+   firebase deploy --only hosting
+   
+   # Or deploy only functions (backend)
+   firebase deploy --only functions
+   ```
 
 ### GCP Cloud Run
 

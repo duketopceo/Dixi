@@ -4,14 +4,23 @@
   box-sizing: border-box;
 }
 
+:root {
+  /* Design System Colors */
+  --bg-glass: rgba(15, 15, 15, 0.85);
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.6);
+  --accent-active: #00F5FF;
+  --accent-success: #00FF87;
+  --accent-error: #FF006E;
+  --grid-border: rgba(0, 245, 255, 0.15);
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #000;
-  color: #fff;
+  background: #000000;
+  color: var(--text-primary);
   overflow: hidden;
 }
 
@@ -21,6 +30,14 @@ body {
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+/* Glassmorphism utility class */
+.glass {
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }

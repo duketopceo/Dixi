@@ -75,11 +75,34 @@ export class WebSocketService {
       data: gesture
     });
 
+    let successCount = 0;
+    let errorCount = 0;
+
     this.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
+        try {
+          client.send(message);
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          logger.error('Failed to send gesture to client:', error);
+          // Remove client if send fails
+          this.clients.delete(client);
+          try {
+            client.close();
+          } catch (closeError) {
+            // Ignore close errors
+          }
+        }
+      } else {
+        // Remove clients that are not open
+        this.clients.delete(client);
       }
     });
+
+    if (errorCount > 0) {
+      logger.warn(`Broadcast gesture: ${successCount} sent, ${errorCount} failed`);
+    }
   }
 
   public broadcastAIResponse(response: AIResponse) {
@@ -88,11 +111,34 @@ export class WebSocketService {
       data: response
     });
 
+    let successCount = 0;
+    let errorCount = 0;
+
     this.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
+        try {
+          client.send(message);
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          logger.error('Failed to send AI response to client:', error);
+          // Remove client if send fails
+          this.clients.delete(client);
+          try {
+            client.close();
+          } catch (closeError) {
+            // Ignore close errors
+          }
+        }
+      } else {
+        // Remove clients that are not open
+        this.clients.delete(client);
       }
     });
+
+    if (errorCount > 0) {
+      logger.warn(`Broadcast AI response: ${successCount} sent, ${errorCount} failed`);
+    }
   }
 
   public broadcastProjection(data: any) {
@@ -101,11 +147,34 @@ export class WebSocketService {
       data
     });
 
+    let successCount = 0;
+    let errorCount = 0;
+
     this.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
+        try {
+          client.send(message);
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          logger.error('Failed to send projection to client:', error);
+          // Remove client if send fails
+          this.clients.delete(client);
+          try {
+            client.close();
+          } catch (closeError) {
+            // Ignore close errors
+          }
+        }
+      } else {
+        // Remove clients that are not open
+        this.clients.delete(client);
       }
     });
+
+    if (errorCount > 0) {
+      logger.warn(`Broadcast projection: ${successCount} sent, ${errorCount} failed`);
+    }
   }
 
   public getClientCount(): number {
