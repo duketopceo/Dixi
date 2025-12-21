@@ -24,14 +24,21 @@ def test_camera():
     return True
 
 def test_mediapipe():
-    print("\n--- Testing MediaPipe Model Loading ---")
+    print("\n--- Testing Modern MediaPipe Tasks API Loading ---")
     try:
-        mp_hands = mp.solutions.hands
-        hands = mp_hands.Hands(static_image_mode=True, max_num_hands=1)
-        print("✅ SUCCESS: MediaPipe Hands model loaded successfully")
-        return True
+        from mediapipe.tasks import python
+        from mediapipe.tasks.python import vision
+        print("✅ SUCCESS: MediaPipe Tasks API available")
+        
+        model_path = "packages/vision/hand_landmarker.task"
+        if os.path.exists(model_path):
+            print(f"✅ SUCCESS: Model file found at {model_path}")
+            return True
+        else:
+            print(f"❌ FAILED: Model file NOT found at {model_path}")
+            return False
     except Exception as e:
-        print(f"❌ FAILED: Could not load MediaPipe model: {e}")
+        print(f"❌ FAILED: Could not load MediaPipe Tasks API: {e}")
         return False
 
 def test_service_health():

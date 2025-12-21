@@ -3,6 +3,7 @@ import ProjectionCanvas from './components/ProjectionCanvas';
 import ControlPanel from './components/ControlPanel';
 import GestureIndicator from './components/GestureIndicator';
 import AIResponseDisplay from './components/AIResponseDisplay';
+import DebugLog from './components/DebugLog';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useGestureStore } from './store/gestureStore';
 import { useAIStore } from './store/aiStore';
@@ -43,6 +44,8 @@ const App: React.FC = () => {
       <aside className="app-sidebar">
         <ControlPanel />
       </aside>
+
+      <DebugLog />
     </div>
   );
 };
