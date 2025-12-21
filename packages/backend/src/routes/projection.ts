@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { wsService } from '../index';
+import { validateProjectionMapping, validateProjectionContent } from '../middleware/validation';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -13,10 +15,12 @@ router.get('/status', (req: Request, res: Response) => {
   });
 });
 
-// Update projection mapping
-router.post('/mapping', (req: Request, res: Response) => {
+// Update projection mapping (with validation)
+router.post('/mapping', validateProjectionMapping, (req: Request, res: Response) => {
   try {
     const { calibrationData, transform } = req.body;
+    
+    logger.info('Updating projection mapping');
     
     // Broadcast projection update
     if (wsService) {
@@ -34,7 +38,7 @@ router.post('/mapping', (req: Request, res: Response) => {
       transform
     });
   } catch (error) {
-    console.error('Failed to update projection mapping:', error);
+    logger.error('Failed to update projection mapping:', error);
     res.status(500).json({ 
       error: 'Failed to update projection mapping',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -42,10 +46,12 @@ router.post('/mapping', (req: Request, res: Response) => {
   }
 });
 
-// Set projection content
-router.post('/content', (req: Request, res: Response) => {
+// Set projection content (with validation)
+router.post('/content', validateProjectionContent, (req: Request, res: Response) => {
   try {
     const { content, position, style } = req.body;
+    
+    logger.debug('Updating projection content', { hasPosition: !!position, hasStyle: !!style });
     
     // Broadcast content update
     if (wsService) {
@@ -63,7 +69,7 @@ router.post('/content', (req: Request, res: Response) => {
       content
     });
   } catch (error) {
-    console.error('Failed to update projection content:', error);
+    logger.error('Failed to update projection content:', error);
     res.status(500).json({ 
       error: 'Failed to update projection content',
       details: error instanceof Error ? error.message : 'Unknown error'

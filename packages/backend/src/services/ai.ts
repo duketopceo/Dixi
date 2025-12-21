@@ -1,4 +1,5 @@
 import * as tf from '@tensorflow/tfjs-node-gpu';
+import logger from '../utils/logger';
 
 export interface AIModelConfig {
   modelPath?: string;
@@ -21,9 +22,9 @@ export class AIService {
   private modelSize: string = '7B';
 
   constructor() {
-    console.log('🤖 AI Service initialized');
-    console.log(`📊 TensorFlow.js version: ${tf.version.tfjs}`);
-    console.log(`🎮 GPU Backend: ${process.env.USE_GPU === 'true' ? 'Enabled' : 'Disabled'}`);
+    logger.info('🤖 AI Service initialized');
+    logger.info(`📊 TensorFlow.js version: ${tf.version.tfjs}`);
+    logger.info(`🎮 GPU Backend: ${process.env.USE_GPU === 'true' ? 'Enabled' : 'Disabled'}`);
   }
 
   async initialize(modelPath?: string, modelSize?: string): Promise<void> {
@@ -32,15 +33,15 @@ export class AIService {
       
       // In production, load actual model
       // For now, we'll simulate model loading
-      console.log(`Loading ${this.modelSize} quantized model...`);
+      logger.info(`Loading ${this.modelSize} quantized model...`);
       
       // Simulate model loading delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       this.initialized = true;
-      console.log(`✅ AI Model (${this.modelSize}) loaded successfully`);
+      logger.info(`✅ AI Model (${this.modelSize}) loaded successfully`);
     } catch (error) {
-      console.error('Failed to initialize AI model:', error);
+      logger.error('Failed to initialize AI model:', error);
       throw error;
     }
   }
@@ -78,7 +79,7 @@ export class AIService {
         }
       };
     } catch (error) {
-      console.error('Inference failed:', error);
+      logger.error('Inference failed:', error);
       throw error;
     }
   }
@@ -119,6 +120,6 @@ export class AIService {
       this.model = null;
     }
     this.initialized = false;
-    console.log('🗑️ AI Model disposed');
+    logger.info('🗑️ AI Model disposed');
   }
 }

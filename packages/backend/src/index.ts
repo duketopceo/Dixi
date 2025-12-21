@@ -9,8 +9,11 @@ import { createServer } from 'http';
 import gestureRoutes from './routes/gesture';
 import aiRoutes from './routes/ai';
 import projectionRoutes from './routes/projection';
+import healthRoutes from './routes/health';
 import { errorHandler } from './middleware/errorHandler';
+import { apiLimiter } from './middleware/rateLimiter';
 import { WebSocketService } from './services/websocket';
+import logger, { morganStream } from './utils/logger';
 
 dotenv.config();
 
@@ -25,21 +28,15 @@ app.use(cors({
   credentials: true
 }));
 app.use(compression());
-app.use(morgan('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(morgan('combined', { stream: morganStream }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Health check
-app.get('/health', (req: Request, res: Response) => {
-  res.json({ 
-    status: 'healthy', 
-    timestamp: new Date().toISOString(),
-    services: {
-      backend: 'running',
-      gpu: process.env.USE_GPU === 'true' ? 'enabled' : 'disabled'
-    }
-  });
-});
+// Apply rate limiting to all API routes
+app.use('/api/', apiLimiter);
+
+// Health check routes (no rate limiting)
+app.use('/health', healthRoutes);
 
 // API Routes
 app.use('/api/gestures', gestureRoutes);
@@ -56,13 +53,21 @@ const server = createServer(app);
 const wss = new Server({ port: Number(WS_PORT) });
 const wsService = new WebSocketService(wss);
 
-console.log(`🚀 Dixi Backend starting...`);
-console.log(`📡 HTTP Server: http://localhost:${PORT}`);
-console.log(`🔌 WebSocket Server: ws://localhost:${WS_PORT}`);
-console.log(`🎮 GPU Acceleration: ${process.env.USE_GPU === 'true' ? 'Enabled' : 'Disabled'}`);
+logger.info('🚀 Dixi Backend starting...');
+logger.info(`📡 HTTP Server: http://localhost:${PORT}`);
+logger.info(`🔌 WebSocket Server: ws://localhost:${WS_PORT}`);
+logger.info(`🎮 GPU Acceleration: ${process.env.USE_GPU === 'true' ? 'Enabled' : 'Disabled'}`);
 
 server.listen(PORT, () => {
-  console.log(`✅ Dixi Backend ready on port ${PORT}`);
+  logger.info(`✅ Dixi Backend ready on port ${PORT}`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM signal received: closing HTTP server');
+  server.close(() => {
+    logger.info('HTTP server closed');
+  });
 });
 
 export { app, wss, wsService };

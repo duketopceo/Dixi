@@ -1,4 +1,5 @@
 import { Server, WebSocket } from 'ws';
+import logger from '../utils/logger';
 
 export interface GestureData {
   type: string;
@@ -26,7 +27,7 @@ export class WebSocketService {
 
   private initialize() {
     this.wss.on('connection', (ws: WebSocket) => {
-      console.log('🔌 New WebSocket client connected');
+      logger.info('🔌 New WebSocket client connected');
       this.clients.add(ws);
 
       ws.on('message', (message: string) => {
@@ -34,17 +35,17 @@ export class WebSocketService {
           const data = JSON.parse(message.toString());
           this.handleMessage(ws, data);
         } catch (error) {
-          console.error('Failed to parse WebSocket message:', error);
+          logger.error('Failed to parse WebSocket message:', error);
         }
       });
 
       ws.on('close', () => {
-        console.log('🔌 WebSocket client disconnected');
+        logger.info('🔌 WebSocket client disconnected');
         this.clients.delete(ws);
       });
 
       ws.on('error', (error) => {
-        console.error('WebSocket error:', error);
+        logger.error('WebSocket error:', error);
         this.clients.delete(ws);
       });
 
@@ -58,7 +59,7 @@ export class WebSocketService {
   }
 
   private handleMessage(ws: WebSocket, data: any) {
-    console.log('📨 Received message:', data.type);
+    logger.debug('📨 Received WebSocket message', { type: data.type });
     
     // Echo back for now (can be extended)
     ws.send(JSON.stringify({
