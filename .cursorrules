@@ -81,6 +81,15 @@ Dixi is an AI-powered interactive projection system using:
 - Check vite.config.ts for proxy settings
 - Ensure vite-env.d.ts exists for TypeScript
 
+### Projection Mapping (3D Gesture Control)
+- Scene store: `packages/frontend/src/store/sceneStore.ts` (Zustand)
+- Object limit: 50 objects maximum (enforced in store)
+- Gesture mappings: point (select), pinch (create/drag), swipe (rotate), palm/fist (scale)
+- Performance: LOD system, frustum culling, object pooling infrastructure
+- History: Undo/redo system tracks last 20 operations
+- Validation: All transforms sanitized (prevents NaN/Infinity)
+- See `PLANS_SUMMARY.md` for complete feature list
+
 ## Files to Update When Making Changes
 
 ### AI_to_Khan.md

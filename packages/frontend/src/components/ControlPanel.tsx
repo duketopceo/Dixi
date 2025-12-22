@@ -2,7 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { apiService } from '../services/api';
 import { useGestureStore } from '../store/gestureStore';
 import { useAIStore } from '../store/aiStore';
+import { useSceneStore } from '../store/sceneStore';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { usePerformance } from '../hooks/usePerformance';
+import { serializeScene, deserializeScene } from '../utils/sceneSerializer';
+import { MAX_OBJECTS } from '../utils/validation';
+import { ObjectPropertiesPanel } from './Scene/ObjectPropertiesPanel';
 import logger from '../utils/logger';
 import './ControlPanel.css';
 
@@ -79,6 +84,22 @@ const ControlPanel: React.FC = () => {
   const responseHistory = useAIStore((state) => state.responseHistory);
   const isProcessing = useAIStore((state) => state.isProcessing);
   const { isConnected: wsConnected, error: wsError } = useWebSocket();
+  
+  // Scene management state
+  const objects = useSceneStore((state) => state.objects);
+  const selectedObjectId = useSceneStore((state) => state.selectedObjectId);
+  const clearScene = useSceneStore((state) => state.clearScene);
+  const undo = useSceneStore((state) => state.undo);
+  const redo = useSceneStore((state) => state.redo);
+  const duplicateObject = useSceneStore((state) => state.duplicateObject);
+  const history = useSceneStore((state) => state.history);
+  const clearHistory = useSceneStore((state) => state.clearHistory);
+  const [sceneName, setSceneName] = useState('');
+  const [savedScenes, setSavedScenes] = useState<Array<{ id: string; name: string; objectCount: number }>>([]);
+  const [loadingScenes, setLoadingScenes] = useState(false);
+  
+  // Performance metrics using hook
+  const performanceMetrics = usePerformance();
 
   const addDebugLog = (type: DebugLog['type'], message: string, data?: unknown) => {
     const log: DebugLog = {
@@ -316,6 +337,111 @@ const ControlPanel: React.FC = () => {
     }
   };
 
+  // Scene management handlers
+  const loadScenes = async () => {
+    setLoadingScenes(true);
+    try {
+      const response = await apiService.listScenes();
+      if (response?.scenes) {
+        setSavedScenes(response.scenes);
+        addDebugLog('success', `Loaded ${response.scenes.length} saved scenes`);
+      }
+    } catch (error) {
+      addDebugLog('error', 'Failed to load scenes', error);
+    } finally {
+      setLoadingScenes(false);
+    }
+  };
+
+  const handleSaveScene = async () => {
+    if (objects.length === 0) {
+      setError('Cannot save empty scene');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const serialized = serializeScene(objects, sceneName || undefined);
+      const response = await apiService.saveScene(serialized, sceneName || undefined);
+      addDebugLog('success', `Scene saved: ${response.sceneId}`, { objectCount: objects.length });
+      setSceneName('');
+      clearHistory(); // Clear history on save
+      await loadScenes();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to save scene';
+      setError(message);
+      addDebugLog('error', 'Failed to save scene', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoadScene = async (sceneId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiService.loadScene(sceneId);
+      if (response?.scene?.objects) {
+        const deserialized = deserializeScene(response.scene);
+        clearScene();
+        // Add objects without creating history entries (batch add)
+        const store = useSceneStore.getState();
+        deserialized.forEach((obj) => {
+          store.addObject(obj);
+        });
+        clearHistory(); // Clear history on load
+        addDebugLog('success', `Scene loaded: ${response.scene.name || sceneId}`, { objectCount: deserialized.length });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load scene';
+      setError(message);
+      addDebugLog('error', 'Failed to load scene', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearScene = () => {
+    if (window.confirm('Are you sure you want to clear the scene? This cannot be undone.')) {
+      clearScene();
+      addDebugLog('info', 'Scene cleared');
+    }
+  };
+
+  // Load scenes on mount
+  useEffect(() => {
+    loadScenes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Z or Cmd+Z for undo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        if (history.past.length > 0) {
+          undo();
+          addDebugLog('info', 'Undo performed');
+        }
+      }
+      // Ctrl+Shift+Z or Cmd+Shift+Z for redo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        if (history.future.length > 0) {
+          redo();
+          addDebugLog('info', 'Redo performed');
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [history, undo, redo]);
+  
+  // Performance metrics are now handled by usePerformance hook
+
   if (isCollapsed) {
     return (
       <button
@@ -515,6 +641,165 @@ const ControlPanel: React.FC = () => {
               </div>
             </div>
           )}
+        </AccordionSection>
+
+        {/* Scene Management */}
+        <AccordionSection id="scene" title="Scene Management" icon="🎨" defaultExpanded={false}>
+          <div className="scene-controls">
+            <div className="scene-info">
+              <span className="info-label">Objects in Scene:</span>
+              <span className={`info-value ${objects.length >= MAX_OBJECTS ? 'warning' : ''}`}>
+                {objects.length} / {MAX_OBJECTS}
+              </span>
+            </div>
+            {objects.length >= MAX_OBJECTS && (
+              <div className="scene-warning">
+                ⚠️ Maximum object limit reached. Remove objects to create new ones.
+              </div>
+            )}
+            
+            <div className="scene-save">
+              <input
+                type="text"
+                className="scene-name-input"
+                placeholder="Scene name (optional)"
+                value={sceneName}
+                onChange={(e) => setSceneName(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSaveScene()}
+              />
+              <button
+                className="control-button"
+                onClick={handleSaveScene}
+                disabled={loading || objects.length === 0}
+              >
+                {loading ? 'Saving...' : 'Save Scene'}
+              </button>
+            </div>
+
+            <div className="scene-actions">
+              <button
+                className="control-button"
+                onClick={handleClearScene}
+                disabled={objects.length === 0}
+              >
+                Clear Scene
+              </button>
+              <button
+                className="control-button"
+                onClick={loadScenes}
+                disabled={loadingScenes}
+              >
+                {loadingScenes ? 'Loading...' : 'Refresh Scenes'}
+              </button>
+            </div>
+            
+            <div className="scene-undo-redo">
+              <button
+                className="control-button"
+                onClick={() => {
+                  undo();
+                  addDebugLog('info', 'Undo performed');
+                }}
+                disabled={history.past.length === 0}
+                title="Undo (Ctrl+Z)"
+              >
+                ↶ Undo ({history.past.length})
+              </button>
+              <button
+                className="control-button"
+                onClick={() => {
+                  redo();
+                  addDebugLog('info', 'Redo performed');
+                }}
+                disabled={history.future.length === 0}
+                title="Redo (Ctrl+Shift+Z)"
+              >
+                ↷ Redo ({history.future.length})
+              </button>
+            </div>
+
+            <div className="scene-actions">
+              <button
+                className="control-button"
+                onClick={() => {
+                  if (selectedObjectId) {
+                    const result = duplicateObject(selectedObjectId, [0.5, 0.5, 0]);
+                    if (result.success) {
+                      addDebugLog('success', 'Object duplicated');
+                    } else {
+                      addDebugLog('error', result.error || 'Failed to duplicate object');
+                    }
+                  } else {
+                    addDebugLog('warning', 'No object selected for duplication');
+                  }
+                }}
+                disabled={!selectedObjectId || objects.length >= MAX_OBJECTS}
+                title="Duplicate selected object (or use double-tap gesture)"
+              >
+                📋 Duplicate
+              </button>
+            </div>
+
+            {savedScenes.length > 0 && (
+              <div className="scene-list">
+                <div className="scene-list-header">Saved Scenes:</div>
+                <div className="scene-list-items">
+                  {savedScenes.map((scene) => (
+                    <div key={scene.id} className="scene-list-item">
+                      <div className="scene-item-info">
+                        <span className="scene-item-name">{scene.name}</span>
+                        <span className="scene-item-count">{scene.objectCount} objects</span>
+                      </div>
+                      <button
+                        className="control-button small"
+                        onClick={() => handleLoadScene(scene.id)}
+                        disabled={loading}
+                      >
+                        Load
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </AccordionSection>
+
+        {/* Object Properties */}
+        <AccordionSection id="properties" title="Object Properties" icon="🎛️" defaultExpanded={false}>
+          <ObjectPropertiesPanel objectId={selectedObjectId} />
+        </AccordionSection>
+
+        {/* Performance Metrics */}
+        <AccordionSection id="performance" title="Performance" icon="📊" defaultExpanded={false}>
+          <div className="info-grid">
+            <div className="info-row">
+              <span className="info-label">FPS:</span>
+              <span className={`info-value ${performanceMetrics.fps < 30 ? 'warning' : performanceMetrics.fps >= 60 ? 'success' : ''}`}>
+                {performanceMetrics.fps}
+              </span>
+            </div>
+            <div className="info-row">
+              <span className="info-label">Frame Time:</span>
+              <span className={`info-value ${performanceMetrics.frameTime > 33 ? 'warning' : performanceMetrics.frameTime < 17 ? 'success' : ''}`}>
+                {performanceMetrics.frameTime.toFixed(2)} ms
+              </span>
+            </div>
+            <div className="info-row">
+              <span className="info-label">Objects:</span>
+              <span className="info-value">{performanceMetrics.objectCount}</span>
+            </div>
+            <div className="info-row">
+              <span className="info-label">Particles:</span>
+              <span className="info-value">{performanceMetrics.particleCount}</span>
+            </div>
+            {performanceMetrics.fps < 30 && (
+              <div className="info-row warning">
+                <span className="info-label">⚠️ Performance Warning:</span>
+                <span className="info-value">FPS below 30. Consider reducing object count.</span>
+              </div>
+            )}
+          </div>
         </AccordionSection>
 
         {/* System Info */}

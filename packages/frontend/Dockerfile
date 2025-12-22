@@ -2,15 +2,23 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dependencies
-COPY package.json ./
-RUN npm install
+# Copy root workspace files (package-lock.json contains all workspace dependencies)
+COPY package.json package-lock.json ./
 
-# Copy source code
-COPY . .
+# Copy frontend package.json to maintain its dependency declarations
+COPY packages/frontend/package.json ./packages/frontend/
 
-# Build application
+# Install all workspace dependencies deterministically
+# This installs dependencies for all workspaces, but ensures deterministic versions
+RUN npm ci --legacy-peer-deps
+
+# Copy frontend source code
+COPY packages/frontend/ ./packages/frontend/
+
+# Build application (from frontend directory to use correct package.json)
+WORKDIR /app/packages/frontend
 RUN npm run build
+WORKDIR /app
 
 # Install serve to serve static files
 RUN npm install -g serve

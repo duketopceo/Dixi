@@ -145,5 +145,42 @@ export const apiService = {
     } catch (error) {
       handleApiError(error);
     }
+  },
+
+  // Scene management endpoints
+  async saveScene(scene: any, name?: string) {
+    try {
+      const response = await api.post('/projection/scene', { scene, name });
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
+  },
+
+  async loadScene(sceneId: string) {
+    try {
+      const response = await api.get(`/projection/scene/${sceneId}`);
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
+  },
+
+  async listScenes() {
+    try {
+      const response = await api.get('/projection/scenes');
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
+  },
+
+  async deleteScene(sceneId: string) {
+    try {
+      const response = await api.delete(`/projection/scene/${sceneId}`);
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
   }
 };

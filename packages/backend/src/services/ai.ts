@@ -1,5 +1,6 @@
 import axios from 'axios';
 import logger from '../utils/logger';
+import { aiResponseCache, generateQueryCacheKey } from './cache';
 
 export interface AIModelConfig {
   modelPath?: string;
@@ -234,6 +235,25 @@ export class AIService {
     const startTime = Date.now();
 
     try {
+      // Check cache first
+      const cacheKey = generateQueryCacheKey(query, this.modelName);
+      const cached = aiResponseCache.get(cacheKey);
+      
+      if (cached) {
+        logger.debug('AI response cache hit', { cacheKey });
+        return {
+          text: cached,
+          metadata: {
+            inferenceTime: 0, // Cached, no inference time
+            tokenCount: cached.split(' ').length,
+            confidence: 0.95,
+            model: this.modelName,
+            context: this.buildOptimizedContext(context),
+            tokens: cached.split(' ').length,
+          }
+        };
+      }
+
       // Build optimized context (minimal, essential only)
       const optimizedContext = this.buildOptimizedContext(context);
       const prompt = this.buildPrompt(query, context);
@@ -263,6 +283,12 @@ export class AIService {
 
       const inferenceTime = Date.now() - startTime;
       const responseText = response.data.response || '';
+
+      // Cache the response
+      if (responseText) {
+        aiResponseCache.set(cacheKey, responseText);
+        logger.debug('AI response cached', { cacheKey });
+      }
 
       return {
         text: responseText,

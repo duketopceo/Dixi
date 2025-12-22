@@ -10,6 +10,10 @@ import gestureRoutes from './routes/gesture';
 import aiRoutes from './routes/ai';
 import projectionRoutes from './routes/projection';
 import healthRoutes from './routes/health';
+import metricsRoutes from './routes/metrics';
+import adminRoutes from './routes/admin';
+import gestureRecorderRoutes from './routes/gesture-recorder';
+import promptTemplatesRoutes from './routes/prompt-templates';
 import { errorHandler } from './middleware/errorHandler';
 import { apiLimiter } from './middleware/rateLimiter';
 import { WebSocketService } from './services/websocket';
@@ -42,6 +46,10 @@ app.use('/health', healthRoutes);
 app.use('/api/gestures', gestureRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/projection', projectionRoutes);
+app.use('/api/metrics', metricsRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/gestures', gestureRecorderRoutes);
+app.use('/api/prompts', promptTemplatesRoutes);
 
 // Error handling
 app.use(errorHandler);

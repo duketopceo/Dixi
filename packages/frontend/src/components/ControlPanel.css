@@ -667,3 +667,152 @@
 .debug-logs::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 245, 255, 0.5);
 }
+
+/* Scene Management */
+.scene-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.scene-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.scene-save {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scene-name-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  transition: all 200ms ease-out;
+}
+
+.scene-name-input:focus {
+  outline: none;
+  border-color: rgba(0, 245, 255, 0.5);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.scene-name-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.scene-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.scene-actions .control-button {
+  flex: 1;
+}
+
+.scene-undo-redo {
+  display: flex;
+  gap: 8px;
+}
+
+.scene-undo-redo .control-button {
+  flex: 1;
+}
+
+.scene-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scene-list-header {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  margin-bottom: 4px;
+}
+
+.scene-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.scene-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 200ms ease-out;
+}
+
+.scene-list-item:hover {
+  background: rgba(0, 0, 0, 0.4);
+  border-color: rgba(0, 245, 255, 0.2);
+}
+
+.scene-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.scene-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.scene-item-count {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.scene-warning {
+  padding: 10px 12px;
+  background: rgba(255, 0, 110, 0.15);
+  border: 1px solid rgba(255, 0, 110, 0.3);
+  border-radius: 8px;
+  color: #FF006E;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.info-value.warning {
+  color: #FF006E;
+  font-weight: 700;
+}
+
+.info-value.success {
+  color: #00FF87;
+  font-weight: 600;
+}
+
+.info-row.warning {
+  background: rgba(255, 0, 110, 0.1);
+  border: 1px solid rgba(255, 0, 110, 0.3);
+  border-radius: 4px;
+  padding: 8px;
+  margin-top: 4px;
+}
