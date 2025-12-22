@@ -1,6 +1,5 @@
 import React, { useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Outline } from '@react-three/drei';
 import * as THREE from 'three';
 import { SceneObject } from '../../store/sceneStore';
 import { useSceneStore } from '../../store/sceneStore';
@@ -160,6 +159,11 @@ export const InteractiveObject: React.FC<InteractiveObjectProps> = ({ object }) 
     }
   }, [object.id]);
 
+  // Create outline effect using scaled mesh with back-face material
+  const outlineScale = isSelected ? (isPrimarySelected ? 1.05 : 1.03) : isHovered ? 1.02 : 1.0;
+  const outlineColor = isSelected ? (isPrimarySelected ? "#00F5FF" : "#00FF87") : "#00F5FF";
+  const outlineOpacity = isSelected ? (isPrimarySelected ? 0.8 : 0.5) : 0.4;
+
   return (
     <group ref={groupRef}>
       <mesh ref={meshRef}>
@@ -176,22 +180,17 @@ export const InteractiveObject: React.FC<InteractiveObjectProps> = ({ object }) 
         />
       </mesh>
       
-      {/* Selection outline */}
-      {isSelected && (
-        <Outline
-          thickness={isPrimarySelected ? 0.05 : 0.03}
-          color={isPrimarySelected ? "#00F5FF" : "#00FF87"}
-          opacity={isPrimarySelected ? 0.8 : 0.5}
-        />
-      )}
-      
-      {/* Hover outline (subtle) */}
-      {isHovered && !isSelected && (
-        <Outline
-          thickness={0.02}
-          color="#00F5FF"
-          opacity={0.4}
-        />
+      {/* Selection/Hover outline using scaled mesh with back-face material */}
+      {(isSelected || isHovered) && (
+        <mesh scale={outlineScale}>
+          {renderGeometry()}
+          <meshBasicMaterial
+            color={outlineColor}
+            side={THREE.BackSide}
+            transparent
+            opacity={outlineOpacity}
+          />
+        </mesh>
       )}
     </group>
   );

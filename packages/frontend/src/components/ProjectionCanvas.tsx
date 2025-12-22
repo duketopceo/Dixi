@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import ProjectionScene from './ProjectionScene';
 import logger from '../utils/logger';
+import { apiService } from '../services/api';
 import './ProjectionCanvas.css';
 
 const VISION_SERVICE_URL = import.meta.env.VITE_VISION_SERVICE_URL || 'http://localhost:5000';
@@ -13,10 +14,58 @@ const ProjectionCanvas: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [trackingStarted, setTrackingStarted] = useState(false);
   const retryTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const imgRef = React.useRef<HTMLImageElement | null>(null);
   const MAX_RETRIES = 5;
   const BASE_RETRY_DELAY = 2000; // 2 seconds
+
+  // Auto-start gesture tracking on mount to enable camera feed
+  useEffect(() => {
+    let isMounted = true;
+    let cancelled = false;
+    
+    const startTracking = async () => {
+      if (cancelled || !isMounted) return;
+      
+      try {
+        // Use a direct fetch instead of apiService to avoid error throwing
+        const response = await fetch('/api/gestures/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(5000) // 5 second timeout
+        });
+        
+        if (response.ok && isMounted && !cancelled) {
+          setTrackingStarted(true);
+          logger.log('Gesture tracking started successfully');
+          // Wait a moment for camera to initialize before trying to load video feed
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      } catch (error) {
+        // Silently fail - backend might not be running yet
+        // User can manually start tracking via ControlPanel
+        if (isMounted && !cancelled && import.meta.env.DEV) {
+          logger.debug('Auto-start gesture tracking skipped (backend may not be running)');
+        }
+      }
+    };
+
+    // Delay auto-start slightly to ensure app is fully mounted
+    const timeoutId = setTimeout(() => {
+      if (!cancelled) {
+        startTracking().catch(() => {
+          // Ignore all errors - gracefully degrade
+        });
+      }
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -116,14 +165,19 @@ const ProjectionCanvas: React.FC = () => {
   useEffect(() => {
     // Only test camera feed on mount or manual refresh (cameraKey change)
     // Don't create new connections on every render
-    if (cameraKey === 0) {
-      // Initial test
-      const testImg = new Image();
-      testImg.onerror = () => setCameraError(true);
-      testImg.onload = () => setCameraError(false);
-      testImg.src = `${VISION_SERVICE_URL}/video_feed`;
+    // Wait for tracking to start before trying to load video feed
+    if (cameraKey === 0 && trackingStarted) {
+      // Initial test - wait a bit for camera to initialize
+      const testTimeout = setTimeout(() => {
+        const testImg = new Image();
+        testImg.onerror = () => setCameraError(true);
+        testImg.onload = () => setCameraError(false);
+        testImg.src = `${VISION_SERVICE_URL}/video_feed`;
+      }, 1500); // Wait 1.5 seconds after tracking starts
+      
+      return () => clearTimeout(testTimeout);
     }
-  }, [cameraKey]);
+  }, [cameraKey, trackingStarted]);
 
   return (
     <div className="projection-canvas">
@@ -155,7 +209,20 @@ const ProjectionCanvas: React.FC = () => {
           <div className="camera-placeholder">
             <div className="camera-error-message">
               <p>📹 Camera feed unavailable</p>
-              <p>Check vision service at {VISION_SERVICE_URL}</p>
+              <p>Vision service: {VISION_SERVICE_URL}</p>
+              {!trackingStarted && (
+                <p style={{ fontSize: '0.9rem', color: '#FFA500', marginTop: '0.5rem' }}>
+                  Starting camera... (this may take a few seconds)
+                </p>
+              )}
+              {trackingStarted && (
+                <p style={{ fontSize: '0.9rem', color: '#888', marginTop: '0.5rem' }}>
+                  Camera started. If video doesn't appear, check:
+                  <br />• Vision service is running on port 5000
+                  <br />• Camera permissions are enabled
+                  <br />• No other app is using the camera
+                </p>
+              )}
               {retryCount > 0 && retryCount < MAX_RETRIES && (
                 <p style={{ fontSize: '0.9rem', color: '#888', marginTop: '0.5rem' }}>
                   Retrying... ({retryCount}/{MAX_RETRIES})

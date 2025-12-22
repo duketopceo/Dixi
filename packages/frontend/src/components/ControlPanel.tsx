@@ -347,7 +347,14 @@ const ControlPanel: React.FC = () => {
         addDebugLog('success', `Loaded ${response.scenes.length} saved scenes`);
       }
     } catch (error) {
-      addDebugLog('error', 'Failed to load scenes', error);
+      // Silently fail if backend isn't available - scenes are optional
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMessage.includes('No response from server') || errorMessage.includes('ERR_CONNECTION_REFUSED')) {
+        // Backend not available - this is OK, scenes will load when backend starts
+        logger.debug('Backend not available for scene loading (this is OK)');
+      } else {
+        addDebugLog('error', 'Failed to load scenes', error);
+      }
     } finally {
       setLoadingScenes(false);
     }
