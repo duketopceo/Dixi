@@ -146,7 +146,7 @@ router.get('/requests', (req: Request, res: Response) => {
  */
 router.get('/prometheus', (req: Request, res: Response) => {
   try {
-    const prometheusMetrics = monitoringService.getPrometheusMetrics();
+    const prometheusMetrics = monitoringService.exportPrometheusMetrics();
 
     res.setHeader('Content-Type', 'text/plain; version=0.0.4');
     res.send(prometheusMetrics);
