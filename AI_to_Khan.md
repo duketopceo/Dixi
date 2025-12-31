@@ -2,10 +2,9 @@
 
 **Last Updated:** December 30, 2025
 
-## Latest: Vision AI Integration & System Stability
-- Vision service simplified to 10 core gestures (no more freezes)
-- Control Panel rebuilt with modular components (best practices)
-- WebSocket singleton pattern (stable "LIVE" connection)
-- llava:7b vision model integrated (👁️ "What do you see?" button)
-- Development branch workflow established (work on `development`, merge to `main`)
-- All system tests passing, vision service confirmed stable
+## Latest: Gemini Integration & Repo Cleanup
+- Gemini API configured (gemini-2.0-flash) - quota exhausted today, falls back to Ollama
+- Fixed dotenv loading order (env vars now load before AI service imports)
+- Removed 18 old PowerShell scripts, streamlined to bash-only
+- New `start-dev.sh` and `stop-all.sh` scripts working perfectly
+- All services running: Frontend :3000, Backend :3001, Vision :5001

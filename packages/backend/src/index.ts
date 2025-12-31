@@ -1,9 +1,13 @@
+// Load environment variables FIRST, before any other imports
+// This ensures .env is loaded before AIService class constructors run
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
-import dotenv from 'dotenv';
 import { Server } from 'ws';
 import { createServer } from 'http';
 import gestureRoutes from './routes/gesture';
@@ -20,8 +24,6 @@ import { errorHandler } from './middleware/errorHandler';
 import { apiLimiter } from './middleware/rateLimiter';
 import { WebSocketService } from './services/websocket';
 import logger, { morganStream } from './utils/logger';
-
-dotenv.config();
 
 const app: Express = express();
 const PORT = process.env.PORT || 3001;
