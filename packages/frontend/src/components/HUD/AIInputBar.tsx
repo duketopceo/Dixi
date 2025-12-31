@@ -51,10 +51,13 @@ const AIInputBar: React.FC = () => {
   }, [latestResponse, chatHistory]);
 
   // Auto-analysis effect
+  // Note: We use useAIStore.getState() inside the interval to avoid stale closures
+  // and don't include analyzeTracking in deps since Zustand actions are stable
   useEffect(() => {
     if (autoAnalysisEnabled) {
       autoAnalysisIntervalRef.current = setInterval(() => {
-        analyzeTracking().catch(console.error);
+        // Get fresh function reference from store to avoid stale closures
+        useAIStore.getState().analyzeTracking().catch(console.error);
       }, autoAnalysisInterval);
     } else {
       if (autoAnalysisIntervalRef.current) {
@@ -67,7 +70,7 @@ const AIInputBar: React.FC = () => {
         clearInterval(autoAnalysisIntervalRef.current);
       }
     };
-  }, [autoAnalysisEnabled, autoAnalysisInterval, analyzeTracking]);
+  }, [autoAnalysisEnabled, autoAnalysisInterval]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
