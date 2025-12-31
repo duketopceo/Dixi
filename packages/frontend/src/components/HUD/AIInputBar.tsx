@@ -63,8 +63,10 @@ const AIInputBar: React.FC = () => {
     if (isLoading || isAnalyzingVision) return;
     
     setIsAnalyzingVision(true);
+    console.log('👁️ Starting vision analysis...');
     try {
       const response = await apiService.analyzeVision();
+      console.log('👁️ Vision analysis complete:', response);
       setLatestResponse({
         query: '👁️ What do you see?',
         response: response.text,
@@ -72,10 +74,11 @@ const AIInputBar: React.FC = () => {
         analysisType: 'vision'
       });
     } catch (error: any) {
-      console.error('Vision analysis failed:', error);
+      const errorMsg = error.message || 'Vision analysis failed';
+      console.error('👁️ Vision analysis failed:', errorMsg, error);
       setLatestResponse({
         query: '👁️ What do you see?',
-        response: error.message || 'Vision analysis failed. Make sure llava model is installed.',
+        response: `❌ ${errorMsg}. Try again in a moment or check if llava model is installed (ollama pull llava:7b).`,
         analysisType: 'error'
       });
     } finally {

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { AIService } from '../services/ai';
 import { wsService } from '../index';
-import { aiLimiter } from '../middleware/rateLimiter';
+import { aiLimiter, visionLimiter } from '../middleware/rateLimiter';
 import { validateAIInfer, validateAIInit } from '../middleware/validation';
 import logger from '../utils/logger';
 
@@ -122,7 +122,7 @@ router.post('/stream', aiLimiter, validateAIInfer, async (req: Request, res: Res
 });
 
 // Analyze current camera frame with vision model
-router.post('/vision/analyze', aiLimiter, async (req: Request, res: Response) => {
+router.post('/vision/analyze', visionLimiter, async (req: Request, res: Response) => {
   try {
     const { prompt } = req.body;
     

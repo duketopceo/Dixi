@@ -2,7 +2,8 @@
 
 **Last Updated:** December 30, 2025
 
-## Latest: Main Page Fully Working
-- Vision service on port 5001 with camera feed & hand tracking overlay
-- WebSocket singleton pattern fixed - stable "LIVE" connection
-- Gesture detection active (OPEN_PALM 90% confirmed working)
+## Latest: Vision AI + Development Branch
+- Switched to `development` branch (main is stable, pushed)
+- llava:7b vision model installed for "What do you see?" analysis
+- 👁️ button added to AI input bar for vision analysis
+- WebSocket stable, gesture detection at 138 FPS

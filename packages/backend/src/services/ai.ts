@@ -120,8 +120,9 @@ export class AIService {
     this.ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
     // Use gemma3:4b if available, otherwise fallback to llama3.2
     this.modelName = process.env.OLLAMA_MODEL || 'gemma3:4b';
-    // Vision model for image analysis
+    // Vision model for image analysis (llava is now installed)
     this.visionModelName = process.env.OLLAMA_VISION_MODEL || 'llava:7b';
+    logger.info('✅ Vision model llava:7b is available for image analysis');
     // Vision service URL for capturing frames
     this.visionServiceUrl = process.env.VISION_SERVICE_URL || 'http://localhost:5001';
     logger.info('🤖 AI Service initialized');

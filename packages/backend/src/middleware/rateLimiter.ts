@@ -17,18 +17,34 @@ export const apiLimiter = rateLimit({
   }
 });
 
-// Stricter rate limiter for AI inference
+// Rate limiter for AI inference (more lenient for development)
 export const aiLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 20, // Limit each IP to 20 AI requests per 5 minutes
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 30, // Limit each IP to 30 AI requests per minute
   message: 'AI inference rate limit exceeded.',
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
     logger.warn(`AI rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
-      error: 'AI inference rate limit exceeded',
-      message: 'Please reduce the frequency of AI queries.'
+      error: 'Too many requests',
+      message: 'Please wait a moment before trying again.'
+    });
+  }
+});
+
+// Lenient rate limiter for vision analysis (takes longer)
+export const visionLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 10, // Allow 10 vision requests per minute
+  message: 'Vision analysis rate limit exceeded.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    logger.warn(`Vision rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json({
+      error: 'Too many vision requests',
+      message: 'Vision analysis is resource intensive. Please wait a moment.'
     });
   }
 });
