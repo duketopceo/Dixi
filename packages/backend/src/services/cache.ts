@@ -187,11 +187,17 @@ export class LRUCache<T> {
 
 /**
  * Generate cache key from query string
+ * Includes provider and model to differentiate between Gemini and Ollama responses
  */
-export function generateQueryCacheKey(query: string, model?: string): string {
+export function generateQueryCacheKey(
+  query: string, 
+  model?: string, 
+  provider?: string
+): string {
   const normalized = query.trim().toLowerCase();
+  const providerPart = provider ? `:${provider}` : '';
   const modelPart = model ? `:${model}` : '';
-  return `query:${hashString(normalized)}${modelPart}`;
+  return `query:${hashString(normalized)}${providerPart}${modelPart}`;
 }
 
 /**

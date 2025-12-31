@@ -60,6 +60,128 @@ export interface OptimizedContext {
   }>;
 }
 
+/**
+ * Vision analysis context - structured type for analyzeCurrentFrame
+ * This defines the context from the Python vision service (hands, face, body, eyes)
+ */
+export interface VisionAnalysisContext {
+  gesture?: {
+    type: string;
+    confidence?: number;
+    position?: GestureCoordinates;
+    hand?: 'left' | 'right';
+  };
+  hands?: {
+    left?: {
+      detected: boolean;
+      gesture: string;
+      position: GestureCoordinates;
+      confidence: number;
+      fingers?: {
+        thumb: boolean;
+        index: boolean;
+        middle: boolean;
+        ring: boolean;
+        pinky: boolean;
+      };
+    };
+    right?: {
+      detected: boolean;
+      gesture: string;
+      position: GestureCoordinates;
+      confidence: number;
+      fingers?: {
+        thumb: boolean;
+        index: boolean;
+        middle: boolean;
+        ring: boolean;
+        pinky: boolean;
+      };
+    };
+  };
+  face?: {
+    detected: boolean;
+    bounding_box?: {
+      x_min: number;
+      y_min: number;
+      x_max: number;
+      y_max: number;
+      width: number;
+      height: number;
+    };
+    key_points?: {
+      left_eye: GestureCoordinates;
+      right_eye: GestureCoordinates;
+      nose_tip: GestureCoordinates;
+      mouth_center: GestureCoordinates;
+    };
+    head_pose?: {
+      tilt: number;
+      turn: number;
+      pitch?: number;
+      yaw?: number;
+      roll?: number;
+    };
+    expressions?: Record<string, number>;
+    mouth_features?: {
+      mouth_open: boolean;
+      mouth_open_ratio: number;
+      smile_score: number;
+      is_smiling: boolean;
+      mouth_width?: number;
+    };
+    eye_features?: {
+      both_eyes_open: boolean;
+      left_eye_open: boolean;
+      right_eye_open: boolean;
+      gaze_direction: number;
+      blink_detected?: boolean;
+    };
+    engagement?: {
+      score: number;
+      head_straightness: number;
+      eye_engagement: number;
+      is_engaged: boolean;
+    };
+  };
+  body?: {
+    detected: boolean;
+    posture?: 'standing' | 'sitting' | 'leaning' | 'unknown';
+    orientation?: {
+      pitch: number;
+      yaw: number;
+      roll: number;
+    };
+    key_points?: {
+      nose?: GestureCoordinates;
+      left_shoulder?: GestureCoordinates;
+      right_shoulder?: GestureCoordinates;
+      left_hip?: GestureCoordinates;
+      right_hip?: GestureCoordinates;
+      left_elbow?: GestureCoordinates;
+      right_elbow?: GestureCoordinates;
+      left_wrist?: GestureCoordinates;
+      right_wrist?: GestureCoordinates;
+    };
+  };
+  eyes?: {
+    left_eye?: {
+      gaze_direction: { x: number; y: number; z: number };
+      iris_position: GestureCoordinates;
+      is_open: boolean;
+      eye_height?: number;
+    };
+    right_eye?: {
+      gaze_direction: { x: number; y: number; z: number };
+      iris_position: GestureCoordinates;
+      is_open: boolean;
+      eye_height?: number;
+    };
+    combined_gaze?: { x: number; y: number; z: number };
+    attention_score?: number;
+  };
+}
+
 // Optimized Ollama parameters for performance
 const OLLAMA_INFERENCE_PARAMS = {
   // Response Generation
@@ -365,19 +487,20 @@ export class AIService {
     const startTime = Date.now();
 
     try {
-      // Check cache first
-      const cacheKey = generateQueryCacheKey(query, this.modelName);
+      // Check cache first - include provider in cache key to differentiate Gemini vs Ollama
+      const activeModel = this.aiProvider === 'gemini' ? this.cloudModel : this.modelName;
+      const cacheKey = generateQueryCacheKey(query, activeModel, this.aiProvider);
       const cached = aiResponseCache.get(cacheKey);
       
       if (cached) {
-        logger.debug('AI response cache hit', { cacheKey });
+        logger.debug('AI response cache hit', { cacheKey, provider: this.aiProvider });
         return {
           text: cached,
           metadata: {
             inferenceTime: 0, // Cached, no inference time
             tokenCount: cached.split(' ').length,
             confidence: 0.95,
-            model: this.modelName,
+            model: activeModel,
             context: this.buildOptimizedContext(context),
             tokens: cached.split(' ').length,
           }
@@ -761,8 +884,11 @@ Be conversational and brief (2-3 sentences max).`
     }
   }
 
-  // Capture a frame from the vision service and analyze it
-  async analyzeCurrentFrame(prompt?: string, context?: { gesture?: any; face?: any }): Promise<InferenceResponse> {
+  /**
+   * Capture a frame from the vision service and analyze it
+   * Uses typed VisionAnalysisContext for full body + hands + face + eyes tracking
+   */
+  async analyzeCurrentFrame(prompt?: string, context?: VisionAnalysisContext): Promise<InferenceResponse> {
     try {
       logger.info('📸 Capturing frame from vision service...');
       
@@ -782,15 +908,28 @@ Be conversational and brief (2-3 sentences max).`
       let enhancedPrompt = prompt || "Describe what you see in this image. Focus on any people, gestures, and what they might be doing. Be brief (2-3 sentences).";
       
       if (context) {
-        let contextInfo = [];
+        const contextInfo: string[] = [];
         
-        if (context.gesture && context.gesture.type && context.gesture.type !== 'none') {
-          contextInfo.push(`The person is making a "${context.gesture.type}" gesture.`);
+        // Single gesture context (legacy support)
+        if (context.gesture?.type && context.gesture.type !== 'none') {
+          const hand = context.gesture.hand ? ` (${context.gesture.hand} hand)` : '';
+          contextInfo.push(`The person is making a "${context.gesture.type}" gesture${hand}.`);
         }
         
-        if (context.face && context.face.detected) {
+        // Both hands context
+        if (context.hands) {
+          if (context.hands.left?.detected && context.hands.left.gesture !== 'unknown') {
+            contextInfo.push(`Left hand: ${context.hands.left.gesture} gesture.`);
+          }
+          if (context.hands.right?.detected && context.hands.right.gesture !== 'unknown') {
+            contextInfo.push(`Right hand: ${context.hands.right.gesture} gesture.`);
+          }
+        }
+        
+        // Face context
+        if (context.face?.detected) {
           const face = context.face;
-          let faceInfo = [];
+          const faceInfo: string[] = [];
           
           if (face.engagement) {
             if (face.engagement.is_engaged) {
@@ -827,6 +966,27 @@ Be conversational and brief (2-3 sentences max).`
           
           if (faceInfo.length > 0) {
             contextInfo.push(...faceInfo);
+          }
+        }
+        
+        // Body pose context
+        if (context.body?.detected) {
+          if (context.body.posture && context.body.posture !== 'unknown') {
+            contextInfo.push(`The person is ${context.body.posture}.`);
+          }
+        }
+        
+        // Eye tracking context
+        if (context.eyes) {
+          if (context.eyes.attention_score !== undefined && context.eyes.attention_score < 0.5) {
+            contextInfo.push("The person may be distracted or looking away.");
+          }
+          if (context.eyes.combined_gaze) {
+            const gazeX = context.eyes.combined_gaze.x;
+            if (Math.abs(gazeX) > 0.3) {
+              const direction = gazeX > 0 ? "right" : "left";
+              contextInfo.push(`The person is gazing ${direction}.`);
+            }
           }
         }
         
