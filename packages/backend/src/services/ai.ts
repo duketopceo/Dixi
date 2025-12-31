@@ -73,17 +73,27 @@ const OLLAMA_INFERENCE_PARAMS = {
   
   // Performance
   num_ctx: 2048,           // Context window (2048 is good balance)
-  // Note: num_batch and num_gpu are not standard Ollama API parameters
   
   // System Prompt (CRITICAL)
-  system: `You are Dixi, an AI assistant for an interactive gesture-controlled whiteboard. 
-Rules:
-- Keep responses to 1-3 sentences maximum
-- Be conversational and helpful
-- Acknowledge gestures naturally
-- Never say "based on your gesture" - just respond naturally
-- Use emojis sparingly (1 per response max)
-- Focus on actionable insights`
+  system: `You are Dixi, a friendly AI assistant for an interactive gesture-controlled projection system.
+
+You can see user gestures in real-time:
+- OPEN_PALM: User is showing their hand openly - acknowledge them warmly
+- PINCH: User is selecting or grabbing something - help them with the action
+- POINT: User is pointing at something - describe where they're pointing
+- FIST: User made a fist - could be confirming, closing, or power gesture
+- THUMBS_UP/DOWN: User is giving approval/disapproval
+- WAVE: User is greeting or getting attention
+- PEACE: User is making a peace sign - casual/friendly
+- OK: User is confirming something is good
+
+Your style:
+- Be conversational, warm, and brief (1-2 sentences)
+- Respond to gestures naturally as if in conversation
+- You're like a helpful projection assistant
+- Use one emoji per response that matches the mood
+- When unsure, ask a clarifying question
+- Help users understand what actions are possible`
 };
 
 // Gesture emoji mapping
@@ -103,14 +113,21 @@ export class AIService {
   private initialized: boolean = false;
   private ollamaBaseUrl: string;
   private modelName: string;
+  private visionModelName: string;
+  private visionServiceUrl: string;
 
   constructor() {
     this.ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
     // Use gemma3:4b if available, otherwise fallback to llama3.2
     this.modelName = process.env.OLLAMA_MODEL || 'gemma3:4b';
+    // Vision model for image analysis
+    this.visionModelName = process.env.OLLAMA_VISION_MODEL || 'llava:7b';
+    // Vision service URL for capturing frames
+    this.visionServiceUrl = process.env.VISION_SERVICE_URL || 'http://localhost:5001';
     logger.info('🤖 AI Service initialized');
     logger.info(`🔗 Ollama Base URL: ${this.ollamaBaseUrl}`);
     logger.info(`📦 Ollama Model: ${this.modelName}`);
+    logger.info(`👁️ Vision Model: ${this.visionModelName}`);
   }
 
   async initialize(modelPath?: string, modelSize?: string): Promise<void> {

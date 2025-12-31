@@ -17,7 +17,8 @@ const App: React.FC = () => {
     return () => {
       disconnect();
     };
-  }, [connect, disconnect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="app">

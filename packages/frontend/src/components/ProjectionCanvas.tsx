@@ -6,7 +6,7 @@ import logger from '../utils/logger';
 import { apiService } from '../services/api';
 import './ProjectionCanvas.css';
 
-const VISION_SERVICE_URL = import.meta.env.VITE_VISION_SERVICE_URL || 'http://localhost:5000';
+const VISION_SERVICE_URL = import.meta.env.VITE_VISION_SERVICE_URL || 'http://localhost:5001';
 
 const ProjectionCanvas: React.FC = () => {
   const [cameraError, setCameraError] = useState(false);
@@ -29,8 +29,8 @@ const ProjectionCanvas: React.FC = () => {
       if (cancelled || !isMounted) return;
       
       try {
-        // Use a direct fetch instead of apiService to avoid error throwing
-        const response = await fetch('/api/gestures/start', {
+        // Call vision service directly to start gesture tracking
+        const response = await fetch(`${VISION_SERVICE_URL}/gesture/start`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           signal: AbortSignal.timeout(5000) // 5 second timeout
@@ -43,10 +43,10 @@ const ProjectionCanvas: React.FC = () => {
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
       } catch (error) {
-        // Silently fail - backend might not be running yet
+        // Silently fail - vision service might not be running yet
         // User can manually start tracking via ControlPanel
         if (isMounted && !cancelled && import.meta.env.DEV) {
-          logger.debug('Auto-start gesture tracking skipped (backend may not be running)');
+          logger.debug('Auto-start gesture tracking skipped (vision service may not be running)');
         }
       }
     };
@@ -202,8 +202,6 @@ const ProjectionCanvas: React.FC = () => {
             className="camera-feed"
             onError={handleCameraError}
             onLoad={handleCameraLoad}
-            // Force new connection on each refresh
-            crossOrigin="anonymous"
           />
         ) : (
           <div className="camera-placeholder">
@@ -218,7 +216,7 @@ const ProjectionCanvas: React.FC = () => {
               {trackingStarted && (
                 <p style={{ fontSize: '0.9rem', color: '#888', marginTop: '0.5rem' }}>
                   Camera started. If video doesn't appear, check:
-                  <br />• Vision service is running on port 5000
+                  <br />• Vision service is running on port 5001
                   <br />• Camera permissions are enabled
                   <br />• No other app is using the camera
                 </p>

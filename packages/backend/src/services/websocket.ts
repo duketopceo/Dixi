@@ -30,6 +30,23 @@ export class WebSocketService {
       logger.info('🔌 New WebSocket client connected');
       this.clients.add(ws);
 
+      // Set up ping/pong to keep connection alive
+      let isAlive = true;
+      const pingInterval = setInterval(() => {
+        if (!isAlive) {
+          logger.warn('Client not responding to pings, terminating connection');
+          clearInterval(pingInterval);
+          ws.terminate();
+          return;
+        }
+        isAlive = false;
+        ws.ping();
+      }, 30000); // Ping every 30 seconds
+
+      ws.on('pong', () => {
+        isAlive = true;
+      });
+
       ws.on('message', (message: string) => {
         try {
           const data = JSON.parse(message.toString());
@@ -41,11 +58,13 @@ export class WebSocketService {
 
       ws.on('close', () => {
         logger.info('🔌 WebSocket client disconnected');
+        clearInterval(pingInterval);
         this.clients.delete(ws);
       });
 
       ws.on('error', (error) => {
         logger.error('WebSocket error:', error);
+        clearInterval(pingInterval);
         this.clients.delete(ws);
       });
 

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { useGestureStore } from '../store/gestureStore';
 import { useAIStore } from '../store/aiStore';
 import logger from '../utils/logger';
@@ -7,52 +7,86 @@ const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3002';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY = 3000; // 3 seconds
 
-export const useWebSocket = () => {
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectAttemptsRef = useRef(0);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+// Singleton WebSocket connection state
+class WebSocketManager {
+  private static instance: WebSocketManager;
+  private ws: WebSocket | null = null;
+  private reconnectAttempts = 0;
+  private reconnectTimeout: NodeJS.Timeout | null = null;
+  private listeners: Set<() => void> = new Set();
+  private _isConnected = false;
+  private _error: string | null = null;
 
-  const setCurrentGesture = useGestureStore((state) => state.setCurrentGesture);
-  const setLatestResponse = useAIStore((state) => state.setLatestResponse);
+  private constructor() {}
 
-  const connect = useCallback(() => {
+  static getInstance(): WebSocketManager {
+    if (!WebSocketManager.instance) {
+      WebSocketManager.instance = new WebSocketManager();
+    }
+    return WebSocketManager.instance;
+  }
+
+  get isConnected(): boolean {
+    return this._isConnected;
+  }
+
+  get error(): string | null {
+    return this._error;
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private notify(): void {
+    this.listeners.forEach(listener => listener());
+  }
+
+  connect(): void {
     // Clear any existing reconnection timeout
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
     }
 
     // Don't reconnect if we've exceeded max attempts
-    if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
-      setError(`Failed to connect after ${MAX_RECONNECT_ATTEMPTS} attempts. Please refresh the page.`);
+    if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      this._error = `Failed to connect after ${MAX_RECONNECT_ATTEMPTS} attempts. Please refresh the page.`;
       logger.error(`Max reconnection attempts (${MAX_RECONNECT_ATTEMPTS}) reached`);
+      this.notify();
+      return;
+    }
+
+    // Don't create new connection if already connected
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       return;
     }
 
     try {
       // Close existing connection if any
-      if (wsRef.current) {
-        wsRef.current.close();
+      if (this.ws) {
+        this.ws.close();
       }
 
-      wsRef.current = new WebSocket(WS_URL);
-      setError(null);
+      this.ws = new WebSocket(WS_URL);
+      this._error = null;
+      this.notify();
 
-      wsRef.current.onopen = () => {
+      this.ws.onopen = () => {
         logger.log('🔌 WebSocket connected');
-        setIsConnected(true);
-        reconnectAttemptsRef.current = 0; // Reset on successful connection
+        this._isConnected = true;
+        this.reconnectAttempts = 0; // Reset on successful connection
+        this.notify();
       };
 
-      wsRef.current.onmessage = (event) => {
+      this.ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
           
           switch (message.type) {
             case 'gesture':
-              setCurrentGesture(message.data);
+              useGestureStore.getState().setCurrentGesture(message.data);
               break;
             case 'ai_response':
               // Handle streaming responses
@@ -66,7 +100,7 @@ export const useWebSocket = () => {
                 }
               } else {
                 // Final response
-                setLatestResponse(message.data);
+                useAIStore.getState().setLatestResponse(message.data);
                 // Clear streaming state
                 useAIStore.getState().setProcessing(false);
               }
@@ -84,78 +118,113 @@ export const useWebSocket = () => {
           }
         } catch (error) {
           logger.error('Failed to parse WebSocket message:', error);
-          setError('Failed to parse message from server');
+          this._error = 'Failed to parse message from server';
+          this.notify();
         }
       };
 
-      wsRef.current.onerror = (error) => {
+      this.ws.onerror = (error) => {
         logger.error('WebSocket error:', error);
-        setError('WebSocket connection error');
-        setIsConnected(false);
+        this._error = 'WebSocket connection error';
+        this._isConnected = false;
+        this.notify();
       };
 
-      wsRef.current.onclose = (event) => {
+      this.ws.onclose = (event) => {
         logger.log('🔌 WebSocket disconnected', { code: event.code, reason: event.reason });
-        setIsConnected(false);
+        this._isConnected = false;
+        this.notify();
         
         // Only attempt to reconnect if it wasn't a manual close
         if (event.code !== 1000) { // 1000 = normal closure
-          reconnectAttemptsRef.current += 1;
-          const delay = RECONNECT_DELAY * reconnectAttemptsRef.current; // Exponential backoff
-          logger.log(`Attempting to reconnect in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})...`);
+          this.reconnectAttempts += 1;
+          const delay = RECONNECT_DELAY * this.reconnectAttempts; // Exponential backoff
+          logger.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
           
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connect();
+          this.reconnectTimeout = setTimeout(() => {
+            this.connect();
           }, delay);
         }
       };
     } catch (error) {
       logger.error('Failed to connect to WebSocket:', error);
-      setError(error instanceof Error ? error.message : 'Failed to connect to WebSocket');
-      setIsConnected(false);
+      this._error = error instanceof Error ? error.message : 'Failed to connect to WebSocket';
+      this._isConnected = false;
+      this.notify();
       
       // Schedule reconnection attempt
-      reconnectAttemptsRef.current += 1;
-      if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
-        reconnectTimeoutRef.current = setTimeout(() => {
-          connect();
+      this.reconnectAttempts += 1;
+      if (this.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        this.reconnectTimeout = setTimeout(() => {
+          this.connect();
         }, RECONNECT_DELAY);
       }
     }
-  }, [setCurrentGesture, setLatestResponse]);
+  }
 
-  const disconnect = useCallback(() => {
+  disconnect(): void {
     // Clear reconnection timeout
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
     }
     
     // Reset reconnection attempts
-    reconnectAttemptsRef.current = 0;
+    this.reconnectAttempts = 0;
     
-    if (wsRef.current) {
-      wsRef.current.close(1000); // Normal closure
-      wsRef.current = null;
-      setIsConnected(false);
+    if (this.ws) {
+      this.ws.close(1000); // Normal closure
+      this.ws = null;
+      this._isConnected = false;
+      this.notify();
     }
-  }, []);
+  }
 
-  const send = useCallback((data: unknown) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+  send(data: unknown): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       try {
-        wsRef.current.send(JSON.stringify(data));
+        this.ws.send(JSON.stringify(data));
       } catch (error) {
         logger.error('Failed to send WebSocket message:', error);
-        setError('Failed to send message');
+        this._error = 'Failed to send message';
+        this.notify();
         throw error;
       }
     } else {
       const errorMsg = 'WebSocket is not connected';
       logger.warn(errorMsg);
-      setError(errorMsg);
+      this._error = errorMsg;
+      this.notify();
       throw new Error(errorMsg);
     }
+  }
+}
+
+// Get the singleton instance
+const wsManager = WebSocketManager.getInstance();
+
+export const useWebSocket = () => {
+  // Subscribe to changes in the WebSocket manager
+  const isConnected = useSyncExternalStore(
+    (listener) => wsManager.subscribe(listener),
+    () => wsManager.isConnected
+  );
+
+  const error = useSyncExternalStore(
+    (listener) => wsManager.subscribe(listener),
+    () => wsManager.error
+  );
+
+  const connect = useCallback(() => {
+    wsManager.connect();
+  }, []);
+
+  const disconnect = useCallback(() => {
+    wsManager.disconnect();
+  }, []);
+
+  const send = useCallback((data: unknown) => {
+    wsManager.send(data);
   }, []);
 
   return { connect, disconnect, send, isConnected, error };
