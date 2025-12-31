@@ -15,6 +15,30 @@ export interface AIResponse {
   timestamp: number;
 }
 
+export interface FaceData {
+  detected: boolean;
+  landmarks_count?: number;
+  bounding_box?: {
+    x_min: number;
+    y_min: number;
+    x_max: number;
+    width: number;
+    height: number;
+  };
+  key_points?: {
+    left_eye: { x: number; y: number };
+    right_eye: { x: number; y: number };
+    nose_tip: { x: number; y: number };
+    mouth_center: { x: number; y: number };
+  };
+  head_pose?: {
+    tilt: number;
+    turn: number;
+  };
+  expressions?: { [key: string]: number };
+  timestamp: number;
+}
+
 export class WebSocketService {
   private wss: Server;
   private clients: Set<WebSocket>;
@@ -157,6 +181,42 @@ export class WebSocketService {
 
     if (errorCount > 0) {
       logger.warn(`Broadcast AI response: ${successCount} sent, ${errorCount} failed`);
+    }
+  }
+
+  public broadcastFace(face: FaceData) {
+    const message = JSON.stringify({
+      type: 'face',
+      data: face
+    });
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    this.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(message);
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          logger.error('Failed to send face data to client:', error);
+          // Remove client if send fails
+          this.clients.delete(client);
+          try {
+            client.close();
+          } catch (closeError) {
+            // Ignore close errors
+          }
+        }
+      } else {
+        // Remove clients that are not open
+        this.clients.delete(client);
+      }
+    });
+
+    if (errorCount > 0) {
+      logger.warn(`Broadcast face: ${successCount} sent, ${errorCount} failed`);
     }
   }
 

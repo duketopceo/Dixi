@@ -14,6 +14,8 @@ import metricsRoutes from './routes/metrics';
 import adminRoutes from './routes/admin';
 import gestureRecorderRoutes from './routes/gesture-recorder';
 import promptTemplatesRoutes from './routes/prompt-templates';
+import faceRoutes from './routes/face';
+import trackingRoutes from './routes/tracking';
 import { errorHandler } from './middleware/errorHandler';
 import { apiLimiter } from './middleware/rateLimiter';
 import { WebSocketService } from './services/websocket';
@@ -44,6 +46,8 @@ app.use('/health', healthRoutes);
 
 // API Routes
 app.use('/api/gestures', gestureRoutes);
+app.use('/api/faces', faceRoutes);
+app.use('/api/tracking', trackingRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/projection', projectionRoutes);
 app.use('/api/metrics', metricsRoutes);

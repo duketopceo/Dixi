@@ -1,7 +1,8 @@
 """
-Dixi Vision Service - Simplified Gesture Recognition
+Dixi Vision Service - Gesture Recognition & Face Detection
 Supports 10 basic gestures: pinch, point, open_palm, fist, swipe_left, swipe_right,
 peace, thumbs_up, thumbs_down, ok, wave
+Includes MediaPipe face detection with 468 facial landmarks
 """
 
 from flask import Flask, jsonify, request, Response, render_template
@@ -37,6 +38,150 @@ class LogCapture(io.StringIO):
 
 # Redirect stdout to capture logs
 sys.stdout = LogCapture()
+
+
+class FaceDetectionService:
+    """Face detection using MediaPipe FaceLandmarker."""
+    
+    def __init__(self):
+        model_path = os.path.join(os.path.dirname(__file__), 'face_landmarker.task')
+        
+        if not os.path.exists(model_path):
+            print(f"WARNING: Face model file not found at {model_path}")
+            print(f"Download from: https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task")
+            self.landmarker = None
+        else:
+            try:
+                base_options = python.BaseOptions(model_asset_path=model_path)
+                options = vision.FaceLandmarkerOptions(
+                    base_options=base_options,
+                    output_face_blendshapes=True,
+                    output_facial_transformation_matrixes=True,
+                    num_faces=1,  # Single face for simplicity
+                    min_face_detection_confidence=0.5,
+                    min_face_presence_confidence=0.5,
+                    min_tracking_confidence=0.5,
+                    running_mode=vision.RunningMode.VIDEO
+                )
+                self.landmarker = vision.FaceLandmarker.create_from_options(options)
+                print("Face Detection Service initialized")
+            except Exception as e:
+                print(f"ERROR: Failed to initialize face landmarker: {e}")
+                self.landmarker = None
+        
+        self.current_face_data = None
+        self.enabled = False
+    
+    def detect_face(self, mp_image, timestamp_ms: int):
+        """Detect face in frame. Returns (face_data, face_landmarks)."""
+        if not self.landmarker or not self.enabled:
+            return None, None
+        
+        try:
+            result = self.landmarker.detect_for_video(mp_image, timestamp_ms)
+            
+            if result.face_landmarks and len(result.face_landmarks) > 0:
+                face_landmarks = result.face_landmarks[0]
+                
+                # Calculate face bounding box
+                xs = [landmark.x for landmark in face_landmarks]
+                ys = [landmark.y for landmark in face_landmarks]
+                
+                # Get key facial points
+                left_eye = face_landmarks[33]  # Left eye outer corner
+                right_eye = face_landmarks[263]  # Right eye outer corner
+                nose_tip = face_landmarks[4]  # Nose tip
+                mouth_center = face_landmarks[13]  # Mouth center
+                
+                # Calculate head pose (simple estimation)
+                eye_center_x = (left_eye.x + right_eye.x) / 2
+                eye_center_y = (left_eye.y + right_eye.y) / 2
+                nose_x = nose_tip.x
+                nose_y = nose_tip.y
+                
+                # Simple head pose estimation
+                head_tilt = np.arctan2(right_eye.y - left_eye.y, right_eye.x - left_eye.x) * 180 / np.pi
+                head_turn = (nose_x - eye_center_x) * 30  # Rough estimate
+                
+                face_data = {
+                    'detected': True,
+                    'landmarks_count': len(face_landmarks),
+                    'bounding_box': {
+                        'x_min': float(min(xs)),
+                        'y_min': float(min(ys)),
+                        'x_max': float(max(xs)),
+                        'y_max': float(max(ys)),
+                        'width': float(max(xs) - min(xs)),
+                        'height': float(max(ys) - min(ys))
+                    },
+                    'key_points': {
+                        'left_eye': {'x': float(left_eye.x), 'y': float(left_eye.y)},
+                        'right_eye': {'x': float(right_eye.x), 'y': float(right_eye.y)},
+                        'nose_tip': {'x': float(nose_tip.x), 'y': float(nose_tip.y)},
+                        'mouth_center': {'x': float(mouth_center.x), 'y': float(mouth_center.y)}
+                    },
+                    'head_pose': {
+                        'tilt': float(head_tilt),
+                        'turn': float(head_turn)
+                    },
+                    'timestamp': timestamp_ms
+                }
+                
+                # Add blendshapes if available
+                if result.face_blendshapes and len(result.face_blendshapes) > 0:
+                    blendshapes = result.face_blendshapes[0]
+                    face_data['expressions'] = {
+                        shape.category_name: float(shape.score)
+                        for shape in blendshapes[:10]  # Top 10 expressions
+                    }
+                
+                self.current_face_data = face_data
+                return face_data, face_landmarks
+            else:
+                self.current_face_data = None
+                return None, None
+        except Exception as e:
+            print(f"Face detection error: {e}")
+            return None, None
+    
+    def draw_face_landmarks(self, frame, face_landmarks):
+        """Draw face landmarks on frame."""
+        if not face_landmarks:
+            return
+        
+        h, w, _ = frame.shape
+        
+        # Draw key facial points
+        key_indices = [33, 263, 4, 13]  # Left eye, right eye, nose, mouth
+        for idx in key_indices:
+            if idx < len(face_landmarks):
+                landmark = face_landmarks[idx]
+                cx, cy = int(landmark.x * w), int(landmark.y * h)
+                cv2.circle(frame, (cx, cy), 5, (255, 0, 255), -1)
+        
+        # Draw face outline (simplified - just key points)
+        outline_indices = [10, 151, 9, 175, 18, 200, 199, 175, 10]  # Face outline
+        points = []
+        for idx in outline_indices:
+            if idx < len(face_landmarks):
+                landmark = face_landmarks[idx]
+                points.append((int(landmark.x * w), int(landmark.y * h)))
+        
+        if len(points) > 2:
+            cv2.polylines(frame, [np.array(points)], False, (0, 255, 255), 2)
+    
+    def get_current_face(self) -> Optional[Dict]:
+        """Get current face detection data."""
+        return self.current_face_data
+    
+    def enable(self):
+        """Enable face detection."""
+        self.enabled = True
+    
+    def disable(self):
+        """Disable face detection."""
+        self.enabled = False
+        self.current_face_data = None
 
 
 class GestureRecognitionService:
@@ -77,10 +222,17 @@ class GestureRecognitionService:
         self.last_pushed_gesture = None
         self.last_push_time = 0
         self.push_cooldown_ms = 300
+        
+        # Face detection service
+        self.face_service = FaceDetectionService()
 
     def start_tracking(self):
         if self.is_tracking:
             return {"status": "already_running"}
+        
+        # Auto-enable face detection when tracking starts
+        if self.face_service.landmarker:
+            self.face_service.enable()
         
         self.is_tracking = True
         self.tracking_thread = threading.Thread(target=self._track_gestures)
@@ -127,14 +279,14 @@ class GestureRecognitionService:
                     time.sleep(0.05)
                     continue
                 
+                # Convert BGR to RGB
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+                
+                timestamp_ms = int(time.time() * 1000)
+                
+                # Process hand gestures
                 if self.landmarker:
-                    # Convert BGR to RGB
-                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
-                    
-                    timestamp_ms = int(time.time() * 1000)
-                    
-                    # Process frame
                     result = self.landmarker.detect_for_video(mp_image, timestamp_ms)
                     
                     if result.hand_landmarks and len(result.hand_landmarks) > 0:
@@ -150,9 +302,17 @@ class GestureRecognitionService:
                     else:
                         self.current_gesture = None
                         self.position_history.clear()
-                    
-                    with self.lock:
-                        self.latest_frame = frame.copy()
+                
+                # Process face detection
+                if self.face_service.enabled:
+                    face_data, face_landmarks = self.face_service.detect_face(mp_image, timestamp_ms)
+                    if face_data and face_landmarks:
+                        self.face_service.draw_face_landmarks(frame, face_landmarks)
+                        # Push face data to backend
+                        self._push_face_to_backend(face_data, timestamp_ms)
+                
+                with self.lock:
+                    self.latest_frame = frame.copy()
                 
                 time.sleep(0.03)  # ~30 FPS
         
@@ -344,6 +504,25 @@ class GestureRecognitionService:
         except Exception:
             pass
 
+    def _push_face_to_backend(self, face_data: Dict, timestamp_ms: int):
+        """Push face detection data to backend."""
+        try:
+            # Use same cooldown mechanism as gestures to prevent spam
+            cooldown_expired = (timestamp_ms - self.last_push_time) >= self.push_cooldown_ms
+            
+            if cooldown_expired and face_data:
+                try:
+                    requests.post(
+                        f"{self.backend_url}/api/faces/process",
+                        json=face_data,
+                        timeout=0.5
+                    )
+                    self.last_push_time = timestamp_ms
+                except requests.exceptions.RequestException:
+                    pass  # Silently fail - backend might be down
+        except Exception:
+            pass
+
     def get_current_gesture(self) -> Optional[Dict]:
         return self.current_gesture
 
@@ -357,8 +536,9 @@ class GestureRecognitionService:
             return jpeg.tobytes() if ret else None
 
 
-# Initialize service
+# Initialize services
 gesture_service = GestureRecognitionService()
+face_service = gesture_service.face_service  # Access face service through gesture service
 
 
 # Routes
@@ -392,12 +572,17 @@ def stop_tracking():
 def get_status():
     return jsonify({
         'service': 'Dixi Vision Service',
-        'version': '2.0.0',
+        'version': '2.1.0',
         'mode': 'simplified',
         'gestures': ['pinch', 'point', 'open_palm', 'fist', 'swipe_left', 'swipe_right', 
                      'peace', 'thumbs_up', 'thumbs_down', 'ok'],
         'tracking': gesture_service.is_tracking,
         'mediapipe': 'ready' if gesture_service.landmarker else 'model_not_found',
+        'face_detection': {
+            'enabled': face_service.enabled,
+            'available': face_service.landmarker is not None,
+            'model_loaded': face_service.landmarker is not None
+        },
         'camera_error': gesture_service.camera_error,
         'timestamp': int(time.time() * 1000)
     })
@@ -449,6 +634,46 @@ def capture_frame_base64():
         })
     else:
         return jsonify({'error': 'No frame available'}), 503
+
+
+# Face Detection Routes
+@app.route('/face', methods=['GET'])
+def get_face():
+    """Get current face detection data."""
+    face_data = face_service.get_current_face()
+    return jsonify(face_data if face_data else {'detected': False, 'message': 'No face detected'})
+
+
+@app.route('/face/start', methods=['POST'])
+def start_face_detection():
+    """Enable face detection."""
+    face_service.enable()
+    return jsonify({
+        'status': 'started',
+        'message': 'Face detection enabled',
+        'available': face_service.landmarker is not None
+    })
+
+
+@app.route('/face/stop', methods=['POST'])
+def stop_face_detection():
+    """Disable face detection."""
+    face_service.disable()
+    return jsonify({
+        'status': 'stopped',
+        'message': 'Face detection disabled'
+    })
+
+
+@app.route('/face/status', methods=['GET'])
+def get_face_status():
+    """Get face detection status."""
+    return jsonify({
+        'enabled': face_service.enabled,
+        'available': face_service.landmarker is not None,
+        'current_face': face_service.get_current_face() is not None,
+        'model_loaded': face_service.landmarker is not None
+    })
 
 
 if __name__ == '__main__':

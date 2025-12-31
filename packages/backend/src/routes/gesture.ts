@@ -50,7 +50,7 @@ interface GestureHistoryItem {
 
 const router = Router();
 
-const VISION_SERVICE_URL = process.env.VISION_SERVICE_URL || 'http://localhost:5000';
+const VISION_SERVICE_URL = process.env.VISION_SERVICE_URL || 'http://localhost:5001';
 const aiService = new AIService();
 // CRITICAL: Aggressive rate limiting to prevent freeze
 // Separate cooldown timers for each gesture type
