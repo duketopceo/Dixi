@@ -3,7 +3,14 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>', '<rootDir>/../packages'],
-  testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
+  testMatch: ['**/__tests__/**/*.test.ts', '**/__tests__/**/*.spec.ts', '**/?(*.)+(spec|test).ts'],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/tests/integration/',
+    '/tests/stress/',
+    '/tests/e2e/',
+    'test-utils.ts' // Exclude utility files
+  ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   coverageDirectory: '<rootDir>/../coverage',
   collectCoverageFrom: [
@@ -29,12 +36,5 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/../packages/backend/src/$1'
   },
-  // Ignore integration and stress tests by default (run separately)
-  testPathIgnorePatterns: [
-    '/node_modules/',
-    '/tests/integration/',
-    '/tests/stress/',
-    '/tests/e2e/'
-  ]
 };
 

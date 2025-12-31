@@ -149,6 +149,13 @@ Dixi is a production-quality codebase for a gesture-controlled podcast experienc
 - Separate rate limiters for different operations
 - Vision analysis endpoint: `/api/ai/vision/analyze`
 
+### Testing
+- Comprehensive AIService test suite (23 tests, all passing)
+- Tests use real network calls (no mocks) for integration testing
+- Run tests: `npm test` (default), `npm run test:ai`, `npm run test:ai:watch`
+- Test files: `packages/backend/src/services/__tests__/*.test.ts`
+- Tests gracefully skip when Ollama/Gemini unavailable
+
 ---
 
 ## When You Are Unsure
@@ -172,4 +179,4 @@ Before submitting any code, verify:
 
 ---
 
-*Last updated: 2025-12-30*
+*Last updated: 2025-12-31*

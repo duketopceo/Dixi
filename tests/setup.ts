@@ -2,11 +2,13 @@
  * Global test setup for Jest
  */
 
+import { clearAICache } from '../packages/backend/src/services/__tests__/test-utils';
+
 // Set test environment variables
 beforeAll(() => {
   process.env.NODE_ENV = 'test';
   process.env.OLLAMA_BASE_URL = 'http://localhost:11434';
-  process.env.VISION_SERVICE_URL = 'http://localhost:5000';
+  process.env.VISION_SERVICE_URL = 'http://localhost:5001';
   process.env.PORT = '3001';
   process.env.WS_PORT = '3002';
 });
@@ -14,11 +16,13 @@ beforeAll(() => {
 // Clean up after all tests
 afterAll(() => {
   // Any global cleanup
+  clearAICache();
 });
 
-// Reset mocks between tests
+// Reset mocks and clear cache between tests
 afterEach(() => {
   jest.clearAllMocks();
+  clearAICache();
 });
 
 // Increase timeout for async operations

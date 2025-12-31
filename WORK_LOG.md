@@ -1,6 +1,106 @@
 # Dixi Project Work Log
 
-## Session: December 30, 2025 (Latest Session - Vision AI & System Stability)
+## Session: December 31, 2025 (Latest Session - AIService Test Suite)
+**Duration:** ~2 hours  
+**Status:** ✅ Comprehensive Test Suite Complete
+
+---
+
+## 🎯 Session Overview
+
+Created comprehensive test suite for AIService with 23 passing tests covering inference, vision analysis, caching, streaming, and context building. Fixed `npm test` command and Jest configuration.
+
+---
+
+## ✅ Major Achievements
+
+### 1. AIService Test Suite Implementation
+**Status:** ✅ Complete
+
+**Created Test Files:**
+- `packages/backend/src/services/__tests__/test-utils.ts` - Helper utilities for testing
+- `packages/backend/src/services/__tests__/ai.service.infer.test.ts` - Inference tests (13 tests)
+- `packages/backend/src/services/__tests__/ai.service.vision.test.ts` - Vision analysis tests (10 tests)
+
+**Test Coverage:**
+- ✅ Initialization and `getModelStatus()` (Ollama/Gemini configuration)
+- ✅ `infer()` with Ollama (real API calls)
+- ✅ `infer()` with Gemini (real API calls)
+- ✅ Gemini fallback to Ollama
+- ✅ Caching behavior (cache keys, provider differentiation)
+- ✅ `inferStream()` streaming responses
+- ✅ `analyzeImage()` with Gemini and Ollama
+- ✅ `analyzeCurrentFrame()` context building
+- ✅ `isVisionModelAvailable()` model detection
+- ✅ `dispose()` cleanup
+
+**Key Features:**
+- All tests use real network calls (no mocks) for true integration testing
+- Tests gracefully skip when Ollama/Gemini unavailable
+- Tests handle API rejections (e.g., minimal mock images) gracefully
+- Cache isolation between tests
+
+**Files Modified:**
+- `package.json` - Updated test scripts (`npm test` now runs AIService tests)
+- `tests/jest.config.js` - Fixed test matching, excluded utility files
+- `tests/setup.ts` - Added cache clearing between tests
+
+**Result:** 23/23 tests passing, comprehensive coverage of AIService functionality.
+
+---
+
+### 2. Test Infrastructure Fixes
+**Status:** ✅ Complete
+
+**Fixed Issues:**
+- TypeScript errors: `getModelStatus()` is async, all calls now properly awaited
+- Jest configuration: Excluded `test-utils.ts` from test discovery
+- Test matching: Only `.test.ts` and `.spec.ts` files are treated as tests
+- Vision test TypeScript errors: Fixed incomplete interface implementations
+
+**Commands Added:**
+- `npm test` - Runs AIService tests (default)
+- `npm run test:ai` - Explicit AIService test runner
+- `npm run test:ai:watch` - Watch mode for development
+- `npm run test:ai:coverage` - Generate coverage report
+
+---
+
+## 📝 Technical Details
+
+### Test Architecture
+- **No Mocks**: Tests make real HTTP calls to Ollama/Gemini APIs
+- **Graceful Degradation**: Tests skip when services unavailable
+- **Cache Isolation**: Each test starts with clean cache
+- **Error Handling**: Tests handle API rejections appropriately
+
+### Test Organization
+```
+packages/backend/src/services/__tests__/
+├── test-utils.ts              # Helper functions
+├── ai.service.infer.test.ts   # Inference tests
+└── ai.service.vision.test.ts  # Vision analysis tests
+```
+
+### Test Results
+```
+Test Suites: 2 passed, 2 total
+Tests:       23 passed, 23 total
+Time:        ~12 seconds
+```
+
+---
+
+## 🔄 Next Steps
+
+- [ ] Add integration tests for API routes
+- [ ] Add frontend component tests
+- [ ] Set up CI/CD test pipeline
+- [ ] Generate and review coverage reports
+
+---
+
+## Session: December 30, 2025 (Vision AI & System Stability)
 **Duration:** ~3 hours  
 **Status:** ✅ Vision AI Integration & System Stability Complete
 
