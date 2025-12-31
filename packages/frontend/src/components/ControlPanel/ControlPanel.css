@@ -396,3 +396,77 @@
 .cp-logs::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 245, 255, 0.4);
 }
+
+.cp-section-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.cp-logs-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 10px;
+  font-family: 'SF Mono', 'Monaco', monospace;
+}
+
+.cp-stat-item {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 600;
+}
+
+.cp-logs-controls {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cp-logs-search {
+  flex: 1;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 11px;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.cp-logs-search:focus {
+  border-color: rgba(0, 245, 255, 0.4);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.cp-logs-search::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.cp-logs-filter {
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 11px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cp-logs-filter:focus {
+  border-color: rgba(0, 245, 255, 0.4);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.cp-logs-filter option {
+  background: rgba(15, 15, 20, 0.95);
+  color: #fff;
+}

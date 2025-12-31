@@ -531,7 +531,7 @@ Be conversational and brief (2-3 sentences max).`
   }
 
   // Capture a frame from the vision service and analyze it
-  async analyzeCurrentFrame(prompt?: string): Promise<InferenceResponse> {
+  async analyzeCurrentFrame(prompt?: string, context?: { gesture?: any; face?: any }): Promise<InferenceResponse> {
     try {
       logger.info('📸 Capturing frame from vision service...');
       
@@ -547,8 +547,65 @@ Be conversational and brief (2-3 sentences max).`
       // Convert to base64
       const imageBase64 = Buffer.from(frameResponse.data).toString('base64');
       
-      // Analyze the frame
-      return await this.analyzeImage(imageBase64, prompt);
+      // Build enhanced prompt with context
+      let enhancedPrompt = prompt || "Describe what you see in this image. Focus on any people, gestures, and what they might be doing. Be brief (2-3 sentences).";
+      
+      if (context) {
+        let contextInfo = [];
+        
+        if (context.gesture && context.gesture.type && context.gesture.type !== 'none') {
+          contextInfo.push(`The person is making a "${context.gesture.type}" gesture.`);
+        }
+        
+        if (context.face && context.face.detected) {
+          const face = context.face;
+          let faceInfo = [];
+          
+          if (face.engagement) {
+            if (face.engagement.is_engaged) {
+              faceInfo.push("The person appears engaged and attentive.");
+            } else {
+              faceInfo.push("The person may not be fully engaged.");
+            }
+          }
+          
+          if (face.mouth_features) {
+            if (face.mouth_features.is_smiling) {
+              faceInfo.push("The person is smiling.");
+            }
+            if (face.mouth_features.mouth_open) {
+              faceInfo.push("The person's mouth is open (possibly speaking or surprised).");
+            }
+          }
+          
+          if (face.eye_features) {
+            if (!face.eye_features.both_eyes_open) {
+              faceInfo.push("The person's eyes may be closed or partially closed.");
+            }
+            if (Math.abs(face.eye_features.gaze_direction) > 0.3) {
+              const direction = face.eye_features.gaze_direction > 0 ? "right" : "left";
+              faceInfo.push(`The person is looking ${direction}.`);
+            }
+          }
+          
+          if (face.head_pose) {
+            if (Math.abs(face.head_pose.tilt) > 10) {
+              faceInfo.push(`The person's head is tilted (${face.head_pose.tilt.toFixed(1)}°).`);
+            }
+          }
+          
+          if (faceInfo.length > 0) {
+            contextInfo.push(...faceInfo);
+          }
+        }
+        
+        if (contextInfo.length > 0) {
+          enhancedPrompt = `${enhancedPrompt}\n\nContext: ${contextInfo.join(' ')}`;
+        }
+      }
+      
+      // Analyze the frame with enhanced prompt
+      return await this.analyzeImage(imageBase64, enhancedPrompt);
     } catch (error: any) {
       logger.error('Frame capture/analysis failed:', error);
       

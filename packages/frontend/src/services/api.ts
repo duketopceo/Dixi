@@ -201,5 +201,43 @@ export const apiService = {
     } catch (error) {
       handleApiError(error);
     }
+  },
+
+  // Face detection endpoints
+  async getFaceData() {
+    try {
+      const response = await api.get('/faces');
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
+  },
+
+  async getFaceStatus() {
+    try {
+      const response = await api.get('/faces/status');
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
+  },
+
+  // Tracking endpoints
+  async getTrackingData() {
+    try {
+      const response = await api.get('/tracking');
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
+  },
+
+  async analyzeTracking(prompt?: string) {
+    try {
+      const response = await api.post('/tracking/analyze', { prompt }, { timeout: 60000 });
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
   }
 };

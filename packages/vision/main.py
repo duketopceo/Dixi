@@ -93,6 +93,18 @@ class FaceDetectionService:
                 nose_tip = face_landmarks[4]  # Nose tip
                 mouth_center = face_landmarks[13]  # Mouth center
                 
+                # Eye landmarks for gaze and open/closed detection
+                left_eye_top = face_landmarks[159]  # Left eye top
+                left_eye_bottom = face_landmarks[145]  # Left eye bottom
+                right_eye_top = face_landmarks[386]  # Right eye top
+                right_eye_bottom = face_landmarks[374]  # Right eye bottom
+                
+                # Mouth landmarks for open/closed and smile detection
+                mouth_left = face_landmarks[61]  # Mouth left corner
+                mouth_right = face_landmarks[291]  # Mouth right corner
+                mouth_top = face_landmarks[13]  # Upper lip
+                mouth_bottom = face_landmarks[14]  # Lower lip
+                
                 # Calculate head pose (simple estimation)
                 eye_center_x = (left_eye.x + right_eye.x) / 2
                 eye_center_y = (left_eye.y + right_eye.y) / 2
@@ -102,6 +114,37 @@ class FaceDetectionService:
                 # Simple head pose estimation
                 head_tilt = np.arctan2(right_eye.y - left_eye.y, right_eye.x - left_eye.x) * 180 / np.pi
                 head_turn = (nose_x - eye_center_x) * 30  # Rough estimate
+                
+                # Eye open/closed detection
+                left_eye_height = abs(left_eye_top.y - left_eye_bottom.y)
+                right_eye_height = abs(right_eye_top.y - right_eye_bottom.y)
+                left_eye_open = left_eye_height > 0.01  # Threshold for open
+                right_eye_open = right_eye_height > 0.01
+                
+                # Eye gaze direction (simplified - based on eye position relative to face center)
+                face_center_x = (min(xs) + max(xs)) / 2
+                left_eye_gaze_x = (left_eye.x - face_center_x) * 2  # Normalize to -1 to 1
+                right_eye_gaze_x = (right_eye.x - face_center_x) * 2
+                eye_gaze_direction = (left_eye_gaze_x + right_eye_gaze_x) / 2
+                
+                # Mouth open/closed detection
+                mouth_height = abs(mouth_top.y - mouth_bottom.y)
+                mouth_width = abs(mouth_right.x - mouth_left.x)
+                mouth_open = mouth_height > 0.015  # Threshold for open mouth
+                mouth_open_ratio = mouth_height / mouth_width if mouth_width > 0 else 0
+                
+                # Smile detection (mouth corners raised)
+                mouth_corner_avg_y = (mouth_left.y + mouth_right.y) / 2
+                mouth_center_y = mouth_center.y
+                smile_score = max(0, (mouth_center_y - mouth_corner_avg_y) * 10)  # Positive when corners are higher
+                is_smiling = smile_score > 0.1
+                
+                # Attention/engagement score (based on head pose and eye state)
+                # Lower tilt and turn = more engaged, eyes open = more engaged
+                head_straightness = 1 - (abs(head_tilt) / 45) - (abs(head_turn) / 30)
+                head_straightness = max(0, min(1, head_straightness))
+                eye_engagement = 1.0 if (left_eye_open and right_eye_open) else 0.5
+                engagement_score = (head_straightness * 0.6 + eye_engagement * 0.4)
                 
                 face_data = {
                     'detected': True,
@@ -123,6 +166,27 @@ class FaceDetectionService:
                     'head_pose': {
                         'tilt': float(head_tilt),
                         'turn': float(head_turn)
+                    },
+                    'eye_features': {
+                        'left_eye_open': bool(left_eye_open),
+                        'right_eye_open': bool(right_eye_open),
+                        'both_eyes_open': bool(left_eye_open and right_eye_open),
+                        'gaze_direction': float(eye_gaze_direction),  # -1 (left) to 1 (right)
+                        'left_eye_height': float(left_eye_height),
+                        'right_eye_height': float(right_eye_height)
+                    },
+                    'mouth_features': {
+                        'mouth_open': bool(mouth_open),
+                        'mouth_open_ratio': float(mouth_open_ratio),
+                        'smile_score': float(smile_score),
+                        'is_smiling': bool(is_smiling),
+                        'mouth_width': float(mouth_width)
+                    },
+                    'engagement': {
+                        'score': float(engagement_score),  # 0 to 1
+                        'head_straightness': float(head_straightness),
+                        'eye_engagement': float(eye_engagement),
+                        'is_engaged': bool(engagement_score > 0.6)
                     },
                     'timestamp': timestamp_ms
                 }

@@ -1,0 +1,124 @@
+.face-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.face-bounding-box {
+  position: absolute;
+  border: 2px solid rgba(0, 245, 255, 0.8);
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(0, 245, 255, 0.4);
+  background: rgba(0, 245, 255, 0.05);
+  pointer-events: none;
+}
+
+.face-key-point {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.face-key-point.face-eye {
+  background: rgba(0, 255, 135, 0.9);
+  box-shadow: 0 0 10px rgba(0, 255, 135, 0.6);
+}
+
+.face-key-point.face-nose {
+  background: rgba(255, 165, 0, 0.9);
+  box-shadow: 0 0 10px rgba(255, 165, 0, 0.6);
+}
+
+.face-key-point.face-mouth {
+  background: rgba(255, 0, 110, 0.9);
+  box-shadow: 0 0 10px rgba(255, 0, 110, 0.6);
+}
+
+.face-engagement-indicator {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.engagement-bar {
+  width: 100px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.engagement-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+  border-radius: 2px;
+}
+
+.engagement-text {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.face-expression-badge {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 20px;
+  pointer-events: none;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: translateX(-50%) scale(1); }
+  50% { opacity: 0.7; transform: translateX(-50%) scale(1.1); }
+}
+
+.face-metrics-panel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 245, 255, 0.3);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 150px;
+  pointer-events: none;
+}
+
+.face-metric {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.metric-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+
+.metric-value {
+  color: #00F5FF;
+  font-weight: 600;
+}

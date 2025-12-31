@@ -50,7 +50,9 @@
   gap: 8px;
 }
 
-.ai-vision-button {
+.ai-vision-button,
+.ai-tracking-button,
+.ai-auto-button {
   width: 48px;
   height: 48px;
   border-radius: 12px;
@@ -73,7 +75,32 @@
   background: rgba(147, 112, 219, 0.15);
 }
 
-.ai-vision-button:disabled {
+.ai-tracking-button:hover:not(:disabled) {
+  border-color: rgba(0, 245, 255, 0.6);
+  box-shadow: 0 0 20px rgba(0, 245, 255, 0.3);
+  background: rgba(0, 245, 255, 0.15);
+}
+
+.ai-tracking-button.active {
+  border-color: rgba(0, 245, 255, 0.8);
+  background: rgba(0, 245, 255, 0.2);
+}
+
+.ai-auto-button:hover:not(:disabled) {
+  border-color: rgba(0, 255, 135, 0.6);
+  box-shadow: 0 0 20px rgba(0, 255, 135, 0.3);
+  background: rgba(0, 255, 135, 0.15);
+}
+
+.ai-auto-button.active {
+  border-color: rgba(0, 255, 135, 0.8);
+  background: rgba(0, 255, 135, 0.2);
+  animation: pulse 2s infinite ease-in-out;
+}
+
+.ai-vision-button:disabled,
+.ai-tracking-button:disabled,
+.ai-auto-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -201,8 +228,14 @@
   color: rgba(0, 245, 255, 0.8);
 }
 
-.ai-response-content {
+.ai-response-content-wrapper {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-response-content {
   font-size: 13px;
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.9);
@@ -210,3 +243,48 @@
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
 }
 
+.ai-response-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.metadata-badge {
+  font-size: 9px;
+  padding: 2px 6px;
+  background: rgba(0, 245, 255, 0.15);
+  border: 1px solid rgba(0, 245, 255, 0.3);
+  border-radius: 4px;
+  color: rgba(0, 245, 255, 0.9);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.ai-context-indicator {
+  background: rgba(15, 15, 15, 0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(0, 255, 135, 0.3);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: slideUp 200ms ease-out;
+  font-size: 11px;
+}
+
+.context-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.context-value {
+  color: rgba(0, 255, 135, 0.9);
+  font-weight: 500;
+}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { useGestureStore } from '../store/gestureStore';
 import { useAIStore } from '../store/aiStore';
+import { useFaceStore } from '../store/faceStore';
 import logger from '../utils/logger';
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3002';
@@ -87,6 +88,10 @@ class WebSocketManager {
           switch (message.type) {
             case 'gesture':
               useGestureStore.getState().setCurrentGesture(message.data);
+              break;
+            case 'face':
+              // Handle face detection data
+              useFaceStore.getState().setCurrentFace(message.data);
               break;
             case 'ai_response':
               // Handle streaming responses

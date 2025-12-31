@@ -124,9 +124,9 @@ router.post('/stream', aiLimiter, validateAIInfer, async (req: Request, res: Res
 // Analyze current camera frame with vision model
 router.post('/vision/analyze', visionLimiter, async (req: Request, res: Response) => {
   try {
-    const { prompt } = req.body;
+    const { prompt, includeContext } = req.body;
     
-    logger.info('Vision analysis requested');
+    logger.info('Vision analysis requested', { includeContext: includeContext !== false });
     
     // Check if vision model is available
     const hasVision = await aiService.isVisionModelAvailable();
@@ -137,19 +137,44 @@ router.post('/vision/analyze', visionLimiter, async (req: Request, res: Response
       });
     }
     
-    const response = await aiService.analyzeCurrentFrame(prompt);
+    // Get context (gesture + face data) if requested
+    let context: { gesture?: any; face?: any } | undefined;
+    if (includeContext !== false) {
+      try {
+        const axios = require('axios');
+        const VISION_SERVICE_URL = process.env.VISION_SERVICE_URL || 'http://localhost:5001';
+        
+        const [gestureRes, faceRes] = await Promise.allSettled([
+          axios.get(`${VISION_SERVICE_URL}/gesture`, { timeout: 2000 }),
+          axios.get(`${VISION_SERVICE_URL}/face`, { timeout: 2000 })
+        ]);
+        
+        context = {
+          gesture: gestureRes.status === 'fulfilled' ? gestureRes.value.data : null,
+          face: faceRes.status === 'fulfilled' ? faceRes.value.data : null
+        };
+      } catch (error) {
+        logger.warn('Failed to fetch context for vision analysis:', error);
+        // Continue without context
+      }
+    }
+    
+    const response = await aiService.analyzeCurrentFrame(prompt, context);
     
     // Broadcast AI response via WebSocket
     if (wsService) {
       wsService.broadcastAIResponse({
         query: prompt || 'Vision analysis',
         response: response.text,
-        metadata: { ...response.metadata, analysisType: 'vision' },
+        metadata: { ...response.metadata, analysisType: 'vision', context },
         timestamp: Date.now()
       });
     }
 
-    res.json(response);
+    res.json({
+      ...response,
+      context: context || undefined
+    });
   } catch (error) {
     logger.error('Failed to analyze vision:', error);
     res.status(500).json({ 

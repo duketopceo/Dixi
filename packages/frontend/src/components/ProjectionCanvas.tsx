@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import ProjectionScene from './ProjectionScene';
+import { FaceOverlay } from './ProjectionCanvas/FaceOverlay';
 import logger from '../utils/logger';
 import { apiService } from '../services/api';
+import { useFaceStore } from '../store/faceStore';
 import './ProjectionCanvas.css';
 
 const VISION_SERVICE_URL = import.meta.env.VITE_VISION_SERVICE_URL || 'http://localhost:5001';
@@ -15,8 +17,14 @@ const ProjectionCanvas: React.FC = () => {
   const [retryCount, setRetryCount] = useState(0);
   const [isRetrying, setIsRetrying] = useState(false);
   const [trackingStarted, setTrackingStarted] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [fps, setFps] = useState(0);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting');
   const retryTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const imgRef = React.useRef<HTMLImageElement | null>(null);
+  const fpsRef = useRef<number[]>([]);
+  const lastFrameTimeRef = useRef<number>(Date.now());
+  const faceData = useFaceStore((state) => state.currentFace);
   const MAX_RETRIES = 5;
   const BASE_RETRY_DELAY = 2000; // 2 seconds
 
@@ -155,10 +163,70 @@ const ProjectionCanvas: React.FC = () => {
     setCameraError(false);
     setRetryCount(0);
     setIsRetrying(false);
+    setConnectionStatus('connected');
+    
+    // Calculate FPS
+    const now = Date.now();
+    const frameTime = now - lastFrameTimeRef.current;
+    if (frameTime > 0) {
+      const currentFps = Math.round(1000 / frameTime);
+      fpsRef.current.push(currentFps);
+      if (fpsRef.current.length > 30) {
+        fpsRef.current.shift();
+      }
+      const avgFps = Math.round(
+        fpsRef.current.reduce((a, b) => a + b, 0) / fpsRef.current.length
+      );
+      setFps(avgFps);
+    }
+    lastFrameTimeRef.current = now;
+    
     // Clear any pending retries on successful load
     if (retryTimeoutRef.current) {
       clearTimeout(retryTimeoutRef.current);
       retryTimeoutRef.current = null;
+    }
+  };
+
+  // Poll face data periodically (WebSocket should handle this, but polling as backup)
+  useEffect(() => {
+    if (!trackingStarted) return;
+    
+    const setFaceData = useFaceStore.getState().setCurrentFace;
+    const interval = setInterval(async () => {
+      try {
+        const faceData = await apiService.getFaceData();
+        if (faceData && faceData.detected) {
+          setFaceData(faceData);
+        }
+      } catch (error) {
+        // Silently fail - face data might not be available
+      }
+    }, 2000); // Poll every 2 seconds (WebSocket is primary)
+    
+    return () => clearInterval(interval);
+  }, [trackingStarted]);
+
+  const handleScreenshot = () => {
+    if (!imgRef.current) return;
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = imgRef.current.naturalWidth || imgRef.current.width;
+    canvas.height = imgRef.current.naturalHeight || imgRef.current.height;
+    const ctx = canvas.getContext('2d');
+    
+    if (ctx) {
+      ctx.drawImage(imgRef.current, 0, 0);
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `dixi-screenshot-${Date.now()}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+      });
     }
   };
 
@@ -181,28 +249,79 @@ const ProjectionCanvas: React.FC = () => {
 
   return (
     <div className="projection-canvas">
-      {/* Camera refresh button */}
-      <button
-        className="camera-refresh-button"
-        onClick={refreshCamera}
-        title="Refresh camera feed"
-        disabled={isRefreshing}
-      >
-        {isRefreshing ? '⏳' : '🔄'}
-      </button>
+      {/* Camera controls */}
+      <div className="camera-controls">
+        <button
+          className="camera-control-button"
+          onClick={refreshCamera}
+          title="Refresh camera feed"
+          disabled={isRefreshing}
+        >
+          {isRefreshing ? '⏳' : '🔄'}
+        </button>
+        <button
+          className="camera-control-button"
+          onClick={() => setIsPaused(!isPaused)}
+          title={isPaused ? 'Resume' : 'Pause'}
+        >
+          {isPaused ? '▶️' : '⏸️'}
+        </button>
+        <button
+          className="camera-control-button"
+          onClick={handleScreenshot}
+          title="Take screenshot"
+        >
+          📸
+        </button>
+        {fps > 0 && (
+          <div className="camera-fps-indicator">
+            {fps} FPS
+          </div>
+        )}
+        <div className={`camera-connection-status ${connectionStatus}`}>
+          {connectionStatus === 'connected' ? '🟢' : connectionStatus === 'connecting' ? '🟡' : '🔴'}
+        </div>
+      </div>
 
       {/* Camera feed background - full screen */}
       <div className="camera-background">
-        {!cameraError ? (
-          <img
-            key={cameraKey}
-            ref={imgRef}
-            src={`${VISION_SERVICE_URL}/video_feed?refresh=${cameraKey}`}
-            alt="Camera feed"
-            className="camera-feed"
-            onError={handleCameraError}
-            onLoad={handleCameraLoad}
-          />
+        {!cameraError && !isPaused ? (
+          <>
+            <img
+              key={cameraKey}
+              ref={imgRef}
+              src={`${VISION_SERVICE_URL}/video_feed?refresh=${cameraKey}`}
+              alt="Camera feed"
+              className="camera-feed"
+              onError={handleCameraError}
+              onLoad={handleCameraLoad}
+            />
+            {/* Face tracking overlay */}
+            <FaceOverlay />
+          </>
+        ) : isPaused ? (
+          <div className="camera-placeholder">
+            <div className="camera-error-message">
+              <p>⏸️ Video Paused</p>
+              <button
+                className="camera-retry-button"
+                onClick={() => setIsPaused(false)}
+                style={{
+                  marginTop: '1rem',
+                  padding: '0.5rem 1rem',
+                  background: 'rgba(0, 245, 255, 0.2)',
+                  border: '1px solid rgba(0, 245, 255, 0.5)',
+                  borderRadius: '8px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 600
+                }}
+              >
+                ▶️ Resume
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="camera-placeholder">
             <div className="camera-error-message">
