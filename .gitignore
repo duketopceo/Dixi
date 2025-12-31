@@ -57,3 +57,6 @@ temp/
 
 # GPU cache
 .nv/
+
+# External tools and downloads
+**/mcp-github-project-manager*/

@@ -122,6 +122,32 @@ Dixi is a production-quality codebase for a gesture-controlled podcast experienc
 *   Branch naming: `feature/...`, `fix/...`, `chore/...`.
 *   Never commit mock data or placeholder implementations to `main`.
 *   If work is in progress, use a feature branch and clearly label incomplete features in the code.
+*   **Current workflow**: Work on `development` branch, merge to `main` when stable.
+*   Never commit sensitive tokens or API keys (use environment variables).
+
+## Architecture Notes (December 30, 2025)
+
+### Service Ports
+- Frontend: 3000 (or 5173 fallback)
+- Backend API: 3001
+- WebSocket: 3002
+- Vision Service: 5001 (changed from 5000 due to macOS conflict)
+- Ollama: 11434
+
+### Vision Service
+- Simplified to 10 core gestures for stability
+- Removed complex motion patterns that caused freezes
+- Port changed to 5001 (macOS ControlCenter uses 5000)
+
+### Frontend Architecture
+- Modular component structure (ControlPanel rebuilt)
+- Singleton WebSocket pattern for connection stability
+- Custom hooks for reusable logic (useSystemStatus, useDebugLogs)
+
+### AI Service
+- Dual model: gemma3:4b (text) + llava:7b (vision)
+- Separate rate limiters for different operations
+- Vision analysis endpoint: `/api/ai/vision/analyze`
 
 ---
 
@@ -146,4 +172,4 @@ Before submitting any code, verify:
 
 ---
 
-*Last updated: 2025-12-21*
+*Last updated: 2025-12-30*
