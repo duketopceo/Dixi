@@ -180,4 +180,18 @@ export class WebSocketService {
   public getClientCount(): number {
     return this.clients.size;
   }
+
+  public getClients(): Array<{ id: string; connectedAt: number; lastActivity: number }> {
+    // Return basic client info (WebSocket doesn't have built-in IDs, so we generate placeholders)
+    const clientList: Array<{ id: string; connectedAt: number; lastActivity: number }> = [];
+    let index = 0;
+    this.clients.forEach(() => {
+      clientList.push({
+        id: `client-${index++}`,
+        connectedAt: Date.now(),
+        lastActivity: Date.now(),
+      });
+    });
+    return clientList;
+  }
 }

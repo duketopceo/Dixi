@@ -164,5 +164,5 @@ Windows:
 - **Frontend UI**: http://localhost:3000
 - **Backend API**: http://localhost:3001
 - **Backend Health**: http://localhost:3001/health
-- **Vision Service**: http://localhost:5000
+- **Vision Service**: http://localhost:5001
 - **WebSocket**: ws://localhost:3002

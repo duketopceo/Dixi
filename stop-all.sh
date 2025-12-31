@@ -33,7 +33,7 @@ fi
 echo ""
 echo -e "${YELLOW}Step 2: Stopping processes on service ports...${NC}"
 
-PORTS=(3000 3001 3002 5000)
+PORTS=(3000 3001 3002 5001)
 
 for PORT in "${PORTS[@]}"; do
     # Find PIDs using lsof (Mac/Linux compatible)

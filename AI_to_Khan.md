@@ -1,3 +1,3 @@
 # AI_to_Khan - Status Update
 
-**December 30, 2024** - Added Mac developer support. Created bash equivalents for essential scripts (start-dev.sh, stop-all.sh, kill-port.sh, test_everything.sh). Set up new laptop: installed backend/frontend npm deps, created Python venv for vision service. Updated QUICK_START.md with Mac instructions. Next step: install Ollama and pull gemma3:4b model, then run ./start-dev.sh to launch all services.
+**December 30, 2024** - Major refactor complete. Vision service simplified to 10 basic gestures (removed complex motion patterns that caused freezing). New Control Panel with clean component architecture: ConnectionStatus, GestureControls, AIChat, DebugLogs. All 5/5 tests passing. Gesture detection working (thumbs_up detected). Camera on port 5001.

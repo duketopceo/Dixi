@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import ProjectionCanvas from './components/ProjectionCanvas';
-import ControlPanel from './components/ControlPanel';
+import ControlPanel from './components/ControlPanel/index';
 import MinimalHUD from './components/HUD/MinimalHUD';
 import AIInputBar from './components/HUD/AIInputBar';
 import { useWebSocket } from './hooks/useWebSocket';

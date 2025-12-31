@@ -65,7 +65,7 @@ EOF
 # Start Vision Service (Python/Flask)
 VISION_PATH="$SCRIPT_DIR/packages/vision"
 if [ -d "$VISION_PATH" ]; then
-    echo -e "${YELLOW}Starting Vision Service on port 5000...${NC}"
+    echo -e "${YELLOW}Starting Vision Service on port 5001...${NC}"
     # Check for virtual environment first
     if [ -f "$VISION_PATH/venv/bin/activate" ]; then
         start_service "Vision Service" "$VISION_PATH" "source venv/bin/activate && python main.py"
@@ -111,7 +111,7 @@ else
 fi
 
 if [ -n "$PYTHON_CMD" ]; then
-    echo -e "${WHITE}  - Vision Service: http://localhost:5000${NC}"
+    echo -e "${WHITE}  - Vision Service: http://localhost:5001${NC}"
 fi
 echo -e "${WHITE}  - Backend: http://localhost:3001${NC}"
 echo -e "${WHITE}  - Frontend: http://localhost:3000${NC}"

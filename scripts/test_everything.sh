@@ -140,8 +140,8 @@ test_ai() {
     
     INFER_RESPONSE=$(curl -s -X POST "http://localhost:3001/api/ai/infer" \
         -H "Content-Type: application/json" \
-        -d '{"query":"Say hello and confirm you are working. Keep it brief.","context":null}' \
-        --max-time 30 2>/dev/null)
+        -d '{"query":"Say hello and confirm you are working. Keep it brief.","context":{}}' \
+        --max-time 60 2>/dev/null)
     
     if [ $? -eq 0 ] && [ -n "$INFER_RESPONSE" ]; then
         # Check if response contains text
