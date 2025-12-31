@@ -253,6 +253,11 @@ describe('Gesture Endpoints', () => {
 
   describe('POST /gestures/start', () => {
     it('should start tracking', async () => {
+      const axios = require('axios');
+      axios.post = jest.fn().mockResolvedValue({ 
+        data: { status: 'started', message: 'Gesture tracking started' }
+      });
+      
       const response = await request(app)
         .post('/gestures/start')
         .send({});
@@ -261,6 +266,11 @@ describe('Gesture Endpoints', () => {
     });
 
     it('should be idempotent (can call multiple times)', async () => {
+      const axios = require('axios');
+      axios.post = jest.fn().mockResolvedValue({ 
+        data: { status: 'started', message: 'Gesture tracking started' }
+      });
+      
       await request(app).post('/gestures/start').send({});
       const response = await request(app).post('/gestures/start').send({});
       
@@ -270,6 +280,11 @@ describe('Gesture Endpoints', () => {
 
   describe('POST /gestures/stop', () => {
     it('should stop tracking', async () => {
+      const axios = require('axios');
+      axios.post = jest.fn().mockResolvedValue({ 
+        data: { status: 'stopped', message: 'Gesture tracking stopped' }
+      });
+      
       const response = await request(app)
         .post('/gestures/stop')
         .send({});
