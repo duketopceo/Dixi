@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAIStore } from '../../store/aiStore';
+import { apiService } from '../../services/api';
 import './AIInputBar.css';
 
 const AIInputBar: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [input, setInput] = useState('');
-  const { sendQuery, isLoading, latestResponse, chatHistory } = useAIStore();
+  const [isAnalyzingVision, setIsAnalyzingVision] = useState(false);
+  const { sendQuery, isLoading, latestResponse, chatHistory, setLatestResponse } = useAIStore();
   const responseScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -57,6 +59,30 @@ const AIInputBar: React.FC = () => {
     }
   };
 
+  const handleVisionAnalysis = async () => {
+    if (isLoading || isAnalyzingVision) return;
+    
+    setIsAnalyzingVision(true);
+    try {
+      const response = await apiService.analyzeVision();
+      setLatestResponse({
+        query: '👁️ What do you see?',
+        response: response.text,
+        metadata: response.metadata,
+        analysisType: 'vision'
+      });
+    } catch (error: any) {
+      console.error('Vision analysis failed:', error);
+      setLatestResponse({
+        query: '👁️ What do you see?',
+        response: error.message || 'Vision analysis failed. Make sure llava model is installed.',
+        analysisType: 'error'
+      });
+    } finally {
+      setIsAnalyzingVision(false);
+    }
+  };
+
   if (!isVisible) {
     return (
       <div className="ai-input-hint">
@@ -102,6 +128,15 @@ const AIInputBar: React.FC = () => {
       {/* Input Bar */}
       <form onSubmit={handleSubmit} className="ai-input-bar">
         <div className="ai-input-wrapper">
+          <button
+            type="button"
+            className="ai-vision-button"
+            onClick={handleVisionAnalysis}
+            disabled={isLoading || isAnalyzingVision}
+            title="What do you see? (Vision AI)"
+          >
+            {isAnalyzingVision ? '⏳' : '👁️'}
+          </button>
           <input
             type="text"
             value={input}
@@ -111,8 +146,9 @@ const AIInputBar: React.FC = () => {
             autoFocus
             disabled={isLoading}
             onBlur={(e) => {
-              // Don't hide if clicking submit button
-              if (!e.relatedTarget || (e.relatedTarget as HTMLElement).type !== 'submit') {
+              // Don't hide if clicking submit button or vision button
+              const related = e.relatedTarget as HTMLElement;
+              if (!related || (related.type !== 'submit' && !related.classList.contains('ai-vision-button'))) {
                 // Small delay to allow submit
                 setTimeout(() => {
                   if (!input.trim()) {
@@ -122,7 +158,7 @@ const AIInputBar: React.FC = () => {
               }
             }}
           />
-          {isLoading && (
+          {(isLoading || isAnalyzingVision) && (
             <div className="ai-loading-indicator">
               <span className="loading-dot" />
             </div>

@@ -182,5 +182,24 @@ export const apiService = {
     } catch (error) {
       handleApiError(error);
     }
+  },
+
+  // Vision AI endpoints
+  async analyzeVision(prompt?: string) {
+    try {
+      const response = await api.post('/ai/vision/analyze', { prompt }, { timeout: 60000 });
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
+  },
+
+  async getVisionStatus() {
+    try {
+      const response = await api.get('/ai/vision/status');
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
   }
 };

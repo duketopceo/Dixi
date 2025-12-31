@@ -121,4 +121,61 @@ router.post('/stream', aiLimiter, validateAIInfer, async (req: Request, res: Res
   }
 });
 
+// Analyze current camera frame with vision model
+router.post('/vision/analyze', aiLimiter, async (req: Request, res: Response) => {
+  try {
+    const { prompt } = req.body;
+    
+    logger.info('Vision analysis requested');
+    
+    // Check if vision model is available
+    const hasVision = await aiService.isVisionModelAvailable();
+    if (!hasVision) {
+      return res.status(503).json({
+        error: 'Vision model not available',
+        details: 'Run: ollama pull llava:7b'
+      });
+    }
+    
+    const response = await aiService.analyzeCurrentFrame(prompt);
+    
+    // Broadcast AI response via WebSocket
+    if (wsService) {
+      wsService.broadcastAIResponse({
+        query: prompt || 'Vision analysis',
+        response: response.text,
+        metadata: { ...response.metadata, analysisType: 'vision' },
+        timestamp: Date.now()
+      });
+    }
+
+    res.json(response);
+  } catch (error) {
+    logger.error('Failed to analyze vision:', error);
+    res.status(500).json({ 
+      error: 'Failed to analyze vision',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Check if vision model is available
+router.get('/vision/status', async (req: Request, res: Response) => {
+  try {
+    const hasVision = await aiService.isVisionModelAvailable();
+    res.json({
+      available: hasVision,
+      model: hasVision ? 'llava:7b' : null,
+      message: hasVision 
+        ? 'Vision model ready for image analysis' 
+        : 'Vision model not installed. Run: ollama pull llava:7b'
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Failed to check vision status',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;

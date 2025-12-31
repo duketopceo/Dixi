@@ -468,4 +468,105 @@ export class AIService {
     this.initialized = false;
     logger.info('🗑️ AI Service disposed');
   }
+
+  // Analyze an image using the vision model (llava)
+  async analyzeImage(imageBase64: string, prompt?: string): Promise<InferenceResponse> {
+    const startTime = Date.now();
+    const analysisPrompt = prompt || 
+      "Describe what you see in this image. Focus on any people, gestures, and what they might be doing. Be brief (2-3 sentences).";
+
+    try {
+      logger.info('👁️ Analyzing image with vision model...');
+      
+      const response = await axios.post(
+        `${this.ollamaBaseUrl}/api/generate`,
+        {
+          model: this.visionModelName,
+          prompt: analysisPrompt,
+          images: [imageBase64], // Base64 encoded image
+          stream: false,
+          temperature: 0.7,
+          num_predict: 200,
+          system: `You are Dixi's vision system. Describe what you see concisely and helpfully.
+Focus on:
+- People and their body language/gestures
+- Hand positions and what they might indicate
+- The environment and context
+- Any text or objects visible
+Be conversational and brief (2-3 sentences max).`
+        },
+        {
+          timeout: 30000 // 30 second timeout for vision
+        }
+      );
+
+      const inferenceTime = Date.now() - startTime;
+      const responseText = response.data.response || 'Could not analyze image';
+
+      logger.info(`✅ Vision analysis complete in ${inferenceTime}ms`);
+
+      return {
+        text: responseText,
+        metadata: {
+          inferenceTime,
+          model: this.visionModelName,
+          tokenCount: responseText.split(' ').length,
+          confidence: 0.9
+        }
+      };
+    } catch (error: any) {
+      logger.error('Vision analysis failed:', error);
+      
+      if (error.response?.status === 404) {
+        throw new Error(`Vision model '${this.visionModelName}' not found. Run: ollama pull ${this.visionModelName}`);
+      }
+      
+      if (error.code === 'ECONNREFUSED') {
+        throw new Error('Ollama service not available for vision analysis');
+      }
+      
+      throw new Error(`Vision analysis error: ${error.message}`);
+    }
+  }
+
+  // Capture a frame from the vision service and analyze it
+  async analyzeCurrentFrame(prompt?: string): Promise<InferenceResponse> {
+    try {
+      logger.info('📸 Capturing frame from vision service...');
+      
+      // Get a frame from the vision service
+      const frameResponse = await axios.get(
+        `${this.visionServiceUrl}/capture_frame`,
+        {
+          timeout: 5000,
+          responseType: 'arraybuffer'
+        }
+      );
+
+      // Convert to base64
+      const imageBase64 = Buffer.from(frameResponse.data).toString('base64');
+      
+      // Analyze the frame
+      return await this.analyzeImage(imageBase64, prompt);
+    } catch (error: any) {
+      logger.error('Frame capture/analysis failed:', error);
+      
+      if (error.code === 'ECONNREFUSED') {
+        throw new Error('Vision service not available for frame capture');
+      }
+      
+      throw new Error(`Frame analysis error: ${error.message}`);
+    }
+  }
+
+  // Check if vision model is available
+  async isVisionModelAvailable(): Promise<boolean> {
+    try {
+      const response = await axios.get(`${this.ollamaBaseUrl}/api/tags`, { timeout: 5000 });
+      const models = response.data.models || [];
+      return models.some((m: any) => m.name.includes('llava') || m.name.includes('bakllava'));
+    } catch {
+      return false;
+    }
+  }
 }

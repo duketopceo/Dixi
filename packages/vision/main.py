@@ -425,6 +425,32 @@ def get_logs():
     return jsonify(list(log_buffer))
 
 
+@app.route('/capture_frame', methods=['GET'])
+def capture_frame():
+    """Capture a single frame for AI vision analysis."""
+    frame = gesture_service.get_video_frame()
+    if frame:
+        return Response(frame, mimetype='image/jpeg')
+    else:
+        return jsonify({'error': 'No frame available'}), 503
+
+
+@app.route('/capture_frame_base64', methods=['GET'])
+def capture_frame_base64():
+    """Capture a single frame as base64 for AI vision analysis."""
+    import base64
+    frame = gesture_service.get_video_frame()
+    if frame:
+        frame_base64 = base64.b64encode(frame).decode('utf-8')
+        return jsonify({
+            'image': frame_base64,
+            'format': 'jpeg',
+            'timestamp': int(time.time() * 1000)
+        })
+    else:
+        return jsonify({'error': 'No frame available'}), 503
+
+
 if __name__ == '__main__':
     port = int(os.getenv('VISION_SERVICE_PORT', 5001))
     print(f"Dixi Vision Service starting on port {port}...")
