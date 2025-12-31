@@ -31,8 +31,9 @@
     "test:e2e": "npx playwright test tests/e2e",
     "test:stress": "jest --config tests/jest.config.js tests/stress --testPathIgnorePatterns=[] --maxWorkers=1",
     "test:coverage": "jest --config tests/jest.config.js --coverage",
-    "test:nuclear": "powershell -ExecutionPolicy Bypass -File scripts/test-nuclear.ps1",
-    "kill-port": "powershell -ExecutionPolicy Bypass -File scripts/kill-port.ps1",
+    "test:nuclear": "node -e \"process.platform === 'win32' ? require('child_process').execSync('powershell -ExecutionPolicy Bypass -File scripts/test-nuclear.ps1', {stdio: 'inherit'}) : require('child_process').execSync('bash scripts/test_everything.sh', {stdio: 'inherit'})\"",
+    "test:system": "node -e \"process.platform === 'win32' ? require('child_process').execSync('powershell -ExecutionPolicy Bypass -File scripts/test_everything.ps1', {stdio: 'inherit'}) : require('child_process').execSync('bash scripts/test_everything.sh', {stdio: 'inherit'})\"",
+    "kill-port": "node -e \"const p=process.argv[1]; process.platform === 'win32' ? require('child_process').execSync('powershell -ExecutionPolicy Bypass -File scripts/kill-port.ps1 -Port '+p, {stdio: 'inherit'}) : require('child_process').execSync('bash scripts/kill-port.sh '+p, {stdio: 'inherit'})\" --",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up",
     "docker:down": "docker-compose down"
@@ -60,6 +61,9 @@
     "ws": "^8.14.0"
   },
   "dependencies": {
-    "firebase": "^12.7.0"
+    "firebase": "^12.7.0",
+    "nodemon": "^3.1.11",
+    "ts-node": "^10.9.2",
+    "vite": "^7.3.0"
   }
 }
