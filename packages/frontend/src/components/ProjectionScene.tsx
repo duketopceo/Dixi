@@ -8,7 +8,7 @@ import { InteractiveObject } from './Scene/InteractiveObject';
 import { ParticleBurst, ParticleRing } from './Scene/ParticleEffect';
 import { GestureActionIndicator, GestureAction } from './Scene/GestureActionIndicator';
 import { GroupVisualization } from './Scene/GroupVisualization';
-import { useGestureStore } from '../store/gestureStore';
+import { useTrackingStore } from '../store/trackingStore';
 import { useAIStore } from '../store/aiStore';
 import { useSceneStore } from '../store/sceneStore';
 import { createObject, gestureTo3DPosition, getRandomColor } from './Scene/ObjectLibrary';
@@ -19,7 +19,12 @@ import logger from '../utils/logger';
 
 const ProjectionScene: React.FC = () => {
   const { scene, camera, gl } = useThree();
-  const currentGesture = useGestureStore((state) => state.currentGesture);
+  const currentTracking = useTrackingStore((state) => state.currentTracking);
+  const currentGesture = currentTracking?.hands?.right?.detected 
+    ? { type: currentTracking.hands.right.gesture, position: currentTracking.hands.right.position, confidence: currentTracking.hands.right.confidence, timestamp: currentTracking.hands.right.timestamp }
+    : currentTracking?.hands?.left?.detected
+    ? { type: currentTracking.hands.left.gesture, position: currentTracking.hands.left.position, confidence: currentTracking.hands.left.confidence, timestamp: currentTracking.hands.left.timestamp }
+    : null;
   const objects = useSceneStore((state) => state.objects);
   const selectedObjectId = useSceneStore((state) => state.selectedObjectId);
   const addObject = useSceneStore((state) => state.addObject);

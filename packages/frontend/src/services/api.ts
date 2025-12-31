@@ -222,7 +222,7 @@ export const apiService = {
     }
   },
 
-  // Tracking endpoints
+  // Unified tracking endpoints
   async getTrackingData() {
     try {
       const response = await api.get('/tracking');
@@ -235,6 +235,24 @@ export const apiService = {
   async analyzeTracking(prompt?: string) {
     try {
       const response = await api.post('/tracking/analyze', { prompt }, { timeout: 60000 });
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
+  },
+
+  async startTracking() {
+    try {
+      const response = await api.post('/tracking/start');
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
+  },
+
+  async stopTracking() {
+    try {
+      const response = await api.post('/tracking/stop');
       return response.data;
     } catch (error) {
       handleApiError(error);

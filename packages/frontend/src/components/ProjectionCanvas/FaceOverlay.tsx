@@ -1,19 +1,26 @@
-import React from 'react';
-import { useFaceStore } from '../../store/faceStore';
+import React, { useMemo } from 'react';
+import { useTrackingStore } from '../../store/trackingStore';
 import './FaceOverlay.css';
 
 /**
- * Face tracking overlay component that displays face detection visualization
+ * Unified tracking overlay component that displays face, body, and eye tracking visualization
  * on top of the camera feed
  */
-export const FaceOverlay: React.FC = () => {
-  const currentFace = useFaceStore((state) => state.currentFace);
+export const FaceOverlay: React.FC = React.memo(() => {
+  const currentTracking = useTrackingStore((state) => state.currentTracking);
 
-  if (!currentFace || !currentFace.detected || !currentFace.bounding_box) {
+  if (!currentTracking) {
     return null;
   }
 
-  const { bounding_box, key_points, eye_features, mouth_features, engagement } = currentFace;
+  const { face, body, eyes, hands } = currentTracking;
+
+  // Face overlay
+  if (!face || !face.detected || !face.bounding_box) {
+    return null;
+  }
+
+  const { bounding_box, key_points, eye_features, mouth_features, engagement } = face;
 
   // Convert normalized coordinates (0-1) to percentages
   const left = bounding_box.x_min * 100;
@@ -130,6 +137,79 @@ export const FaceOverlay: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Body pose skeleton overlay */}
+      {body && body.detected && body.landmarks && (
+        <div className="body-pose-overlay">
+          {useMemo(() => {
+            // Only render key landmarks for performance (every 3rd landmark)
+            const keyLandmarks = body.landmarks.filter((_: any, idx: number) => idx % 3 === 0);
+            return keyLandmarks.map((landmark: any, idx: number) => (
+              <div
+                key={idx}
+                className="pose-landmark"
+                style={{
+                  left: `${landmark.x * 100}%`,
+                  top: `${landmark.y * 100}%`,
+                }}
+              />
+            ));
+          }, [body.landmarks])}
+          {body.posture && (
+            <div className="body-posture-indicator">
+              Posture: {body.posture}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Eye gaze direction indicator */}
+      {eyes && eyes.combined_gaze && (
+        <div className="eye-gaze-overlay">
+          <div
+            className="gaze-indicator"
+            style={{
+              left: `${50 + eyes.combined_gaze.x * 20}%`,
+              top: `${50 + eyes.combined_gaze.y * 20}%`,
+            }}
+          >
+            👁️
+          </div>
+          {eyes.attention_score > 0.7 && (
+            <div className="attention-indicator">
+              Attention: {(eyes.attention_score * 100).toFixed(0)}%
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Hand tracking overlays */}
+      {hands && (
+        <>
+          {hands.left && hands.left.detected && hands.left.position && (
+            <div
+              className="hand-overlay hand-left"
+              style={{
+                left: `${(hands.left.position.x + 1) * 50}%`,
+                top: `${(1 - hands.left.position.y) * 50}%`,
+              }}
+            >
+              <div className="hand-label">L: {hands.left.gesture}</div>
+            </div>
+          )}
+          {hands.right && hands.right.detected && hands.right.position && (
+            <div
+              className="hand-overlay hand-right"
+              style={{
+                left: `${(hands.right.position.x + 1) * 50}%`,
+                top: `${(1 - hands.right.position.y) * 50}%`,
+              }}
+            >
+              <div className="hand-label">R: {hands.right.gesture}</div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
-};
+});

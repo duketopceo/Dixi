@@ -3,20 +3,26 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { SceneObject } from '../../store/sceneStore';
 import { useSceneStore } from '../../store/sceneStore';
-import { useGestureStore } from '../../store/gestureStore';
+import { useTrackingStore } from '../../store/trackingStore';
 
 interface InteractiveObjectProps {
   object: SceneObject;
 }
 
-export const InteractiveObject: React.FC<InteractiveObjectProps> = ({ object }) => {
+export const InteractiveObject: React.FC<InteractiveObjectProps> = React.memo(({ object }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
   const materialRef = useRef<THREE.MeshStandardMaterial>(null);
   const selectedObjectId = useSceneStore((state) => state.selectedObjectId);
   const isSelected = useSceneStore((state) => state.isSelected(object.id));
   const isPrimarySelected = selectedObjectId === object.id;
-  const currentGesture = useGestureStore((state) => state.currentGesture);
+  const currentTracking = useTrackingStore((state) => state.currentTracking);
+  // Get primary hand gesture (right hand preferred, fallback to left)
+  const currentGesture = currentTracking?.hands?.right?.detected 
+    ? { type: currentTracking.hands.right.gesture, position: currentTracking.hands.right.position, confidence: currentTracking.hands.right.confidence, timestamp: currentTracking.hands.right.timestamp }
+    : currentTracking?.hands?.left?.detected
+    ? { type: currentTracking.hands.left.gesture, position: currentTracking.hands.left.position, confidence: currentTracking.hands.left.confidence, timestamp: currentTracking.hands.left.timestamp }
+    : null;
   const [isHovered, setIsHovered] = useState(false);
   const { camera } = useThree();
 
@@ -194,5 +200,7 @@ export const InteractiveObject: React.FC<InteractiveObjectProps> = ({ object }) 
       )}
     </group>
   );
-};
+});
+
+InteractiveObject.displayName = 'InteractiveObject';
 

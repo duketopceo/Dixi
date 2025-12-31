@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { apiService } from '../services/api';
-import { useGestureStore } from './gestureStore';
-import { useFaceStore, FaceData } from './faceStore';
+import { useTrackingStore } from './trackingStore';
 
 interface AIResponse {
   query: string;
@@ -116,19 +115,16 @@ export const useAIStore = create<AIStore>((set, get) => ({
   sendQuery: async (query: string, context?: any) => {
     set({ isProcessing: true });
     try {
-      // Get current gesture for context if not provided
-      const currentGesture = useGestureStore.getState().currentGesture;
-      const gestureContext = context || (currentGesture ? {
-        gesture: {
-          type: currentGesture.type,
-          coordinates: {
-            x: currentGesture.position.x,
-            y: currentGesture.position.y
-          }
-        }
+      // Get current tracking data for context if not provided
+      const currentTracking = useTrackingStore.getState().currentTracking;
+      const trackingContext = context || (currentTracking ? {
+        hands: currentTracking.hands,
+        face: currentTracking.face,
+        body: currentTracking.body,
+        eyes: currentTracking.eyes
       } : undefined);
       
-      const response = await apiService.sendAIQuery(query, gestureContext);
+      const response = await apiService.sendAIQuery(query, trackingContext);
       
       // Response comes back as { text, metadata }
       const aiResponse: AIResponse = {
@@ -165,32 +161,54 @@ export const useAIStore = create<AIStore>((set, get) => ({
   sendQueryWithTracking: async (query: string, includeFace: boolean = true) => {
     set({ isProcessing: true });
     try {
-      // Build context from gesture and face data
-      const currentGesture = useGestureStore.getState().currentGesture;
-      const currentFace = includeFace ? useFaceStore.getState().currentFace : null;
+      // Build context from unified tracking data
+      const currentTracking = useTrackingStore.getState().currentTracking;
       
       const context: any = {};
       
-      if (currentGesture) {
-        context.gesture = {
-          type: currentGesture.type,
-          coordinates: {
-            x: currentGesture.position.x,
-            y: currentGesture.position.y
-          },
-          confidence: currentGesture.confidence
-        };
-      }
-      
-      if (currentFace && currentFace.detected) {
-        context.face = {
-          detected: true,
-          engagement: currentFace.engagement,
-          expressions: currentFace.expressions,
-          eye_features: currentFace.eye_features,
-          mouth_features: currentFace.mouth_features,
-          head_pose: currentFace.head_pose
-        };
+      if (currentTracking) {
+        // Hands context
+        if (currentTracking.hands?.left?.detected || currentTracking.hands?.right?.detected) {
+          context.hands = {
+            left: currentTracking.hands.left ? {
+              gesture: currentTracking.hands.left.gesture,
+              position: currentTracking.hands.left.position,
+              confidence: currentTracking.hands.left.confidence
+            } : null,
+            right: currentTracking.hands.right ? {
+              gesture: currentTracking.hands.right.gesture,
+              position: currentTracking.hands.right.position,
+              confidence: currentTracking.hands.right.confidence
+            } : null
+          };
+        }
+        
+        // Face context
+        if (includeFace && currentTracking.face?.detected) {
+          context.face = {
+            detected: true,
+            engagement: currentTracking.face.engagement,
+            expressions: currentTracking.face.expressions,
+            head_pose: currentTracking.face.head_pose,
+            mouth_features: currentTracking.face.mouth_features
+          };
+        }
+        
+        // Body context
+        if (currentTracking.body?.detected) {
+          context.body = {
+            posture: currentTracking.body.posture,
+            orientation: currentTracking.body.orientation
+          };
+        }
+        
+        // Eyes context
+        if (currentTracking.eyes) {
+          context.eyes = {
+            combined_gaze: currentTracking.eyes.combined_gaze,
+            attention_score: currentTracking.eyes.attention_score
+          };
+        }
       }
       
       const response = await apiService.sendAIQuery(query, context);
@@ -261,33 +279,7 @@ export const useAIStore = create<AIStore>((set, get) => ({
   },
 
   getContextSummary: () => {
-    const currentGesture = useGestureStore.getState().currentGesture;
-    const currentFace = useFaceStore.getState().currentFace;
-    
-    const parts: string[] = [];
-    
-    if (currentGesture && currentGesture.type !== 'none') {
-      parts.push(`Gesture: ${currentGesture.type}`);
-    }
-    
-    if (currentFace && currentFace.detected) {
-      if (currentFace.engagement?.is_engaged) {
-        parts.push('Face: Engaged');
-      }
-      if (currentFace.mouth_features?.is_smiling) {
-        parts.push('Expression: Smiling');
-      }
-      if (currentFace.expressions) {
-        const topExpression = Object.entries(currentFace.expressions)
-          .filter(([name]) => name !== '_neutral')
-          .sort(([, a], [, b]) => (b as number) - (a as number))[0];
-        if (topExpression && (topExpression[1] as number) > 0.1) {
-          parts.push(`Expression: ${topExpression[0]}`);
-        }
-      }
-    }
-    
-    return parts.length > 0 ? parts.join(' • ') : 'No context available';
+    return useTrackingStore.getState().getContextSummary();
   },
   
   addChatMessage: (query: string, response: string, metadata?: any) => {

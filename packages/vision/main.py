@@ -1,8 +1,7 @@
 """
-Dixi Vision Service - Gesture Recognition & Face Detection
-Supports 10 basic gestures: pinch, point, open_palm, fist, swipe_left, swipe_right,
-peace, thumbs_up, thumbs_down, ok, wave
-Includes MediaPipe face detection with 468 facial landmarks
+Dixi Vision Service - Unified Tracking (Face, Hands, Body, Eyes)
+Supports dual hand tracking, body pose, enhanced eye tracking, and face detection
+Uses MediaPipe Tasks API for efficient multi-model inference
 """
 
 from flask import Flask, jsonify, request, Response, render_template
@@ -21,6 +20,7 @@ import io
 import collections
 from dotenv import load_dotenv
 import requests
+from unified_tracking import UnifiedTrackingService
 
 load_dotenv()
 
@@ -601,8 +601,10 @@ class GestureRecognitionService:
 
 
 # Initialize services
+unified_tracking_service = UnifiedTrackingService()
+# Keep old services for backward compatibility during migration
 gesture_service = GestureRecognitionService()
-face_service = gesture_service.face_service  # Access face service through gesture service
+face_service = gesture_service.face_service
 
 
 # Routes
@@ -737,6 +739,44 @@ def get_face_status():
         'available': face_service.landmarker is not None,
         'current_face': face_service.get_current_face() is not None,
         'model_loaded': face_service.landmarker is not None
+    })
+
+
+# Unified Tracking Routes
+@app.route('/tracking', methods=['GET'])
+def get_tracking():
+    """Get unified tracking data (face, hands, body, eyes)."""
+    tracking_data = unified_tracking_service.get_current_tracking()
+    return jsonify(tracking_data if tracking_data else {
+        'face': None,
+        'hands': {'left': None, 'right': None},
+        'body': None,
+        'eyes': None,
+        'timestamp': int(time.time() * 1000)
+    })
+
+
+@app.route('/tracking/start', methods=['POST'])
+def start_unified_tracking():
+    """Start unified tracking."""
+    return jsonify(unified_tracking_service.start_tracking())
+
+
+@app.route('/tracking/stop', methods=['POST'])
+def stop_unified_tracking():
+    """Stop unified tracking."""
+    return jsonify(unified_tracking_service.stop_tracking())
+
+
+@app.route('/tracking/status', methods=['GET'])
+def get_tracking_status():
+    """Get unified tracking status."""
+    return jsonify({
+        'hand_tracking': unified_tracking_service.hand_landmarker is not None,
+        'face_tracking': unified_tracking_service.face_landmarker is not None,
+        'pose_tracking': unified_tracking_service.pose_landmarker is not None,
+        'dual_hands': True,
+        'current_data': unified_tracking_service.get_current_tracking() is not None
     })
 
 

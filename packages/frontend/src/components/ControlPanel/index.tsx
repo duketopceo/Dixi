@@ -5,7 +5,7 @@ import { GestureControls } from './sections/GestureControls';
 import { AIChat } from './sections/AIChat';
 import { DebugLogs, LogEntry } from './sections/DebugLogs';
 import { useWebSocket } from '../../hooks/useWebSocket';
-import { useGestureStore } from '../../store/gestureStore';
+import { useTrackingStore } from '../../store/trackingStore';
 import './ControlPanel.css';
 
 const ControlPanel: React.FC = () => {
@@ -14,7 +14,13 @@ const ControlPanel: React.FC = () => {
   
   const { status, isChecking, refresh } = useSystemStatus(10000);
   const { isConnected: wsConnected } = useWebSocket();
-  const currentGesture = useGestureStore((state) => state.currentGesture);
+  const currentTracking = useTrackingStore((state) => state.currentTracking);
+  // Get primary hand gesture (right hand preferred, fallback to left)
+  const currentGesture = currentTracking?.hands?.right?.detected 
+    ? { type: currentTracking.hands.right.gesture, position: currentTracking.hands.right.position, confidence: currentTracking.hands.right.confidence, timestamp: currentTracking.hands.right.timestamp }
+    : currentTracking?.hands?.left?.detected
+    ? { type: currentTracking.hands.left.gesture, position: currentTracking.hands.left.position, confidence: currentTracking.hands.left.confidence, timestamp: currentTracking.hands.left.timestamp }
+    : null;
 
   const addLog = useCallback((type: string, message: string) => {
     const entry: LogEntry = {

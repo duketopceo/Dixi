@@ -1,127 +1,144 @@
 #!/bin/bash
 
-# Start Dixi App in Development Mode (without Docker)
-# This starts backend, frontend, and vision service using npm/python directly
-# Mac/Linux compatible version
+# Dixi Development Server Startup Script
+# Usage: ./start-dev.sh
 
 set -e
 
-# Colors for output
-CYAN='\033[0;36m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-WHITE='\033[1;37m'
-GRAY='\033[0;90m'
-NC='\033[0m' # No Color
-
-echo -e "${CYAN}========================================${NC}"
-echo -e "${CYAN}Starting Dixi App (Development Mode)${NC}"
-echo -e "${CYAN}========================================${NC}"
-echo ""
-
-# Get script directory
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Check if Python is available
-PYTHON_CMD=""
+echo "🚀 Starting Dixi Development Environment..."
+echo ""
+
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Kill any existing processes on our ports
+echo "🔄 Cleaning up existing processes..."
+for port in 3000 3001 3002 5001; do
+    pid=$(lsof -ti :$port 2>/dev/null) || true
+    if [ -n "$pid" ]; then
+        echo "   Killing process on port $port (PID: $pid)"
+        kill -9 $pid 2>/dev/null || true
+    fi
+done
+sleep 1
+
+# Check for required dependencies
+echo ""
+echo "📦 Checking dependencies..."
+
+# Check Node.js
+if ! command -v node &> /dev/null; then
+    echo "❌ Node.js not found. Please install Node.js first."
+    exit 1
+fi
+echo "   ✅ Node.js $(node --version)"
+
+# Check npm
+if ! command -v npm &> /dev/null; then
+    echo "❌ npm not found. Please install npm first."
+    exit 1
+fi
+echo "   ✅ npm $(npm --version)"
+
+# Check Python
 if command -v python3 &> /dev/null; then
     PYTHON_CMD="python3"
 elif command -v python &> /dev/null; then
     PYTHON_CMD="python"
 else
-    echo -e "${YELLOW}Warning: Python not found. Vision service will not start.${NC}"
-    echo -e "${YELLOW}  Install Python or use Docker Compose for full service stack.${NC}"
-    echo ""
+    echo "⚠️  Python not found. Vision service will not start."
+    PYTHON_CMD=""
 fi
-
-# Check if we're on macOS
-IS_MAC=false
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    IS_MAC=true
-fi
-
-# Function to start a service in a new terminal window (macOS) or background
-start_service() {
-    local name="$1"
-    local dir="$2"
-    local cmd="$3"
-    
-    if $IS_MAC; then
-        # Use osascript to open a new Terminal window on macOS
-        osascript <<EOF
-tell application "Terminal"
-    activate
-    do script "cd '$dir' && echo '${name} Starting...' && $cmd"
-end tell
-EOF
-    else
-        # For Linux, use a subshell in background with output to log file
-        echo -e "${GRAY}Starting $name in background...${NC}"
-        (cd "$dir" && $cmd > "/tmp/dixi-${name// /-}.log" 2>&1) &
-    fi
-}
-
-# Start Vision Service (Python/Flask)
-VISION_PATH="$SCRIPT_DIR/packages/vision"
-if [ -d "$VISION_PATH" ]; then
-    echo -e "${YELLOW}Starting Vision Service on port 5001...${NC}"
-    # Check for virtual environment first
-    if [ -f "$VISION_PATH/venv/bin/activate" ]; then
-        start_service "Vision Service" "$VISION_PATH" "source venv/bin/activate && python main.py"
-    elif [ -n "$PYTHON_CMD" ]; then
-        start_service "Vision Service" "$VISION_PATH" "$PYTHON_CMD main.py"
-    else
-        echo -e "${YELLOW}Skipping Vision Service (Python not found)...${NC}"
-    fi
-    sleep 2
-else
-    echo -e "${YELLOW}  Vision directory not found: $VISION_PATH${NC}"
-fi
-
-# Start Backend
-echo -e "${YELLOW}Starting Backend on port 3001...${NC}"
-BACKEND_PATH="$SCRIPT_DIR/packages/backend"
-if [ -d "$BACKEND_PATH" ]; then
-    start_service "Backend" "$BACKEND_PATH" "npm run dev"
-    sleep 3
-else
-    echo -e "${YELLOW}  Backend directory not found: $BACKEND_PATH${NC}"
-fi
-
-# Start Frontend
-echo -e "${YELLOW}Starting Frontend on port 3000...${NC}"
-FRONTEND_PATH="$SCRIPT_DIR/packages/frontend"
-if [ -d "$FRONTEND_PATH" ]; then
-    start_service "Frontend" "$FRONTEND_PATH" "npm run dev"
-else
-    echo -e "${YELLOW}  Frontend directory not found: $FRONTEND_PATH${NC}"
-fi
-
-echo ""
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}Services Starting!${NC}"
-echo -e "${GREEN}========================================${NC}"
-echo ""
-
-if $IS_MAC; then
-    echo -e "${CYAN}Three Terminal windows have opened:${NC}"
-else
-    echo -e "${CYAN}Services started in background. Check logs in /tmp/:${NC}"
-fi
-
 if [ -n "$PYTHON_CMD" ]; then
-    echo -e "${WHITE}  - Vision Service: http://localhost:5001${NC}"
+    echo "   ✅ Python $($PYTHON_CMD --version 2>&1 | cut -d' ' -f2)"
 fi
-echo -e "${WHITE}  - Backend: http://localhost:3001${NC}"
-echo -e "${WHITE}  - Frontend: http://localhost:3000${NC}"
-echo ""
-echo -e "${YELLOW}Wait 10-15 seconds for services to start, then:${NC}"
-echo -e "${WHITE}  Open http://localhost:3000 in your browser${NC}"
-echo ""
-echo -e "${CYAN}To stop all services, run: ./stop-all.sh${NC}"
-if ! $IS_MAC; then
-    echo -e "${GRAY}Or close the terminal windows manually${NC}"
-fi
-echo ""
 
+# Check Ollama
+if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+    echo "   ✅ Ollama running"
+else
+    echo "   ⚠️  Ollama not running (AI will use fallback or fail)"
+fi
+
+echo ""
+echo "🏗️  Starting services..."
+
+# Start Backend (in background)
+echo -e "${CYAN}   Starting Backend (port 3001)...${NC}"
+cd "$SCRIPT_DIR/packages/backend"
+npm run dev > /dev/null 2>&1 &
+BACKEND_PID=$!
+echo "   Backend PID: $BACKEND_PID"
+
+# Start Frontend (in background)
+echo -e "${CYAN}   Starting Frontend (port 3000)...${NC}"
+cd "$SCRIPT_DIR/packages/frontend"
+npm run dev > /dev/null 2>&1 &
+FRONTEND_PID=$!
+echo "   Frontend PID: $FRONTEND_PID"
+
+# Start Vision Service (in background)
+if [ -n "$PYTHON_CMD" ]; then
+    echo -e "${CYAN}   Starting Vision Service (port 5001)...${NC}"
+    cd "$SCRIPT_DIR/packages/vision"
+    if [ -d "venv" ]; then
+        source venv/bin/activate
+    fi
+    $PYTHON_CMD main.py > /dev/null 2>&1 &
+    VISION_PID=$!
+    echo "   Vision PID: $VISION_PID"
+fi
+
+cd "$SCRIPT_DIR"
+
+# Wait for services to start
+echo ""
+echo "⏳ Waiting for services to initialize..."
+sleep 3
+
+# Check service status
+echo ""
+echo "📊 Service Status:"
+
+# Check Backend
+if curl -s http://localhost:3001/health > /dev/null 2>&1; then
+    echo -e "   ${GREEN}✅ Backend:  http://localhost:3001${NC}"
+else
+    echo -e "   ${YELLOW}⏳ Backend:  Starting...${NC}"
+fi
+
+# Check Frontend
+if curl -s http://localhost:3000 > /dev/null 2>&1; then
+    echo -e "   ${GREEN}✅ Frontend: http://localhost:3000${NC}"
+else
+    echo -e "   ${YELLOW}⏳ Frontend: Starting...${NC}"
+fi
+
+# Check Vision
+if [ -n "$PYTHON_CMD" ]; then
+    if curl -s http://localhost:5001/health > /dev/null 2>&1; then
+        echo -e "   ${GREEN}✅ Vision:   http://localhost:5001${NC}"
+    else
+        echo -e "   ${YELLOW}⏳ Vision:   Starting...${NC}"
+    fi
+fi
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo -e "${GREEN}🎉 Dixi is starting!${NC}"
+echo ""
+echo "   Frontend: http://localhost:3000"
+echo "   Backend:  http://localhost:3001"
+echo "   Vision:   http://localhost:5001"
+echo ""
+echo "   Press Ctrl+C to stop all services"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# Wait for user interrupt
+wait

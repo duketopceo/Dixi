@@ -115,6 +115,9 @@ export class AIService {
   private modelName: string;
   private visionModelName: string;
   private visionServiceUrl: string;
+  private aiProvider: string;
+  private geminiApiKey?: string;
+  private cloudModel: string;
 
   constructor() {
     this.ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
@@ -125,7 +128,23 @@ export class AIService {
     logger.info('✅ Vision model llava:7b is available for image analysis');
     // Vision service URL for capturing frames
     this.visionServiceUrl = process.env.VISION_SERVICE_URL || 'http://localhost:5001';
+    
+    // NEW: Gemini configuration
+    this.aiProvider = process.env.AI_PROVIDER || 'ollama';
+    this.geminiApiKey = process.env.GEMINI_API_KEY;
+    this.cloudModel = process.env.CLOUD_MODEL || 'gemini-1.5-flash';
+    
+    // Log provider status
     logger.info('🤖 AI Service initialized');
+    logger.info(`🔗 Provider: ${this.aiProvider}`);
+    if (this.aiProvider === 'gemini') {
+      if (this.geminiApiKey) {
+        logger.info(`☁️  Gemini configured: ${this.cloudModel}`);
+      } else {
+        logger.warn('⚠️  AI_PROVIDER=gemini but GEMINI_API_KEY missing, falling back to Ollama');
+        this.aiProvider = 'ollama';
+      }
+    }
     logger.info(`🔗 Ollama Base URL: ${this.ollamaBaseUrl}`);
     logger.info(`📦 Ollama Model: ${this.modelName}`);
     logger.info(`👁️ Vision Model: ${this.visionModelName}`);
@@ -179,7 +198,10 @@ export class AIService {
       modelName: this.modelName,
       ollamaBaseUrl: this.ollamaBaseUrl,
       ollamaStatus,
-      backend: 'ollama'
+      provider: this.aiProvider,
+      cloudModel: this.cloudModel,
+      geminiConfigured: !!this.geminiApiKey,
+      backend: this.aiProvider === 'gemini' ? 'gemini' : 'ollama'
     };
   }
 
@@ -245,6 +267,96 @@ export class AIService {
     return prompt;
   }
 
+  /**
+   * Gemini text inference
+   * Uses the same prompt building as Ollama but sends to Gemini API
+   */
+  private async inferGemini(
+    prompt: string,
+    context?: GestureContext
+  ): Promise<InferenceResponse> {
+    const startTime = Date.now();
+
+    if (!this.geminiApiKey) {
+      throw new Error('GEMINI_API_KEY not configured');
+    }
+
+    try {
+      // Build the same prompt as Ollama would use
+      const fullPrompt = this.buildPrompt(prompt, context);
+      const optimizedContext = this.buildOptimizedContext(context);
+
+      // Gemini API endpoint
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.cloudModel}:generateContent?key=${this.geminiApiKey}`;
+
+      const response = await axios.post(
+        url,
+        {
+          contents: [{
+            parts: [{
+              text: fullPrompt
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            topP: 0.9,
+            topK: 40,
+            maxOutputTokens: 150,
+            stopSequences: ["\n\n", "###"]
+          },
+          systemInstruction: {
+            parts: [{
+              text: OLLAMA_INFERENCE_PARAMS.system
+            }]
+          }
+        },
+        {
+          timeout: 60000
+        }
+      );
+
+      const inferenceTime = Date.now() - startTime;
+
+      // Extract text from Gemini response
+      const responseText = response.data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+      if (!responseText) {
+        throw new Error('Empty response from Gemini API');
+      }
+
+      logger.info(`✅ Gemini inference complete in ${inferenceTime}ms`);
+
+      return {
+        text: responseText,
+        metadata: {
+          inferenceTime,
+          tokenCount: responseText.split(' ').length,
+          confidence: 0.95,
+          model: this.cloudModel,
+          context: optimizedContext,
+          tokens: response.data.usageMetadata?.totalTokenCount || responseText.split(' ').length
+        }
+      };
+    } catch (error: any) {
+      logger.error('Gemini inference failed:', error);
+      
+      if (error.response) {
+        logger.error('Gemini API error response:', {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data
+        });
+        throw new Error(`Gemini API error: ${error.response.status} - ${error.response.data?.error?.message || error.response.statusText}`);
+      }
+      
+      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+        throw new Error('Gemini API service is not available');
+      }
+      
+      throw new Error(`Gemini inference error: ${error.message}`);
+    }
+  }
+
   async infer(query: string, context?: GestureContext): Promise<InferenceResponse> {
     if (!this.initialized) {
       await this.initialize();
@@ -275,6 +387,16 @@ export class AIService {
       // Build optimized context (minimal, essential only)
       const optimizedContext = this.buildOptimizedContext(context);
       const prompt = this.buildPrompt(query, context);
+
+      // Try Gemini first if configured, fall back to Ollama
+      if (this.aiProvider === 'gemini' && this.geminiApiKey) {
+        try {
+          return await this.inferGemini(query, context);
+        } catch (geminiError: any) {
+          logger.warn('Gemini inference failed, falling back to Ollama:', geminiError.message);
+          // Continue to Ollama fallback below
+        }
+      }
 
       // Ollama doesn't accept 'context' parameter - include context in prompt instead
       const response = await axios.post(
@@ -470,11 +592,120 @@ export class AIService {
     logger.info('🗑️ AI Service disposed');
   }
 
-  // Analyze an image using the vision model (llava)
-  async analyzeImage(imageBase64: string, prompt?: string): Promise<InferenceResponse> {
+  /**
+   * Gemini vision analysis
+   * Analyzes images using Gemini's multimodal capabilities
+   */
+  private async analyzeImageGemini(imageBase64: string, prompt?: string): Promise<InferenceResponse> {
     const startTime = Date.now();
+
+    if (!this.geminiApiKey) {
+      throw new Error('GEMINI_API_KEY not configured');
+    }
+
     const analysisPrompt = prompt || 
       "Describe what you see in this image. Focus on any people, gestures, and what they might be doing. Be brief (2-3 sentences).";
+
+    try {
+      logger.info('👁️ Analyzing image with Gemini...');
+      
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.cloudModel}:generateContent?key=${this.geminiApiKey}`;
+
+      const response = await axios.post(
+        url,
+        {
+          contents: [{
+            parts: [
+              {
+                text: analysisPrompt
+              },
+              {
+                inlineData: {
+                  mimeType: 'image/jpeg',
+                  data: imageBase64
+                }
+              }
+            ]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            topP: 0.9,
+            topK: 40,
+            maxOutputTokens: 200,
+            stopSequences: ["\n\n", "###"]
+          },
+          systemInstruction: {
+            parts: [{
+              text: `You are Dixi's vision system. Describe what you see concisely and helpfully.
+Focus on:
+- People and their body language/gestures
+- Hand positions and what they might indicate
+- The environment and context
+- Any text or objects visible
+Be conversational and brief (2-3 sentences max).`
+            }]
+          }
+        },
+        {
+          timeout: 30000 // 30 second timeout for vision
+        }
+      );
+
+      const inferenceTime = Date.now() - startTime;
+      const responseText = response.data.candidates?.[0]?.content?.parts?.[0]?.text || 'Could not analyze image';
+
+      if (!responseText) {
+        throw new Error('Empty response from Gemini vision API');
+      }
+
+      logger.info(`✅ Gemini vision analysis complete in ${inferenceTime}ms`);
+
+      return {
+        text: responseText,
+        metadata: {
+          inferenceTime,
+          model: this.cloudModel,
+          tokenCount: responseText.split(' ').length,
+          confidence: 0.9,
+          tokens: response.data.usageMetadata?.totalTokenCount || responseText.split(' ').length
+        }
+      };
+    } catch (error: any) {
+      logger.error('Gemini vision analysis failed:', error);
+      
+      if (error.response) {
+        logger.error('Gemini API error response:', {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data
+        });
+        throw new Error(`Gemini API error: ${error.response.status} - ${error.response.data?.error?.message || error.response.statusText}`);
+      }
+      
+      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+        throw new Error('Gemini API service is not available for vision analysis');
+      }
+      
+      throw new Error(`Gemini vision analysis error: ${error.message}`);
+    }
+  }
+
+  // Analyze an image using the vision model (llava)
+  async analyzeImage(imageBase64: string, prompt?: string): Promise<InferenceResponse> {
+    const analysisPrompt = prompt || 
+      "Describe what you see in this image. Focus on any people, gestures, and what they might be doing. Be brief (2-3 sentences).";
+
+    // Try Gemini first if configured, fall back to Ollama
+    if (this.aiProvider === 'gemini' && this.geminiApiKey) {
+      try {
+        return await this.analyzeImageGemini(imageBase64, prompt);
+      } catch (geminiError: any) {
+        logger.warn('Gemini vision analysis failed, falling back to Ollama:', geminiError.message);
+        // Continue to Ollama fallback below
+      }
+    }
+
+    const startTime = Date.now();
 
     try {
       logger.info('👁️ Analyzing image with vision model...');

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAIStore } from '../../store/aiStore';
 import { apiService } from '../../services/api';
-import { useFaceStore } from '../../store/faceStore';
-import { useGestureStore } from '../../store/gestureStore';
+import { useTrackingStore } from '../../store/trackingStore';
 import './AIInputBar.css';
 
 const AIInputBar: React.FC = () => {
@@ -22,8 +21,7 @@ const AIInputBar: React.FC = () => {
     autoAnalysisInterval,
     getContextSummary
   } = useAIStore();
-  const currentFace = useFaceStore((state) => state.currentFace);
-  const currentGesture = useGestureStore((state) => state.currentGesture);
+  const currentTracking = useTrackingStore((state) => state.currentTracking);
   const responseScrollRef = useRef<HTMLDivElement>(null);
   const autoAnalysisIntervalRef = useRef<NodeJS.Timeout | null>(null);
 

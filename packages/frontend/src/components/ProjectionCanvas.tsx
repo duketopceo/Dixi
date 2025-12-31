@@ -5,7 +5,7 @@ import ProjectionScene from './ProjectionScene';
 import { FaceOverlay } from './ProjectionCanvas/FaceOverlay';
 import logger from '../utils/logger';
 import { apiService } from '../services/api';
-import { useFaceStore } from '../store/faceStore';
+import { useTrackingStore } from '../store/trackingStore';
 import './ProjectionCanvas.css';
 
 const VISION_SERVICE_URL = import.meta.env.VITE_VISION_SERVICE_URL || 'http://localhost:5001';
@@ -24,7 +24,7 @@ const ProjectionCanvas: React.FC = () => {
   const imgRef = React.useRef<HTMLImageElement | null>(null);
   const fpsRef = useRef<number[]>([]);
   const lastFrameTimeRef = useRef<number>(Date.now());
-  const faceData = useFaceStore((state) => state.currentFace);
+  const currentTracking = useTrackingStore((state) => state.currentTracking);
   const MAX_RETRIES = 5;
   const BASE_RETRY_DELAY = 2000; // 2 seconds
 
@@ -188,19 +188,19 @@ const ProjectionCanvas: React.FC = () => {
     }
   };
 
-  // Poll face data periodically (WebSocket should handle this, but polling as backup)
+  // Poll tracking data periodically (WebSocket should handle this, but polling as backup)
   useEffect(() => {
     if (!trackingStarted) return;
     
-    const setFaceData = useFaceStore.getState().setCurrentFace;
+    const setTracking = useTrackingStore.getState().setTracking;
     const interval = setInterval(async () => {
       try {
-        const faceData = await apiService.getFaceData();
-        if (faceData && faceData.detected) {
-          setFaceData(faceData);
+        const trackingData = await apiService.getTrackingData();
+        if (trackingData) {
+          setTracking(trackingData);
         }
       } catch (error) {
-        // Silently fail - face data might not be available
+        // Silently fail - tracking data might not be available
       }
     }, 2000); // Poll every 2 seconds (WebSocket is primary)
     

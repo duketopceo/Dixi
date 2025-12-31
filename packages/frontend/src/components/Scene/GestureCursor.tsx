@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useGestureStore } from '../../store/gestureStore';
+import { useTrackingStore } from '../../store/trackingStore';
 
 export const GestureCursor: React.FC = () => {
   const groupRef = useRef<THREE.Group>(null);
@@ -13,7 +13,13 @@ export const GestureCursor: React.FC = () => {
   const bracket2Ref = useRef<THREE.Mesh>(null);
   const bracket3Ref = useRef<THREE.Mesh>(null);
   const bracket4Ref = useRef<THREE.Mesh>(null);
-  const currentGesture = useGestureStore((state) => state.currentGesture);
+  const currentTracking = useTrackingStore((state) => state.currentTracking);
+  // Get primary hand gesture (right hand preferred, fallback to left)
+  const currentGesture = currentTracking?.hands?.right?.detected 
+    ? { type: currentTracking.hands.right.gesture, position: currentTracking.hands.right.position, confidence: currentTracking.hands.right.confidence, timestamp: currentTracking.hands.right.timestamp }
+    : currentTracking?.hands?.left?.detected
+    ? { type: currentTracking.hands.left.gesture, position: currentTracking.hands.left.position, confidence: currentTracking.hands.left.confidence, timestamp: currentTracking.hands.left.timestamp }
+    : null;
 
   useFrame(() => {
     if (!groupRef.current || !currentGesture) return;

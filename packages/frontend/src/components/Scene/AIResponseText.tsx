@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAIStore } from '../../store/aiStore';
-import { useGestureStore } from '../../store/gestureStore';
+import { useTrackingStore } from '../../store/trackingStore';
 
 export const AIResponseText: React.FC = () => {
   const groupRef = useRef<THREE.Group>(null);
@@ -10,7 +10,12 @@ export const AIResponseText: React.FC = () => {
   const cardRef = useRef<THREE.Mesh>(null);
   const glowRef = useRef<THREE.Mesh>(null);
   const { latestResponse, isStreaming } = useAIStore();
-  const currentGesture = useGestureStore((state) => state.currentGesture);
+  const currentTracking = useTrackingStore((state) => state.currentTracking);
+  const currentGesture = currentTracking?.hands?.right?.detected 
+    ? { type: currentTracking.hands.right.gesture, position: currentTracking.hands.right.position }
+    : currentTracking?.hands?.left?.detected
+    ? { type: currentTracking.hands.left.gesture, position: currentTracking.hands.left.position }
+    : null;
   const [displayedText, setDisplayedText] = useState('');
   const [wordIndex, setWordIndex] = useState(0);
   const animationFrameRef = useRef<number>();

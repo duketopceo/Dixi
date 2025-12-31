@@ -39,6 +39,17 @@ export interface FaceData {
   timestamp: number;
 }
 
+export interface TrackingData {
+  face: FaceData | null;
+  hands: {
+    left: any | null;
+    right: any | null;
+  };
+  body: any | null;
+  eyes: any | null;
+  timestamp: number;
+}
+
 export class WebSocketService {
   private wss: Server;
   private clients: Set<WebSocket>;
@@ -217,6 +228,42 @@ export class WebSocketService {
 
     if (errorCount > 0) {
       logger.warn(`Broadcast face: ${successCount} sent, ${errorCount} failed`);
+    }
+  }
+
+  public broadcastTracking(tracking: TrackingData) {
+    const message = JSON.stringify({
+      type: 'tracking',
+      data: tracking
+    });
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    this.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(message);
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          logger.error('Failed to send tracking data to client:', error);
+          // Remove client if send fails
+          this.clients.delete(client);
+          try {
+            client.close();
+          } catch (closeError) {
+            // Ignore close errors
+          }
+        }
+      } else {
+        // Remove clients that are not open
+        this.clients.delete(client);
+      }
+    });
+
+    if (errorCount > 0) {
+      logger.warn(`Broadcast tracking: ${successCount} sent, ${errorCount} failed`);
     }
   }
 

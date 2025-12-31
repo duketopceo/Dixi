@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAIStore } from '../../store/aiStore';
-import { useGestureStore } from '../../store/gestureStore';
+import { useTrackingStore } from '../../store/trackingStore';
 import { useFrame } from '@react-three/fiber';
 
 interface CardProps {
@@ -128,7 +128,12 @@ const AIResponseCard: React.FC<CardProps> = ({ response, index, totalCards, base
 
 export const AIResponseCards: React.FC = () => {
   const { responseHistory } = useAIStore();
-  const currentGesture = useGestureStore((state) => state.currentGesture);
+  const currentTracking = useTrackingStore((state) => state.currentTracking);
+  const currentGesture = currentTracking?.hands?.right?.detected 
+    ? { type: currentTracking.hands.right.gesture, position: currentTracking.hands.right.position }
+    : currentTracking?.hands?.left?.detected
+    ? { type: currentTracking.hands.left.gesture, position: currentTracking.hands.left.position }
+    : null;
   const basePositionRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 0));
 
   // Update base position based on current gesture

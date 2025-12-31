@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
-import { useGestureStore } from '../store/gestureStore';
 import { useAIStore } from '../store/aiStore';
-import { useFaceStore } from '../store/faceStore';
+import { useTrackingStore } from '../store/trackingStore';
 import logger from '../utils/logger';
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3002';
@@ -86,12 +85,54 @@ class WebSocketManager {
           const message = JSON.parse(event.data);
           
           switch (message.type) {
+            case 'tracking':
+              // Unified tracking data (face, hands, body, eyes)
+              useTrackingStore.getState().setTracking(message.data);
+              break;
             case 'gesture':
-              useGestureStore.getState().setCurrentGesture(message.data);
+              // Legacy support - convert to tracking format
+              const currentTracking = useTrackingStore.getState().currentTracking;
+              if (currentTracking && message.data) {
+                useTrackingStore.getState().setTracking({
+                  ...currentTracking,
+                  hands: {
+                    ...currentTracking.hands,
+                    right: {
+                      detected: true,
+                      gesture: message.data.type,
+                      position: message.data.position,
+                      confidence: message.data.confidence,
+                      timestamp: message.data.timestamp
+                    }
+                  }
+                });
+              }
               break;
             case 'face':
-              // Handle face detection data
-              useFaceStore.getState().setCurrentFace(message.data);
+              // Legacy support - convert to tracking format
+              const currentTracking2 = useTrackingStore.getState().currentTracking;
+              if (currentTracking2 && message.data) {
+                useTrackingStore.getState().setTracking({
+                  ...currentTracking2,
+                  face: message.data,
+                  eyes: message.data?.eye_features ? {
+                    left_eye: {
+                      gaze_direction: { x: 0, y: 0, z: 0 },
+                      iris_position: { x: message.data.key_points?.left_eye.x || 0, y: message.data.key_points?.left_eye.y || 0 },
+                      is_open: message.data.eye_features.left_eye_open,
+                      eye_height: message.data.eye_features.left_eye_height
+                    },
+                    right_eye: {
+                      gaze_direction: { x: 0, y: 0, z: 0 },
+                      iris_position: { x: message.data.key_points?.right_eye.x || 0, y: message.data.key_points?.right_eye.y || 0 },
+                      is_open: message.data.eye_features.right_eye_open,
+                      eye_height: message.data.eye_features.right_eye_height
+                    },
+                    combined_gaze: { x: message.data.eye_features.gaze_direction || 0, y: 0, z: 0 },
+                    attention_score: message.data.engagement?.score || 0
+                  } : null
+                });
+              }
               break;
             case 'ai_response':
               // Handle streaming responses

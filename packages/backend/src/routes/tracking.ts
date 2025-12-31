@@ -10,33 +10,68 @@ const router = Router();
 const VISION_SERVICE_URL = process.env.VISION_SERVICE_URL || 'http://localhost:5001';
 const aiService = new AIService();
 
-// Combined tracking endpoint - returns both gesture and face data
+// Unified tracking endpoint - returns all tracking data (face, hands, body, eyes)
 router.get('/', async (req: Request, res: Response) => {
   try {
-    // Fetch both gesture and face data in parallel
-    const [gestureResponse, faceResponse] = await Promise.allSettled([
-      axios.get(`${VISION_SERVICE_URL}/gesture`, { timeout: 5000 }),
-      axios.get(`${VISION_SERVICE_URL}/face`, { timeout: 5000 })
-    ]);
-
-    const gestureData = gestureResponse.status === 'fulfilled' 
-      ? gestureResponse.value.data 
-      : { error: 'Gesture data unavailable', details: gestureResponse.reason?.message };
-    
-    const faceData = faceResponse.status === 'fulfilled'
-      ? faceResponse.value.data
-      : { error: 'Face data unavailable', details: faceResponse.reason?.message };
-
-    res.json({
-      gesture: gestureData,
-      face: faceData,
-      timestamp: Date.now()
-    });
+    // Fetch unified tracking data from vision service
+    const response = await axios.get(`${VISION_SERVICE_URL}/tracking`, { timeout: 5000 });
+    res.json(response.data);
   } catch (error: any) {
     logger.error('Failed to fetch tracking data:', error);
+    
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      res.status(503).json({ 
+        error: 'Vision service unavailable',
+        details: 'Vision service is not running or not accessible.',
+        type: 'connection_error'
+      });
+      return;
+    }
+    
+    if (error.response) {
+      res.status(error.response.status || 500).json({ 
+        error: 'Vision service error',
+        details: error.response.data?.error || error.response.statusText || 'Unknown error',
+        type: 'service_error'
+      });
+      return;
+    }
+    
     res.status(500).json({ 
       error: 'Failed to fetch tracking data',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
+      type: 'unknown_error'
+    });
+  }
+});
+
+// Process unified tracking data from vision service
+router.post('/process', visionLimiter, async (req: Request, res: Response) => {
+  try {
+    const trackingData = req.body;
+    
+    logger.debug('Processing unified tracking data', { 
+      hasFace: !!trackingData.face,
+      hasHands: !!(trackingData.hands?.left || trackingData.hands?.right),
+      hasBody: !!trackingData.body,
+      hasEyes: !!trackingData.eyes
+    });
+    
+    // Broadcast to all connected clients via WebSocket
+    if (wsService) {
+      wsService.broadcastTracking(trackingData);
+    }
+    
+    res.json({ 
+      message: 'Tracking data processed successfully',
+      tracking: trackingData
+    });
+  } catch (error: any) {
+    logger.error('Failed to process tracking data:', error);
+    res.status(500).json({ 
+      error: 'Failed to process tracking data',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      type: 'processing_error'
     });
   }
 });
@@ -57,18 +92,15 @@ router.post('/analyze', visionLimiter, async (req: Request, res: Response) => {
       });
     }
     
-    // Get current gesture and face data
-    const [gestureResponse, faceResponse] = await Promise.allSettled([
-      axios.get(`${VISION_SERVICE_URL}/gesture`, { timeout: 2000 }),
-      axios.get(`${VISION_SERVICE_URL}/face`, { timeout: 2000 })
-    ]);
-
-    const gestureData = gestureResponse.status === 'fulfilled' ? gestureResponse.value.data : null;
-    const faceData = faceResponse.status === 'fulfilled' ? faceResponse.value.data : null;
+    // Get unified tracking data
+    const trackingResponse = await axios.get(`${VISION_SERVICE_URL}/tracking`, { timeout: 2000 });
+    const trackingData = trackingResponse.data;
     
     const context = {
-      gesture: gestureData,
-      face: faceData
+      face: trackingData.face,
+      hands: trackingData.hands,
+      body: trackingData.body,
+      eyes: trackingData.eyes
     };
     
     // Analyze frame with full context
@@ -89,10 +121,7 @@ router.post('/analyze', visionLimiter, async (req: Request, res: Response) => {
 
     res.json({
       analysis: aiResponse,
-      context: {
-        gesture: gestureData,
-        face: faceData
-      },
+      context: trackingData,
       timestamp: Date.now()
     });
   } catch (error: any) {
