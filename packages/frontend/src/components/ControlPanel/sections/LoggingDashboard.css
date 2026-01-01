@@ -1,0 +1,201 @@
+.logging-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 600px;
+}
+
+.logging-stats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.stat-item {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.logging-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 8px;
+}
+
+.logging-tab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logging-tab:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(0, 245, 255, 0.3);
+}
+
+.logging-tab.active {
+  background: rgba(0, 245, 255, 0.2);
+  border-color: rgba(0, 245, 255, 0.5);
+  color: #00F5FF;
+  font-weight: 600;
+}
+
+.logging-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.logging-search {
+  flex: 1;
+  min-width: 200px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Monaco', monospace;
+}
+
+.logging-search:focus {
+  outline: none;
+  border-color: #00F5FF;
+  box-shadow: 0 0 0 2px rgba(0, 245, 255, 0.3);
+}
+
+.logging-filter {
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.logging-filter:focus {
+  outline: none;
+  border-color: #00F5FF;
+}
+
+.logging-content {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 400px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.logging-empty {
+  padding: 40px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+}
+
+.logging-entry {
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 3px solid;
+  border-radius: 4px;
+  font-size: 11px;
+  transition: background 0.2s ease;
+}
+
+.logging-entry:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.logging-entry-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.logging-time {
+  color: rgba(255, 255, 255, 0.5);
+  font-family: 'SF Mono', 'Monaco', monospace;
+  font-size: 10px;
+}
+
+.logging-level {
+  font-weight: 600;
+  font-family: 'SF Mono', 'Monaco', monospace;
+  font-size: 10px;
+}
+
+.logging-source {
+  color: rgba(0, 245, 255, 0.7);
+  font-size: 10px;
+  font-family: 'SF Mono', 'Monaco', monospace;
+}
+
+.logging-copy-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.logging-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #00F5FF;
+}
+
+.logging-message {
+  color: rgba(255, 255, 255, 0.9);
+  font-family: 'SF Mono', 'Monaco', monospace;
+  font-size: 11px;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.logging-stack {
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: 'SF Mono', 'Monaco', monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+
+.logging-stack summary {
+  cursor: pointer;
+  color: rgba(0, 245, 255, 0.8);
+  font-size: 10px;
+  margin-bottom: 4px;
+}
+
+.logging-stack summary:hover {
+  color: #00F5FF;
+}

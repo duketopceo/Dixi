@@ -20,6 +20,7 @@ import gestureRecorderRoutes from './routes/gesture-recorder';
 import promptTemplatesRoutes from './routes/prompt-templates';
 import faceRoutes from './routes/face';
 import trackingRoutes from './routes/tracking';
+import logsRoutes from './routes/logs';
 import { errorHandler } from './middleware/errorHandler';
 import { apiLimiter } from './middleware/rateLimiter';
 import { WebSocketService } from './services/websocket';
@@ -56,6 +57,7 @@ app.use('/api/metrics', metricsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/gestures', gestureRecorderRoutes);
 app.use('/api/prompts', promptTemplatesRoutes);
+app.use('/api/logs', logsRoutes);
 
 // Error handling
 app.use(errorHandler);

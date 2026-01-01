@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-
-const VISION_URL = 'http://localhost:5001';
+import { apiService } from '../../../services/api';
 
 interface GestureData {
   type: string;
@@ -22,14 +21,22 @@ export const GestureControls: React.FC<Props> = ({ currentGesture, onLog }) => {
   const toggleTracking = async () => {
     setLoading(true);
     try {
-      const endpoint = tracking ? '/gesture/stop' : '/gesture/start';
-      const res = await fetch(`${VISION_URL}${endpoint}`, { method: 'POST' });
-      
-      if (res.ok) {
-        setTracking(!tracking);
-        onLog('success', `Gesture tracking ${tracking ? 'stopped' : 'started'}`);
+      if (tracking) {
+        const result = await apiService.stopTracking();
+        if (result?.status === 'stopped') {
+          setTracking(false);
+          onLog('success', 'Tracking stopped');
+        } else {
+          onLog('error', 'Failed to stop tracking');
+        }
       } else {
-        onLog('error', 'Failed to toggle tracking');
+        const result = await apiService.startTracking();
+        if (result?.status === 'started' || result?.status === 'already_running') {
+          setTracking(true);
+          onLog('success', 'Tracking started');
+        } else {
+          onLog('error', 'Failed to start tracking');
+        }
       }
     } catch (e) {
       onLog('error', `Error: ${(e as Error).message}`);
@@ -68,7 +75,7 @@ export const GestureControls: React.FC<Props> = ({ currentGesture, onLog }) => {
       {tracking && (
         <div className="cp-video-container">
           <img 
-            src={`${VISION_URL}/video_feed?t=${Date.now()}`} 
+            src={`${import.meta.env.VITE_VISION_SERVICE_URL || 'http://localhost:5001'}/video_feed?t=${Date.now()}`} 
             alt="Camera feed"
             className="cp-video-feed"
           />

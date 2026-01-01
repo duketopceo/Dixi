@@ -77,6 +77,17 @@ class WebSocketManager {
         logger.log('🔌 WebSocket connected');
         this._isConnected = true;
         this.reconnectAttempts = 0; // Reset on successful connection
+        
+        // Log WebSocket connection
+        if (typeof window !== 'undefined') {
+          const { useLogStore } = require('../store/logStore');
+          useLogStore.getState().addWebSocketLog({
+            timestamp: Date.now(),
+            level: 'info',
+            message: 'WebSocket connected',
+          });
+        }
+        
         this.notify();
       };
 
@@ -173,12 +184,34 @@ class WebSocketManager {
         logger.error('WebSocket error:', error);
         this._error = 'WebSocket connection error';
         this._isConnected = false;
+        
+        // Log WebSocket error
+        if (typeof window !== 'undefined') {
+          const { useLogStore } = require('../store/logStore');
+          useLogStore.getState().addWebSocketLog({
+            timestamp: Date.now(),
+            level: 'error',
+            message: `WebSocket error: ${error}`,
+          });
+        }
+        
         this.notify();
       };
 
       this.ws.onclose = (event) => {
         logger.log('🔌 WebSocket disconnected', { code: event.code, reason: event.reason });
         this._isConnected = false;
+        
+        // Log WebSocket disconnection
+        if (typeof window !== 'undefined') {
+          const { useLogStore } = require('../store/logStore');
+          useLogStore.getState().addWebSocketLog({
+            timestamp: Date.now(),
+            level: 'warn',
+            message: `WebSocket disconnected (code: ${event.code}, reason: ${event.reason || 'none'})`,
+          });
+        }
+        
         this.notify();
         
         // Only attempt to reconnect if it wasn't a manual close

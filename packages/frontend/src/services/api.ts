@@ -10,6 +10,76 @@ const api = axios.create({
   timeout: 30000 // 30 second timeout
 });
 
+// Add request/response interceptors for logging
+api.interceptors.request.use(
+  (config) => {
+    const startTime = Date.now();
+    (config as any).startTime = startTime;
+    
+    // Log API request
+    if (typeof window !== 'undefined' && (window as any).useLogStore) {
+      const { useLogStore } = require('../store/logStore');
+      useLogStore.getState().addApiLog({
+        timestamp: startTime,
+        level: 'info',
+        message: `${config.method?.toUpperCase()} ${config.url}`,
+        metadata: { method: config.method, url: config.url, params: config.params }
+      });
+    }
+    
+    return config;
+  },
+  (error) => {
+    if (typeof window !== 'undefined' && (window as any).useLogStore) {
+      const { useLogStore } = require('../store/logStore');
+      useLogStore.getState().addApiLog({
+        timestamp: Date.now(),
+        level: 'error',
+        message: `Request error: ${error.message}`,
+      });
+    }
+    return Promise.reject(error);
+  }
+);
+
+api.interceptors.response.use(
+  (response) => {
+    const startTime = (response.config as any).startTime;
+    const latency = startTime ? Date.now() - startTime : 0;
+    
+    // Log successful API response
+    if (typeof window !== 'undefined' && (window as any).useLogStore) {
+      const { useLogStore } = require('../store/logStore');
+      useLogStore.getState().addApiLog({
+        timestamp: Date.now(),
+        level: 'info',
+        message: `${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status} (${latency}ms)`,
+        metadata: { status: response.status, latency, url: response.config.url }
+      });
+    }
+    
+    return response;
+  },
+  (error) => {
+    const startTime = (error.config as any)?.startTime;
+    const latency = startTime ? Date.now() - startTime : 0;
+    
+    // Log API error
+    if (typeof window !== 'undefined' && (window as any).useLogStore) {
+      const { useLogStore } = require('../store/logStore');
+      const status = error.response?.status || 'N/A';
+      useLogStore.getState().addApiLog({
+        timestamp: Date.now(),
+        level: 'error',
+        message: `${error.config?.method?.toUpperCase()} ${error.config?.url} - ${status} (${latency}ms): ${error.message}`,
+        metadata: { status, latency, url: error.config?.url, error: error.message }
+      });
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
 // Error handling utility
 const handleApiError = (error: unknown): never => {
   if (axios.isAxiosError(error)) {
@@ -270,5 +340,62 @@ export const apiService = {
     } catch (error) {
       handleApiError(error);
     }
-  }
+  },
+
+  // Performance metrics
+  async getPerformanceMetrics() {
+    try {
+      const response = await api.get('/metrics/performance');
+      return response.data.performance;
+    } catch (error) {
+      handleApiError(error);
+    }
+  },
+
+  // Vision config
+  async getVisionConfig() {
+    try {
+      const response = await api.get('/tracking/config');
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
+  },
+
+  async updateVisionConfig(config: Record<string, any>) {
+    try {
+      const response = await api.post('/tracking/config', config);
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
+  },
+
+  // Logs
+  async getBackendLogs(params?: { level?: string; limit?: number; since?: number; search?: string }) {
+    try {
+      const response = await api.get('/logs/backend', { params });
+      return response.data.logs || [];
+    } catch (error) {
+      handleApiError(error);
+    }
+  },
+
+  async getVisionLogs(params?: { level?: string; limit?: number }) {
+    try {
+      const response = await api.get('/logs/vision', { params });
+      return response.data.logs || [];
+    } catch (error) {
+      handleApiError(error);
+    }
+  },
+
+  async getLogStats() {
+    try {
+      const response = await api.get('/logs/stats');
+      return response.data.stats;
+    } catch (error) {
+      handleApiError(error);
+    }
+  },
 };
