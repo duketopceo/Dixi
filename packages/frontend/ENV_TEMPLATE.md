@@ -9,7 +9,7 @@ Create `packages/frontend/.env.production` with these variables:
 # Use this only for local testing of production build
 VITE_API_URL=http://localhost:3001/api
 VITE_WS_URL=ws://localhost:3002
-VITE_VISION_SERVICE_URL=http://localhost:5000
+VITE_VISION_SERVICE_URL=http://localhost:5001
 
 # Option 2: Cloud backend (uncomment when backend is deployed)
 # VITE_API_URL=https://your-backend-url.run.app/api

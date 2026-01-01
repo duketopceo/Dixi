@@ -2,11 +2,19 @@ import { Router, Request, Response } from 'express';
 import { wsService } from '../index';
 import { validateProjectionMapping, validateProjectionContent } from '../middleware/validation';
 import logger from '../utils/logger';
+import { CalibrationResponse, CalibrationPayload } from '../types/projection';
 
 const router = Router();
 
 // In-memory scene storage (upgrade to database later)
 const sceneStorage = new Map<string, any>();
+
+// In-memory calibration mapping storage
+let calibrationMapping: {
+  calibrated: boolean;
+  points?: Array<{ id: string; cameraX: number; cameraY: number }>;
+  createdAt?: string;
+} | null = null;
 
 // Get projection status
 router.get('/status', (req: Request, res: Response) => {
@@ -18,27 +26,108 @@ router.get('/status', (req: Request, res: Response) => {
   });
 });
 
+// Get calibration mapping
+router.get('/mapping', (req: Request, res: Response) => {
+  try {
+    if (!calibrationMapping || !calibrationMapping.calibrated) {
+      return res.json({ calibrated: false });
+    }
+    
+    res.json({
+      calibrated: true,
+      points: calibrationMapping.points,
+      createdAt: calibrationMapping.createdAt
+    });
+  } catch (error) {
+    logger.error('Failed to get calibration mapping:', error);
+    res.status(500).json({
+      error: 'Failed to get calibration mapping',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Update projection mapping (with validation)
 router.post('/mapping', validateProjectionMapping, (req: Request, res: Response) => {
   try {
-    const { calibrationData, transform } = req.body;
+    const { points, createdAt, calibrationData, transform } = req.body;
     
-    logger.info('Updating projection mapping');
+    // Support new calibration payload format
+    if (points && Array.isArray(points) && points.length === 4) {
+      const calibrationPayload: CalibrationPayload = {
+        points: points.map((p: any) => ({
+          id: p.id,
+          cameraX: p.cameraX,
+          cameraY: p.cameraY
+        })),
+        createdAt: createdAt || new Date().toISOString()
+      };
+
+      // Validate all required IDs are present
+      const requiredIds: Array<'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight'> = ['topLeft', 'topRight', 'bottomLeft', 'bottomRight'];
+      const pointIds = calibrationPayload.points.map(p => p.id);
+      const missingIds = requiredIds.filter(id => !pointIds.includes(id));
+      
+      if (missingIds.length > 0) {
+        return res.status(400).json({
+          error: 'Invalid calibration payload',
+          details: `Missing required point IDs: ${missingIds.join(', ')}`
+        });
+      }
+
+      // Store calibration mapping
+      calibrationMapping = {
+        calibrated: true,
+        points: calibrationPayload.points,
+        createdAt: calibrationPayload.createdAt
+      };
+
+      logger.info('Calibration mapping stored', { 
+        pointCount: calibrationPayload.points.length,
+        createdAt: calibrationPayload.createdAt 
+      });
+
+      // Broadcast projection update
+      if (wsService) {
+        wsService.broadcastProjection({
+          type: 'mapping_update',
+          calibrationData: calibrationPayload,
+          timestamp: Date.now()
+        });
+      }
+
+      return res.json({
+        calibrated: true,
+        points: calibrationMapping.points,
+        createdAt: calibrationMapping.createdAt
+      });
+    }
     
-    // Broadcast projection update
-    if (wsService) {
-      wsService.broadcastProjection({
-        type: 'mapping_update',
+    // Legacy support: handle old format (calibrationData, transform)
+    if (calibrationData || transform) {
+      logger.info('Updating projection mapping (legacy format)');
+      
+      // Broadcast projection update
+      if (wsService) {
+        wsService.broadcastProjection({
+          type: 'mapping_update',
+          calibrationData,
+          transform,
+          timestamp: Date.now()
+        });
+      }
+
+      return res.json({ 
+        message: 'Projection mapping updated',
         calibrationData,
-        transform,
-        timestamp: Date.now()
+        transform
       });
     }
 
-    res.json({ 
-      message: 'Projection mapping updated',
-      calibrationData,
-      transform
+    // No valid payload format
+    return res.status(400).json({
+      error: 'Invalid calibration payload',
+      details: 'Must provide either points array or calibrationData/transform'
     });
   } catch (error) {
     logger.error('Failed to update projection mapping:', error);

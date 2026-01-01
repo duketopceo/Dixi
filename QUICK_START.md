@@ -27,7 +27,7 @@ Then start all services:
 ```
 
 This will open 3 terminal windows:
-1. **Vision Service** (Python) - Port 5000
+1. **Vision Service** (Python) - Port 5001
 2. **Backend** (Node.js) - Port 3001 + WebSocket 3002
 3. **Frontend** (React) - Port 3000
 

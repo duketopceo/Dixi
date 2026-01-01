@@ -54,7 +54,7 @@ export class ConfigService {
       services: {
         ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
         ollamaModel: process.env.OLLAMA_MODEL || 'gemma3:4b',
-        visionServiceUrl: process.env.VISION_SERVICE_URL || 'http://localhost:5000',
+        visionServiceUrl: process.env.VISION_SERVICE_URL || 'http://localhost:5001',
       },
       frontend: {
         url: process.env.FRONTEND_URL || 'http://localhost:3000',

@@ -4,7 +4,7 @@ import logger from '../utils/logger';
 
 const router = Router();
 
-const VISION_SERVICE_URL = process.env.VISION_SERVICE_URL || 'http://localhost:5000';
+const VISION_SERVICE_URL = process.env.VISION_SERVICE_URL || 'http://localhost:5001';
 
 // Basic health check (fast)
 router.get('/', (req: Request, res: Response) => {

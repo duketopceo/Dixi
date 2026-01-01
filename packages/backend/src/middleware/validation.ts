@@ -45,6 +45,42 @@ export const validateAIInit = [
 
 // Projection mapping validation
 export const validateProjectionMapping = [
+  body('points')
+    .exists()
+    .withMessage('Points array is required')
+    .isArray({ min: 4, max: 4 })
+    .withMessage('Points array must contain exactly 4 points'),
+  body('points.*.id')
+    .isIn(['topLeft', 'topRight', 'bottomLeft', 'bottomRight'])
+    .withMessage('Point id must be one of: topLeft, topRight, bottomLeft, bottomRight'),
+  body('points.*.cameraX')
+    .isFloat({ min: 0, max: 1 })
+    .withMessage('Point cameraX must be a number between 0 and 1'),
+  body('points.*.cameraY')
+    .isFloat({ min: 0, max: 1 })
+    .withMessage('Point cameraY must be a number between 0 and 1'),
+  body('createdAt')
+    .optional()
+    .isISO8601()
+    .withMessage('createdAt must be a valid ISO 8601 timestamp'),
+  // Custom validation to ensure all required IDs are present
+  body('points').custom((points) => {
+    if (!Array.isArray(points) || points.length !== 4) {
+      return false;
+    }
+    const requiredIds = ['topLeft', 'topRight', 'bottomLeft', 'bottomRight'];
+    const pointIds = points.map((p: any) => p?.id).filter(Boolean);
+    const missingIds = requiredIds.filter(id => !pointIds.includes(id));
+    if (missingIds.length > 0) {
+      throw new Error(`Missing required point IDs: ${missingIds.join(', ')}`);
+    }
+    const duplicateIds = pointIds.filter((id: string, index: number) => pointIds.indexOf(id) !== index);
+    if (duplicateIds.length > 0) {
+      throw new Error(`Duplicate point IDs: ${duplicateIds.join(', ')}`);
+    }
+    return true;
+  }),
+  // Legacy support: allow calibrationData and transform for backward compatibility
   body('calibrationData')
     .optional()
     .isObject()

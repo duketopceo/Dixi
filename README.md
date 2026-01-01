@@ -123,7 +123,7 @@ An AI-powered interactive projection system that uses computer vision, gesture r
    npm run dev:backend    # Backend server (port 3001)
    npm run dev:frontend   # Frontend dev server (port 3000)
    
-   # Vision service (port 5000) - REQUIRED for camera feed
+   # Vision service (port 5001) - REQUIRED for camera feed
    cd packages/vision
    python main.py
    ```
@@ -196,7 +196,7 @@ POST /api/projection/mapping  # Update mapping
 POST /api/projection/content  # Update content
 ```
 
-### Vision Service (Port 5000)
+### Vision Service (Port 5001)
 
 ```
 GET  /health              # Health check
@@ -218,8 +218,8 @@ FRONTEND_URL=http://localhost:3000
 WS_PORT=3002
 
 # Vision Service
-VISION_SERVICE_URL=http://localhost:5000
-VISION_SERVICE_PORT=5000
+VISION_SERVICE_URL=http://localhost:5001
+VISION_SERVICE_PORT=5001
 
 # Ollama Configuration (REQUIRED)
 OLLAMA_BASE_URL=http://localhost:11434

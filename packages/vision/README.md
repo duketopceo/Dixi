@@ -43,10 +43,10 @@ python main.py
 
 **Expected output:**
 ```
-🚀 Dixi Vision Service starting on port 5000...
+🚀 Dixi Vision Service starting on port 5001...
 🤖 Gesture Recognition Service initialized with modern Tasks API
 📹 Camera opened successfully at index 0 (1920x1080)
- * Running on http://0.0.0.0:5000
+ * Running on http://0.0.0.0:5001
 ```
 
 ## Camera Configuration

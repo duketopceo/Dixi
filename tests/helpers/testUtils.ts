@@ -5,7 +5,7 @@
 import axios, { AxiosRequestConfig } from 'axios';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
-const VISION_URL = process.env.VISION_URL || 'http://localhost:5000';
+const VISION_URL = process.env.VISION_URL || 'http://localhost:5001';
 const OLLAMA_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 
 /**

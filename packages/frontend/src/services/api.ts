@@ -100,9 +100,22 @@ export const apiService = {
     }
   },
 
-  async updateProjectionMapping(calibrationData: any, transform: any) {
+  async getProjectionMapping() {
     try {
-      const response = await api.post('/projection/mapping', { calibrationData, transform });
+      const response = await api.get('/projection/mapping');
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
+  },
+
+  async updateProjectionMapping(points: Array<{ id: string; cameraX: number; cameraY: number }>, createdAt?: string) {
+    try {
+      const payload = {
+        points,
+        createdAt: createdAt || new Date().toISOString()
+      };
+      const response = await api.post('/projection/mapping', payload);
       return response.data;
     } catch (error) {
       handleApiError(error);

@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useSystemStatus } from './hooks/useSystemStatus';
 import { ConnectionStatus } from './sections/ConnectionStatus';
 import { GestureControls } from './sections/GestureControls';
+import { CalibrationPanel } from './sections/CalibrationPanel';
 import { AIChat } from './sections/AIChat';
 import { DebugLogs, LogEntry } from './sections/DebugLogs';
 import { useWebSocket } from '../../hooks/useWebSocket';
@@ -73,6 +74,8 @@ const ControlPanel: React.FC = () => {
           currentGesture={currentGesture}
           onLog={addLog}
         />
+        
+        <CalibrationPanel onLog={addLog} />
         
         <AIChat onLog={addLog} />
         

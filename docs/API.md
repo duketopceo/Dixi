@@ -27,12 +27,12 @@ Complete API reference for the Dixi interactive projection system.
 The Dixi API consists of three main components:
 
 1. **Backend API** (Node.js/Express) - Port 3001
-2. **Vision Service API** (Python/Flask) - Port 5000
+2. **Vision Service API** (Python/Flask) - Port 5001
 3. **WebSocket Server** - Port 3001 (same as backend)
 
 **Base URLs:**
 - Backend: `http://localhost:3001`
-- Vision Service: `http://localhost:5000`
+- Vision Service: `http://localhost:5001`
 - WebSocket: `ws://localhost:3001`
 
 ---
@@ -705,7 +705,7 @@ Vision service health check.
 
 **Request:**
 ```bash
-curl http://localhost:5000/health
+curl http://localhost:5001/health
 ```
 
 **Response:**
@@ -721,7 +721,7 @@ curl http://localhost:5000/health
 
 **JavaScript:**
 ```javascript
-const response = await fetch('http://localhost:5000/health');
+const response = await fetch('http://localhost:5001/health');
 const health = await response.json();
 
 if (health.camera_available) {
@@ -741,7 +741,7 @@ Get current detected gesture.
 
 **Request:**
 ```bash
-curl http://localhost:5000/gesture
+curl http://localhost:5001/gesture
 ```
 
 **Response:**
@@ -768,7 +768,7 @@ Start gesture detection from camera.
 
 **Request:**
 ```bash
-curl -X POST http://localhost:5000/gesture/start
+curl -X POST http://localhost:5001/gesture/start
 ```
 
 **Response:**
@@ -787,7 +787,7 @@ Stop gesture detection.
 
 **Request:**
 ```bash
-curl -X POST http://localhost:5000/gesture/stop
+curl -X POST http://localhost:5001/gesture/stop
 ```
 
 **Response:**
@@ -808,7 +808,7 @@ Get camera status.
 
 **Request:**
 ```bash
-curl http://localhost:5000/camera/status
+curl http://localhost:5001/camera/status
 ```
 
 **Response:**
@@ -832,7 +832,7 @@ Get current camera frame as JPEG.
 
 **Request:**
 ```bash
-curl http://localhost:5000/camera/frame > frame.jpg
+curl http://localhost:5001/camera/frame > frame.jpg
 ```
 
 **Response:**
@@ -840,7 +840,7 @@ Binary JPEG image data
 
 **JavaScript:**
 ```javascript
-const response = await fetch('http://localhost:5000/camera/frame');
+const response = await fetch('http://localhost:5001/camera/frame');
 const blob = await response.blob();
 const imageUrl = URL.createObjectURL(blob);
 document.getElementById('camera-feed').src = imageUrl;
@@ -1011,7 +1011,7 @@ info:
 servers:
   - url: http://localhost:3001
     description: Backend server
-  - url: http://localhost:5000
+  - url: http://localhost:5001
     description: Vision service
 
 paths:
@@ -1391,7 +1391,7 @@ tags:
 ```javascript
 // Initialize Dixi client
 class DixiClient {
-  constructor(backendUrl = 'http://localhost:3001', visionUrl = 'http://localhost:5000') {
+  constructor(backendUrl = 'http://localhost:3001', visionUrl = 'http://localhost:5001') {
     this.backendUrl = backendUrl;
     this.visionUrl = visionUrl;
     this.ws = null;
