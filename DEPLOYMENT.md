@@ -1,5 +1,7 @@
 # Production Deployment Guide
 
+> ⚠️ **IMPORTANT**: Docker configs in this file are for future use. For current development, run services locally (`npm run dev` + `python main.py`). Do NOT attempt to use Docker until the projector interaction loop is stable and tested on your machine. Current focus is on local projector interaction - Docker and cloud deployment will be revisited once core functionality is solid.
+
 ## Pre-Deployment Checklist
 
 ### 1. Environment Configuration
@@ -48,7 +50,9 @@
 
 ## Deployment Options
 
-### Option 1: Docker Compose (Single Server)
+### Option 1: Docker Compose (Single Server) - FUTURE USE
+
+> ⚠️ **Note**: This option is planned for future deployment. For now, run services locally.
 
 **Best for**: Development, small-scale production, on-premise
 

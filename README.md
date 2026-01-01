@@ -8,7 +8,7 @@ An AI-powered interactive projection system that uses computer vision, gesture r
 - **AI Inference**: Ollama-powered AI integration for natural language understanding and generation
 - **Interactive Projection**: WebGL-based rendering for immersive visual experiences
 - **Real-time Communication**: WebSocket-based bidirectional data flow
-- **Scalable Architecture**: Microservices design with Docker and GCP Cloud Run support
+- **Scalable Architecture**: Microservices design (Docker support in-progress, not required for local development)
 
 ## 🏗️ Architecture
 
@@ -54,9 +54,9 @@ An AI-powered interactive projection system that uses computer vision, gesture r
 - **NumPy** for numerical operations
 
 ### Infrastructure
-- **Docker** & **Docker Compose** for containerization
-- **NVIDIA Container Runtime** for GPU support
-- **GCP Cloud Run** for scalable deployment
+- **Docker** & **Docker Compose** for containerization (planned for future cloud deployment)
+- **NVIDIA Container Runtime** for GPU support (optional)
+- **GCP Cloud Run** for scalable deployment (planned for future)
 
 ## 🛠️ Installation
 
@@ -65,7 +65,7 @@ An AI-powered interactive projection system that uses computer vision, gesture r
 - Node.js 20+
 - Python 3.11+
 - **Ollama** (required) - Install from https://ollama.ai
-- Docker & Docker Compose (optional, for containerized deployment)
+- Docker & Docker Compose (planned for future cloud deployment, not needed for local development)
 - Webcam/camera (for gesture recognition)
 
 ### Local Development
@@ -131,6 +131,8 @@ An AI-powered interactive projection system that uses computer vision, gesture r
    **Important**: The vision service must be running for the camera feed to work. Without it, you'll see a black screen with an error message.
 
 ### Docker Deployment
+
+> ⚠️ **Note**: Docker deployment is planned for future cloud deployment. For current development, run services locally using the commands above (npm run dev + python main.py). Focus on getting the projector interaction loop working locally first.
 
 ```bash
 # Build all containers
@@ -221,10 +223,36 @@ WS_PORT=3002
 VISION_SERVICE_URL=http://localhost:5001
 VISION_SERVICE_PORT=5001
 
+# Vision Service Performance Configuration
+FRAME_SKIP_INTERVAL=2              # Process every Nth frame (1-5, default: 2 for ~15 FPS)
+ENABLE_FACE_TRACKING=true          # Enable face detection (default: true)
+ENABLE_POSE_TRACKING=true          # Enable pose detection (default: true)
+BACKEND_PUSH_COOLDOWN_MS=500       # Time between backend updates in ms (default: 500)
+ADAPTIVE_FPS=false                 # Enable adaptive FPS (reduces to 10 FPS when idle, default: false)
+
 # Ollama Configuration (REQUIRED)
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.2
 ```
+
+### Performance Optimization
+
+The vision service supports several configuration options to reduce compute usage by 60-70%:
+
+- **Frame Skip Interval**: Process every Nth frame (default: 2). Higher values reduce compute but may affect responsiveness.
+  - `1` = ~30 FPS (full processing)
+  - `2` = ~15 FPS (50% reduction, recommended)
+  - `3` = ~10 FPS (67% reduction)
+  - `4` = ~7.5 FPS (75% reduction)
+  - `5` = ~6 FPS (80% reduction)
+
+- **Optional Models**: Disable face or pose tracking to save additional 30-50% compute when not needed.
+
+- **Backend Push Cooldown**: Increase from default 500ms to reduce network traffic and backend load.
+
+- **Adaptive FPS**: Automatically reduces to 10 FPS when idle (no activity for 5+ seconds), increases to 15-30 FPS when active.
+
+These settings can be configured via environment variables or through the Model Configuration panel in the Control Panel UI.
 
 ## 🚀 Deployment
 
@@ -268,6 +296,8 @@ OLLAMA_MODEL=llama3.2
    ```
 
 ### GCP Cloud Run
+
+> ⚠️ **Note**: Cloud Run deployment is planned for future. Current focus is on local projector interaction. Docker and cloud deployment will be revisited once core projector functionality is stable and tested.
 
 1. **Build and push containers**
    ```bash
