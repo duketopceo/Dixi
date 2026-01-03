@@ -2,7 +2,7 @@
  * Tests for ProjectorCanvas shape controller logic
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 
 // Shape types that can be rendered on the projector
 interface ProjectorShape {

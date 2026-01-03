@@ -6,7 +6,7 @@
  */
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { useProjectorGesture, ProjectorGestureData } from '../../hooks/useProjectorGesture';
+import { useProjectorGesture } from '../../hooks/useProjectorGesture';
 import { useProjectorCalibration } from '../../hooks/useProjectorCalibration';
 import './ProjectorCanvas.css';
 

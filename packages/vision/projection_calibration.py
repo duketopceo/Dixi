@@ -17,6 +17,10 @@ from typing import Dict, Optional, Tuple, List
 import collections
 
 
+# Constants for position smoothing
+OUTLIER_DISTANCE_THRESHOLD = 0.3  # Maximum normalized distance before treating as outlier
+
+
 class PositionSmoother:
     """Simple exponential smoothing filter for reducing noise in position data."""
     
@@ -58,8 +62,8 @@ class PositionSmoother:
             (y - self.last_smoothed[1])**2
         )
         
-        # If jump is too large (>0.3 normalized), treat as outlier
-        if distance > 0.3:
+        # If jump is too large, treat as outlier and reject
+        if distance > OUTLIER_DISTANCE_THRESHOLD:
             # Return last smoothed position instead
             return self.last_smoothed
         
@@ -377,11 +381,14 @@ class ProjectionCalibration:
         try:
             pos = gesture_data['position']
             
-            # Get raw camera coordinates
-            # Note: gesture position is in normalized -1 to 1 range
-            # Convert to 0-1 range for homography
+            # Coordinate system conversion:
+            # - Gesture data comes in normalized [-1, 1] range from MediaPipe
+            # - Camera/homography uses [0, 1] range
+            # - Y-axis is flipped because MediaPipe uses screen coordinates 
+            #   (Y increases downward) but projector uses Cartesian coordinates
+            #   (Y increases upward)
             cam_x = (pos.get('x', 0) + 1) / 2
-            cam_y = (1 - pos.get('y', 0)) / 2  # Flip Y axis
+            cam_y = (1 - pos.get('y', 0)) / 2
             
             # Apply throttling
             current_time = int(time.time() * 1000)

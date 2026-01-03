@@ -315,8 +315,14 @@ export class WebSocketService {
   }
 
   public broadcastProjectorGesture(gesture: ProjectorGestureData) {
-    // Guard against malformed payloads
-    if (!gesture || typeof gesture.position?.x !== 'number' || typeof gesture.position?.y !== 'number') {
+    // Guard against malformed payloads - check for invalid types and NaN values
+    if (
+      !gesture || 
+      typeof gesture.position?.x !== 'number' || 
+      typeof gesture.position?.y !== 'number' ||
+      isNaN(gesture.position.x) ||
+      isNaN(gesture.position.y)
+    ) {
       logger.warn('Invalid projector gesture payload, skipping broadcast');
       return;
     }
