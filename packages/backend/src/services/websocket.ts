@@ -8,6 +8,17 @@ export interface GestureData {
   timestamp: number;
 }
 
+// Projector-specific gesture data with additional fields
+export interface ProjectorGestureData {
+  type: string;
+  position: { x: number; y: number; z?: number };
+  confidence: number;
+  timestamp: number;
+  isPinching: boolean;
+  source: 'projector';
+  coordinate_space: 'projector';
+}
+
 export interface AIResponse {
   query: string;
   response: string;
@@ -300,6 +311,59 @@ export class WebSocketService {
 
     if (errorCount > 0) {
       logger.warn(`Broadcast projection: ${successCount} sent, ${errorCount} failed`);
+    }
+  }
+
+  public broadcastProjectorGesture(gesture: ProjectorGestureData) {
+    // Guard against malformed payloads
+    if (!gesture || typeof gesture.position?.x !== 'number' || typeof gesture.position?.y !== 'number') {
+      logger.warn('Invalid projector gesture payload, skipping broadcast');
+      return;
+    }
+
+    // Clamp position values to valid range
+    const clampedGesture: ProjectorGestureData = {
+      ...gesture,
+      position: {
+        x: Math.max(0, Math.min(1, gesture.position.x)),
+        y: Math.max(0, Math.min(1, gesture.position.y)),
+        z: gesture.position.z
+      },
+      isPinching: gesture.isPinching ?? gesture.type === 'pinch',
+      source: 'projector',
+      coordinate_space: 'projector'
+    };
+
+    const message = JSON.stringify({
+      type: 'projector_gesture',
+      data: clampedGesture
+    });
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    this.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(message);
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          logger.error('Failed to send projector gesture to client:', error);
+          this.clients.delete(client);
+          try {
+            client.close();
+          } catch (closeError) {
+            // Ignore close errors
+          }
+        }
+      } else {
+        this.clients.delete(client);
+      }
+    });
+
+    if (errorCount > 0) {
+      logger.warn(`Broadcast projector gesture: ${successCount} sent, ${errorCount} failed`);
     }
   }
 

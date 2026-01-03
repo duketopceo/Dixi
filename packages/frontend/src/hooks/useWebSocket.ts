@@ -71,6 +71,10 @@ class WebSocketManager {
 
       this.ws = new WebSocket(WS_URL);
       this._error = null;
+      
+      // Expose WebSocket globally for projector hooks
+      (window as any).__dixi_websocket = this.ws;
+      
       this.notify();
 
       this.ws.onopen = () => {
@@ -88,6 +92,10 @@ class WebSocketManager {
             case 'tracking':
               // Unified tracking data (face, hands, body, eyes)
               useTrackingStore.getState().setTracking(message.data);
+              break;
+            case 'projector_gesture':
+              // Projector gesture data - handled by useProjectorGesture hook
+              // No action needed here - the hook listens directly
               break;
             case 'gesture':
               // Legacy support - convert to tracking format
