@@ -128,9 +128,8 @@ export const ProjectionShapes: React.FC = () => {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    // Clear canvas with dark background
-    ctx.fillStyle = '#0a0a0a';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Clear canvas with transparent background (shapes overlay on camera feed)
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw each shape
     for (const shape of shapes) {
@@ -243,6 +242,7 @@ export const ProjectionShapes: React.FC = () => {
         height: '100vh',
         zIndex: 1000,
         cursor: 'none',
+        pointerEvents: 'none', // Let clicks pass through to camera controls
       }}
     />
   );
