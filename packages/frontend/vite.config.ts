@@ -8,7 +8,7 @@ export default defineConfig({
     host: '0.0.0.0', // Bind to all interfaces
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: process.env.VITE_API_URL?.replace('/api', '') || 'http://10.100.0.2:3001',
         changeOrigin: true
       }
     }

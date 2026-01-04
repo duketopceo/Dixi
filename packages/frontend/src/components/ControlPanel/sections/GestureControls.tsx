@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const VISION_URL = 'http://localhost:5001';
+const VISION_URL = import.meta.env.VITE_VISION_SERVICE_URL || 'http://10.100.0.2:5000';
 
 interface GestureData {
   type: string;

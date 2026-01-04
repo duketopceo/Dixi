@@ -32,7 +32,7 @@ const WS_PORT = process.env.WS_PORT || 3002;
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: process.env.FRONTEND_URL || '*', // Allow all origins for network access
   credentials: true
 }));
 app.use(compression());
@@ -68,7 +68,7 @@ let wss: Server;
 let wsService: WebSocketService | null = null;
 
 try {
-  wss = new Server({ port: Number(WS_PORT) });
+  wss = new Server({ port: Number(WS_PORT), host: '0.0.0.0' });
   wsService = new WebSocketService(wss);
   
   wss.on('error', (error: Error & { code?: string }) => {
@@ -117,8 +117,9 @@ server.on('error', (error: Error & { code?: string }) => {
   }
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   logger.info(`✅ Dixi Backend ready on port ${PORT}`);
+  logger.info(`📡 Accessible at: http://0.0.0.0:${PORT} or http://localhost:${PORT}`);
 });
 
 // Graceful shutdown

@@ -8,7 +8,7 @@ import { apiService } from '../services/api';
 import { useTrackingStore } from '../store/trackingStore';
 import './ProjectionCanvas.css';
 
-const VISION_SERVICE_URL = import.meta.env.VITE_VISION_SERVICE_URL || 'http://localhost:5001';
+const VISION_SERVICE_URL = import.meta.env.VITE_VISION_SERVICE_URL || 'http://10.100.0.2:5000';
 
 const ProjectionCanvas: React.FC = () => {
   const [cameraError, setCameraError] = useState(false);
