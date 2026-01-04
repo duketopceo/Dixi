@@ -2,6 +2,7 @@
 Dixi Vision Service - Unified Tracking (Face, Hands, Body, Eyes)
 Supports dual hand tracking, body pose, enhanced eye tracking, and face detection
 Uses MediaPipe Tasks API for efficient multi-model inference
+Includes projection calibration for homography-based coordinate mapping
 """
 
 from flask import Flask, jsonify, request, Response, render_template
@@ -21,6 +22,7 @@ import collections
 from dotenv import load_dotenv
 import requests
 from unified_tracking import UnifiedTrackingService
+from projection_calibration import ProjectionCalibration
 
 load_dotenv()
 
@@ -605,6 +607,8 @@ unified_tracking_service = UnifiedTrackingService()
 # Keep old services for backward compatibility during migration
 gesture_service = GestureRecognitionService()
 face_service = gesture_service.face_service
+# Projection calibration service
+projection_calibration = ProjectionCalibration()
 
 
 # Routes
@@ -614,6 +618,9 @@ def health_check():
         'status': 'healthy',
         'service': 'vision',
         'tracking': gesture_service.is_tracking,
+        'camera_available': gesture_service.camera is not None if gesture_service.is_tracking else None,
+        'camera_error': gesture_service.camera_error,
+        'calibrated': projection_calibration.calibrated,
         'timestamp': int(time.time() * 1000)
     })
 
@@ -778,6 +785,165 @@ def get_tracking_status():
         'dual_hands': True,
         'current_data': unified_tracking_service.get_current_tracking() is not None
     })
+
+
+# Projection Calibration Routes
+@app.route('/projection/calibration', methods=['GET'])
+def get_calibration():
+    """Get current projection calibration status."""
+    status = projection_calibration.get_status()
+    return jsonify(status)
+
+
+@app.route('/projection/calibration', methods=['POST'])
+def set_calibration():
+    """Set projection calibration from corner points."""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No data provided'
+            }), 400
+        
+        # Extract corner points from payload
+        # Supports both direct points array and nested structure
+        if 'points' in data:
+            camera_corners = data['points']
+        elif 'camera_corners' in data:
+            camera_corners = data['camera_corners']
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Missing camera corner points. Provide "points" or "camera_corners" array.'
+            }), 400
+        
+        # Optional: projector corners (defaults to unit square)
+        projector_corners = data.get('projector_corners', None)
+        
+        # Perform calibration
+        result = projection_calibration.calibrate(camera_corners, projector_corners)
+        
+        if result.get('success'):
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/projection/calibration', methods=['DELETE'])
+def clear_calibration():
+    """Clear current calibration."""
+    projection_calibration.clear_calibration()
+    return jsonify({
+        'success': True,
+        'message': 'Calibration cleared'
+    })
+
+
+@app.route('/projection/transform', methods=['POST'])
+def transform_point():
+    """Transform a single point from camera to projector coordinates."""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No data provided'
+            }), 400
+        
+        x = data.get('x')
+        y = data.get('y')
+        
+        if x is None or y is None:
+            return jsonify({
+                'success': False,
+                'error': 'Missing x or y coordinate'
+            }), 400
+        
+        if not projection_calibration.calibrated:
+            return jsonify({
+                'success': False,
+                'calibrated': False,
+                'error': 'Projection not calibrated'
+            }), 400
+        
+        result = projection_calibration.transform_point(float(x), float(y))
+        
+        if result is None:
+            return jsonify({
+                'success': False,
+                'error': 'Transform failed'
+            }), 500
+        
+        proj_x, proj_y = result
+        return jsonify({
+            'success': True,
+            'input': {'x': x, 'y': y},
+            'output': {'x': proj_x, 'y': proj_y}
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/projection/capture_frame', methods=['GET'])
+def capture_calibration_frame():
+    """Capture a single frame for calibration purposes."""
+    import base64
+    
+    frame = gesture_service.get_video_frame()
+    if frame:
+        frame_base64 = base64.b64encode(frame).decode('utf-8')
+        return jsonify({
+            'success': True,
+            'image': frame_base64,
+            'format': 'jpeg',
+            'timestamp': int(time.time() * 1000),
+            'calibrated': projection_calibration.calibrated,
+            'message': 'Frame captured for calibration. Select 4 corners of the projected area.'
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'error': 'No frame available. Ensure camera is started.',
+            'tracking': gesture_service.is_tracking,
+            'camera_error': gesture_service.camera_error
+        }), 503
+
+
+@app.route('/gesture/projector', methods=['GET'])
+def get_projector_gesture():
+    """Get current gesture data transformed to projector coordinates."""
+    gesture = gesture_service.get_current_gesture()
+    
+    if not gesture or gesture.get('type') == 'none':
+        return jsonify({
+            'type': 'none',
+            'message': 'No gesture detected',
+            'calibrated': projection_calibration.calibrated
+        })
+    
+    # Transform gesture position if calibrated
+    if projection_calibration.calibrated:
+        transformed = projection_calibration.transform_gesture(gesture)
+        return jsonify(transformed)
+    else:
+        # Return raw gesture with warning
+        gesture['calibrated'] = False
+        gesture['coordinate_space'] = 'camera'
+        gesture['isPinching'] = gesture.get('type') == 'pinch'
+        return jsonify(gesture)
 
 
 if __name__ == '__main__':

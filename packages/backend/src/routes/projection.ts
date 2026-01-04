@@ -9,10 +9,11 @@ const router = Router();
 // In-memory scene storage (upgrade to database later)
 const sceneStorage = new Map<string, any>();
 
-// In-memory calibration mapping storage
+// Enhanced calibration mapping storage with homography support
 let calibrationMapping: {
   calibrated: boolean;
   points?: Array<{ id: string; cameraX: number; cameraY: number }>;
+  homographyMatrix?: number[][];
   createdAt?: string;
 } | null = null;
 
@@ -22,7 +23,8 @@ router.get('/status', (req: Request, res: Response) => {
     active: true,
     renderAPI: process.env.RENDER_API || 'webgl',
     gpuAcceleration: process.env.ENABLE_GPU_ACCELERATION === 'true',
-    connectedClients: wsService ? wsService.getClientCount() : 0
+    connectedClients: wsService ? wsService.getClientCount() : 0,
+    calibrated: calibrationMapping?.calibrated || false
   });
 });
 
@@ -36,6 +38,7 @@ router.get('/mapping', (req: Request, res: Response) => {
     res.json({
       calibrated: true,
       points: calibrationMapping.points,
+      homographyMatrix: calibrationMapping.homographyMatrix,
       createdAt: calibrationMapping.createdAt
     });
   } catch (error) {
@@ -50,7 +53,7 @@ router.get('/mapping', (req: Request, res: Response) => {
 // Update projection mapping (with validation)
 router.post('/mapping', validateProjectionMapping, (req: Request, res: Response) => {
   try {
-    const { points, createdAt, calibrationData, transform } = req.body;
+    const { points, createdAt, calibrationData, transform, homographyMatrix } = req.body;
     
     // Support new calibration payload format
     if (points && Array.isArray(points) && points.length === 4) {
@@ -75,15 +78,17 @@ router.post('/mapping', validateProjectionMapping, (req: Request, res: Response)
         });
       }
 
-      // Store calibration mapping
+      // Store calibration mapping (with optional homography matrix)
       calibrationMapping = {
         calibrated: true,
         points: calibrationPayload.points,
+        homographyMatrix: homographyMatrix || undefined,
         createdAt: calibrationPayload.createdAt
       };
 
       logger.info('Calibration mapping stored', { 
         pointCount: calibrationPayload.points.length,
+        hasHomography: !!homographyMatrix,
         createdAt: calibrationPayload.createdAt 
       });
 
@@ -92,6 +97,8 @@ router.post('/mapping', validateProjectionMapping, (req: Request, res: Response)
         wsService.broadcastProjection({
           type: 'mapping_update',
           calibrationData: calibrationPayload,
+          homographyMatrix,
+          calibrated: true,
           timestamp: Date.now()
         });
       }
@@ -99,6 +106,7 @@ router.post('/mapping', validateProjectionMapping, (req: Request, res: Response)
       return res.json({
         calibrated: true,
         points: calibrationMapping.points,
+        homographyMatrix: calibrationMapping.homographyMatrix,
         createdAt: calibrationMapping.createdAt
       });
     }
