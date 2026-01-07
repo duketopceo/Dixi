@@ -1,0 +1,116 @@
+.projector-canvas-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #0a0a0a;
+  cursor: none;
+}
+
+.projector-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Status Banners */
+.projector-status-banner {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+  animation: slideIn 0.3s ease-out;
+}
+
+.projector-status-banner.warning {
+  background: rgba(255, 165, 0, 0.9);
+  color: #000;
+  border: 2px solid #FFA500;
+}
+
+.projector-status-banner.error {
+  background: rgba(255, 0, 110, 0.9);
+  color: #fff;
+  border: 2px solid #FF006E;
+}
+
+.projector-status-banner.loading {
+  background: rgba(0, 245, 255, 0.2);
+  color: #00F5FF;
+  border: 2px solid rgba(0, 245, 255, 0.5);
+}
+
+.projector-status-banner.offline {
+  background: rgba(100, 100, 100, 0.9);
+  color: #fff;
+  border: 2px solid #666;
+}
+
+.banner-subtitle {
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+/* Debug Info Panel */
+.projector-debug-info {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(0, 245, 255, 0.3);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-family: 'SF Mono', 'Consolas', monospace;
+  font-size: 12px;
+  color: #00F5FF;
+  z-index: 1000;
+  min-width: 150px;
+}
+
+.projector-debug-info div {
+  margin: 4px 0;
+}
+
+/* Animations */
+@keyframes slideIn {
+  from {
+    transform: translateX(-50%) translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Fullscreen mode styling */
+.projector-canvas-container:-webkit-full-screen {
+  width: 100vw !important;
+  height: 100vh !important;
+}
+
+.projector-canvas-container:-moz-full-screen {
+  width: 100vw !important;
+  height: 100vh !important;
+}
+
+.projector-canvas-container:fullscreen {
+  width: 100vw !important;
+  height: 100vh !important;
+}
