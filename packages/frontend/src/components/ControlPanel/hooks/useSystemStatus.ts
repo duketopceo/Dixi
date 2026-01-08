@@ -8,9 +8,9 @@ export interface SystemStatus {
   timestamp: number;
 }
 
-const VISION_URL = 'http://localhost:5001';
-const BACKEND_URL = 'http://localhost:3001';
-const OLLAMA_URL = 'http://localhost:11434';
+const VISION_URL = import.meta.env.VITE_VISION_SERVICE_URL || 'http://10.100.0.2:5000';
+const BACKEND_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://10.100.0.2:3001';
+const OLLAMA_URL = import.meta.env.VITE_OLLAMA_URL || 'http://10.100.0.2:11434';
 
 export function useSystemStatus(pollInterval = 10000) {
   const [status, setStatus] = useState<SystemStatus>({

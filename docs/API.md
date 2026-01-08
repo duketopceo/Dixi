@@ -695,6 +695,250 @@ curl http://localhost:3001/api/projection/load/proj_123456
 
 ---
 
+### Metrics Endpoints
+
+#### GET /api/metrics/performance
+
+Get real-time performance metrics including vision service FPS, backend latency, model status, and system metrics.
+
+**Request:**
+```bash
+curl http://localhost:3001/api/metrics/performance
+```
+
+**Response:**
+```json
+{
+  "message": "Performance metrics retrieved successfully",
+  "performance": {
+    "vision": {
+      "fps": 15.2,
+      "status": "connected",
+      "models": {
+        "hands": true,
+        "face": true,
+        "pose": true
+      }
+    },
+    "backend": {
+      "latency": 45,
+      "requestsPerSecond": 2.5,
+      "p95Latency": 120,
+      "p99Latency": 250
+    },
+    "websocket": {
+      "connected": true,
+      "clients": 1,
+      "messagesPerSecond": 10.5,
+      "latency": 15
+    },
+    "system": {
+      "cpu": 25.5,
+      "memory": 45.2,
+      "memoryUsed": 8192000000,
+      "memoryTotal": 17179869184
+    },
+    "timestamp": 1640000000000
+  }
+}
+```
+
+**JavaScript:**
+```javascript
+const response = await fetch('http://localhost:3001/api/metrics/performance');
+const data = await response.json();
+console.log(`Vision FPS: ${data.performance.vision.fps}`);
+console.log(`Backend Latency: ${data.performance.backend.latency}ms`);
+```
+
+---
+
+### Vision Configuration Endpoints
+
+#### GET /api/tracking/config
+
+Get current vision service configuration.
+
+**Request:**
+```bash
+curl http://localhost:3001/api/tracking/config
+```
+
+**Response:**
+```json
+{
+  "config": {
+    "frame_skip_interval": 2,
+    "enable_face_tracking": true,
+    "enable_pose_tracking": true,
+    "backend_push_cooldown_ms": 500,
+    "adaptive_fps": false,
+    "adaptive_idle_fps": 10,
+    "adaptive_active_fps": 15,
+    "adaptive_idle_timeout_seconds": 5
+  },
+  "timestamp": 1640000000000
+}
+```
+
+---
+
+#### POST /api/tracking/config
+
+Update vision service configuration.
+
+**Request:**
+```bash
+curl -X POST http://localhost:3001/api/tracking/config \
+  -H "Content-Type: application/json" \
+  -d '{
+    "frame_skip_interval": 2,
+    "enable_face_tracking": false,
+    "enable_pose_tracking": true,
+    "backend_push_cooldown_ms": 500,
+    "adaptive_fps": true
+  }'
+```
+
+**Request Body Schema:**
+```json
+{
+  "frame_skip_interval": "number (1-5, optional)",
+  "enable_face_tracking": "boolean (optional)",
+  "enable_pose_tracking": "boolean (optional)",
+  "backend_push_cooldown_ms": "number (optional)",
+  "adaptive_fps": "boolean (optional)",
+  "adaptive_idle_fps": "number (optional)",
+  "adaptive_active_fps": "number (optional)",
+  "adaptive_idle_timeout_seconds": "number (optional)"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Configuration updated",
+  "config": {
+    "frame_skip_interval": 2,
+    "enable_face_tracking": false,
+    "enable_pose_tracking": true,
+    "backend_push_cooldown_ms": 500,
+    "adaptive_fps": true
+  },
+  "timestamp": 1640000000000,
+  "note": "Some changes may require restarting tracking to take effect"
+}
+```
+
+---
+
+### Logs Endpoints
+
+#### GET /api/logs/backend
+
+Get backend logs (Winston) with optional filtering.
+
+**Query Parameters:**
+- `level` (string, optional): Filter by log level (error, warn, info, debug)
+- `limit` (number, optional): Maximum number of logs to return (default: 100)
+- `since` (number, optional): Timestamp in milliseconds (only logs after this time)
+- `search` (string, optional): Search query to filter logs by message content
+
+**Request:**
+```bash
+# Get all backend logs
+curl http://localhost:3001/api/logs/backend
+
+# Get only error logs
+curl "http://localhost:3001/api/logs/backend?level=error&limit=50"
+
+# Get logs from last hour
+curl "http://localhost:3001/api/logs/backend?since=$(($(date +%s) - 3600))000"
+
+# Search logs
+curl "http://localhost:3001/api/logs/backend?search=connection"
+```
+
+**Response:**
+```json
+{
+  "message": "Backend logs retrieved successfully",
+  "logs": [
+    {
+      "timestamp": "2025-12-21T21:00:00.000Z",
+      "level": "error",
+      "message": "Connection failed",
+      "service": "dixi-backend",
+      "stack": "Error: Connection failed\n    at ..."
+    }
+  ],
+  "count": 1
+}
+```
+
+---
+
+#### GET /api/logs/vision
+
+Get vision service logs (proxy to vision service).
+
+**Query Parameters:**
+- `level` (string, optional): Filter by log level
+- `limit` (number, optional): Maximum number of logs to return (default: 100)
+
+**Request:**
+```bash
+curl http://localhost:3001/api/logs/vision?limit=50
+```
+
+**Response:**
+```json
+{
+  "message": "Vision service logs retrieved successfully",
+  "logs": [
+    "[21:00:00] Hand Landmarker initialized (2 hands)",
+    "[21:00:01] Camera opened: 1920x1080"
+  ],
+  "count": 2
+}
+```
+
+---
+
+#### GET /api/logs/stats
+
+Get log statistics.
+
+**Request:**
+```bash
+curl http://localhost:3001/api/logs/stats
+```
+
+**Response:**
+```json
+{
+  "message": "Log statistics retrieved successfully",
+  "stats": {
+    "total": 1250,
+    "byLevel": {
+      "error": 15,
+      "warn": 42,
+      "info": 1150,
+      "debug": 43
+    },
+    "bySource": {
+      "dixi-backend": 1200,
+      "unknown": 50
+    },
+    "errorRate": 0.012,
+    "oldestLog": "2025-12-21T20:00:00.000Z",
+    "newestLog": "2025-12-21T21:00:00.000Z"
+  }
+}
+```
+
+---
+
 ## Vision Service API
 
 ### Vision Health Endpoints

@@ -71,12 +71,27 @@ class WebSocketManager {
 
       this.ws = new WebSocket(WS_URL);
       this._error = null;
+      
+      // Expose WebSocket globally for projector hooks
+      (window as any).__dixi_websocket = this.ws;
+      
       this.notify();
 
       this.ws.onopen = () => {
         logger.log('🔌 WebSocket connected');
         this._isConnected = true;
         this.reconnectAttempts = 0; // Reset on successful connection
+        
+        // Log WebSocket connection
+        if (typeof window !== 'undefined') {
+          const { useLogStore } = require('../store/logStore');
+          useLogStore.getState().addWebSocketLog({
+            timestamp: Date.now(),
+            level: 'info',
+            message: 'WebSocket connected',
+          });
+        }
+        
         this.notify();
       };
 
@@ -88,6 +103,10 @@ class WebSocketManager {
             case 'tracking':
               // Unified tracking data (face, hands, body, eyes)
               useTrackingStore.getState().setTracking(message.data);
+              break;
+            case 'projector_gesture':
+              // Projector gesture data - handled by useProjectorGesture hook
+              // No action needed here - the hook listens directly
               break;
             case 'gesture':
               // Legacy support - convert to tracking format
@@ -173,12 +192,34 @@ class WebSocketManager {
         logger.error('WebSocket error:', error);
         this._error = 'WebSocket connection error';
         this._isConnected = false;
+        
+        // Log WebSocket error
+        if (typeof window !== 'undefined') {
+          const { useLogStore } = require('../store/logStore');
+          useLogStore.getState().addWebSocketLog({
+            timestamp: Date.now(),
+            level: 'error',
+            message: `WebSocket error: ${error}`,
+          });
+        }
+        
         this.notify();
       };
 
       this.ws.onclose = (event) => {
         logger.log('🔌 WebSocket disconnected', { code: event.code, reason: event.reason });
         this._isConnected = false;
+        
+        // Log WebSocket disconnection
+        if (typeof window !== 'undefined') {
+          const { useLogStore } = require('../store/logStore');
+          useLogStore.getState().addWebSocketLog({
+            timestamp: Date.now(),
+            level: 'warn',
+            message: `WebSocket disconnected (code: ${event.code}, reason: ${event.reason || 'none'})`,
+          });
+        }
+        
         this.notify();
         
         // Only attempt to reconnect if it wasn't a manual close

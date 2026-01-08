@@ -133,4 +133,50 @@ router.post('/analyze', visionLimiter, async (req: Request, res: Response) => {
   }
 });
 
+// Vision service configuration endpoints
+router.get('/config', async (req: Request, res: Response) => {
+  try {
+    const response = await axios.get(`${VISION_SERVICE_URL}/config`, { timeout: 2000 });
+    res.json(response.data);
+  } catch (error: any) {
+    logger.error('Failed to get vision config:', error);
+    
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      res.status(503).json({ 
+        error: 'Vision service unavailable',
+        details: 'Vision service is not running or not accessible.'
+      });
+      return;
+    }
+    
+    res.status(500).json({ 
+      error: 'Failed to get vision config',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+router.post('/config', async (req: Request, res: Response) => {
+  try {
+    const config = req.body;
+    const response = await axios.post(`${VISION_SERVICE_URL}/config`, config, { timeout: 2000 });
+    res.json(response.data);
+  } catch (error: any) {
+    logger.error('Failed to update vision config:', error);
+    
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      res.status(503).json({ 
+        error: 'Vision service unavailable',
+        details: 'Vision service is not running or not accessible.'
+      });
+      return;
+    }
+    
+    res.status(500).json({ 
+      error: 'Failed to update vision config',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;

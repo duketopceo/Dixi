@@ -5,6 +5,9 @@ import { GestureControls } from './sections/GestureControls';
 import { CalibrationPanel } from './sections/CalibrationPanel';
 import { AIChat } from './sections/AIChat';
 import { DebugLogs, LogEntry } from './sections/DebugLogs';
+import { PerformanceDashboard } from './sections/PerformanceDashboard';
+import { ModelConfig } from './sections/ModelConfig';
+import { LoggingDashboard } from './sections/LoggingDashboard';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useTrackingStore } from '../../store/trackingStore';
 import './ControlPanel.css';
@@ -76,6 +79,12 @@ const ControlPanel: React.FC = () => {
         />
         
         <CalibrationPanel onLog={addLog} />
+        
+        <PerformanceDashboard onLog={addLog} />
+        
+        <ModelConfig onLog={addLog} />
+        
+        <LoggingDashboard onLog={addLog} />
         
         <AIChat onLog={addLog} />
         

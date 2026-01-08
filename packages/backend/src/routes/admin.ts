@@ -91,6 +91,7 @@ router.put('/config', (req: Request, res: Response) => {
 /**
  * GET /api/admin/logs
  * Get recent logs (last N entries)
+ * @deprecated Use /api/logs/backend instead
  */
 router.get('/logs', (req: Request, res: Response) => {
   try {

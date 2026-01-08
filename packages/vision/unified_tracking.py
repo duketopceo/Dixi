@@ -14,6 +14,7 @@ import threading
 from typing import Dict, Optional, Tuple, List
 import collections
 import requests
+from config import get_config
 
 
 class UnifiedTrackingService:
@@ -21,11 +22,14 @@ class UnifiedTrackingService:
     
     def __init__(self):
         """Initialize all MediaPipe models."""
+        # Load configuration
+        self.config = get_config()
+        
         self.hand_landmarker = None
         self.face_landmarker = None
         self.pose_landmarker = None
         
-        # Initialize hand landmarker (2 hands)
+        # Initialize hand landmarker (2 hands) - always enabled
         hand_model_path = os.path.join(os.path.dirname(__file__), 'hand_landmarker.task')
         if os.path.exists(hand_model_path):
             try:
@@ -43,44 +47,50 @@ class UnifiedTrackingService:
             except Exception as e:
                 print(f"ERROR: Failed to initialize hand landmarker: {e}")
         
-        # Initialize face landmarker
-        face_model_path = os.path.join(os.path.dirname(__file__), 'face_landmarker.task')
-        if os.path.exists(face_model_path):
-            try:
-                base_options = python.BaseOptions(model_asset_path=face_model_path)
-                options = vision.FaceLandmarkerOptions(
-                    base_options=base_options,
-                    output_face_blendshapes=True,
-                    output_facial_transformation_matrixes=True,
-                    num_faces=1,
-                    min_face_detection_confidence=0.5,
-                    min_face_presence_confidence=0.5,
-                    min_tracking_confidence=0.5,
-                    running_mode=vision.RunningMode.VIDEO
-                )
-                self.face_landmarker = vision.FaceLandmarker.create_from_options(options)
-                print("Face Landmarker initialized")
-            except Exception as e:
-                print(f"ERROR: Failed to initialize face landmarker: {e}")
+        # Initialize face landmarker (conditional based on config)
+        if self.config.enable_face_tracking:
+            face_model_path = os.path.join(os.path.dirname(__file__), 'face_landmarker.task')
+            if os.path.exists(face_model_path):
+                try:
+                    base_options = python.BaseOptions(model_asset_path=face_model_path)
+                    options = vision.FaceLandmarkerOptions(
+                        base_options=base_options,
+                        output_face_blendshapes=True,
+                        output_facial_transformation_matrixes=True,
+                        num_faces=1,
+                        min_face_detection_confidence=0.5,
+                        min_face_presence_confidence=0.5,
+                        min_tracking_confidence=0.5,
+                        running_mode=vision.RunningMode.VIDEO
+                    )
+                    self.face_landmarker = vision.FaceLandmarker.create_from_options(options)
+                    print("Face Landmarker initialized")
+                except Exception as e:
+                    print(f"ERROR: Failed to initialize face landmarker: {e}")
+        else:
+            print("Face tracking disabled in config")
         
-        # Initialize pose landmarker
-        pose_model_path = os.path.join(os.path.dirname(__file__), 'pose_landmarker.task')
-        if os.path.exists(pose_model_path):
-            try:
-                base_options = python.BaseOptions(model_asset_path=pose_model_path)
-                options = vision.PoseLandmarkerOptions(
-                    base_options=base_options,
-                    output_segmentation_masks=False,
-                    num_poses=1,
-                    min_pose_detection_confidence=0.5,
-                    min_pose_presence_confidence=0.5,
-                    min_tracking_confidence=0.5,
-                    running_mode=vision.RunningMode.VIDEO
-                )
-                self.pose_landmarker = vision.PoseLandmarker.create_from_options(options)
-                print("Pose Landmarker initialized")
-            except Exception as e:
-                print(f"ERROR: Failed to initialize pose landmarker: {e}")
+        # Initialize pose landmarker (conditional based on config)
+        if self.config.enable_pose_tracking:
+            pose_model_path = os.path.join(os.path.dirname(__file__), 'pose_landmarker.task')
+            if os.path.exists(pose_model_path):
+                try:
+                    base_options = python.BaseOptions(model_asset_path=pose_model_path)
+                    options = vision.PoseLandmarkerOptions(
+                        base_options=base_options,
+                        output_segmentation_masks=False,
+                        num_poses=1,
+                        min_pose_detection_confidence=0.5,
+                        min_pose_presence_confidence=0.5,
+                        min_tracking_confidence=0.5,
+                        running_mode=vision.RunningMode.VIDEO
+                    )
+                    self.pose_landmarker = vision.PoseLandmarker.create_from_options(options)
+                    print("Pose Landmarker initialized")
+                except Exception as e:
+                    print(f"ERROR: Failed to initialize pose landmarker: {e}")
+        else:
+            print("Pose tracking disabled in config")
         
         # Tracking state
         self.current_tracking_data = None
@@ -89,9 +99,9 @@ class UnifiedTrackingService:
             'right': collections.deque(maxlen=15)
         }
         
-        # Performance optimization: frame skipping
+        # Performance optimization: frame skipping (from config)
         self.frame_skip_counter = 0
-        self.frame_skip_interval = 1  # Process every frame (can be increased for performance)
+        self.frame_skip_interval = self.config.frame_skip_interval
         
         # Batch update settings
         self.update_batch = []
@@ -107,10 +117,15 @@ class UnifiedTrackingService:
         self.camera_error = None
         self.lock = threading.Lock()
         
-        # Backend push settings
+        # Backend push settings (from config)
         self.backend_url = os.getenv('BACKEND_URL', 'http://localhost:3001')
         self.last_push_time = 0
-        self.push_cooldown_ms = 300
+        self.push_cooldown_ms = self.config.backend_push_cooldown_ms
+        
+        # Adaptive FPS settings
+        self.adaptive_fps = self.config.adaptive_fps
+        self.last_activity_time = time.time()
+        self.current_fps_target = self.config.adaptive_active_fps if self.config.adaptive_fps else 30
     
     def process_frame(self, mp_image, timestamp_ms: int) -> Dict:
         """Process a single frame and return unified tracking data."""
@@ -126,21 +141,30 @@ class UnifiedTrackingService:
             'timestamp': timestamp_ms
         }
         
-        # Process face (includes eye data)
-        if self.face_landmarker:
+        # Process face (includes eye data) - conditional based on config
+        if self.config.enable_face_tracking and self.face_landmarker:
             face_data, eye_data = self._process_face(mp_image, timestamp_ms)
             tracking_data['face'] = face_data
             tracking_data['eyes'] = eye_data
+            # Update activity time if face detected
+            if face_data:
+                self.last_activity_time = time.time()
         
-        # Process hands (dual hand tracking)
+        # Process hands (dual hand tracking) - always enabled
         if self.hand_landmarker:
             hands_data = self._process_hands(mp_image, timestamp_ms)
             tracking_data['hands'] = hands_data
+            # Update activity time if hands detected
+            if hands_data.get('left') or hands_data.get('right'):
+                self.last_activity_time = time.time()
         
-        # Process body pose
-        if self.pose_landmarker:
+        # Process body pose - conditional based on config
+        if self.config.enable_pose_tracking and self.pose_landmarker:
             body_data = self._process_pose(mp_image, timestamp_ms)
             tracking_data['body'] = body_data
+            # Update activity time if pose detected
+            if body_data:
+                self.last_activity_time = time.time()
         
         self.current_tracking_data = tracking_data
         return tracking_data
@@ -655,7 +679,22 @@ class UnifiedTrackingService:
                 with self.lock:
                     self.latest_frame = frame.copy()
                 
-                time.sleep(0.03)  # ~30 FPS
+                # Adaptive FPS: adjust sleep based on activity
+                if self.adaptive_fps:
+                    time_since_activity = time.time() - self.last_activity_time
+                    if time_since_activity > self.config.adaptive_idle_timeout_seconds:
+                        # Idle: use lower FPS
+                        self.current_fps_target = self.config.adaptive_idle_fps
+                        sleep_time = 1.0 / self.config.adaptive_idle_fps
+                    else:
+                        # Active: use higher FPS
+                        self.current_fps_target = self.config.adaptive_active_fps
+                        sleep_time = 1.0 / self.config.adaptive_active_fps
+                else:
+                    # Fixed FPS: ~30 FPS (0.033s per frame)
+                    sleep_time = 0.033
+                
+                time.sleep(sleep_time)
         
         except Exception as e:
             print(f"Error in tracking loop: {e}")

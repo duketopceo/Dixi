@@ -20,6 +20,7 @@ import gestureRecorderRoutes from './routes/gesture-recorder';
 import promptTemplatesRoutes from './routes/prompt-templates';
 import faceRoutes from './routes/face';
 import trackingRoutes from './routes/tracking';
+import logsRoutes from './routes/logs';
 import { errorHandler } from './middleware/errorHandler';
 import { apiLimiter } from './middleware/rateLimiter';
 import { WebSocketService } from './services/websocket';
@@ -32,7 +33,7 @@ const WS_PORT = process.env.WS_PORT || 3002;
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: process.env.FRONTEND_URL || '*', // Allow all origins for network access
   credentials: true
 }));
 app.use(compression());
@@ -56,6 +57,7 @@ app.use('/api/metrics', metricsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/gestures', gestureRecorderRoutes);
 app.use('/api/prompts', promptTemplatesRoutes);
+app.use('/api/logs', logsRoutes);
 
 // Error handling
 app.use(errorHandler);
@@ -68,7 +70,7 @@ let wss: Server;
 let wsService: WebSocketService | null = null;
 
 try {
-  wss = new Server({ port: Number(WS_PORT) });
+  wss = new Server({ port: Number(WS_PORT), host: '0.0.0.0' });
   wsService = new WebSocketService(wss);
   
   wss.on('error', (error: Error & { code?: string }) => {
@@ -117,8 +119,9 @@ server.on('error', (error: Error & { code?: string }) => {
   }
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   logger.info(`✅ Dixi Backend ready on port ${PORT}`);
+  logger.info(`📡 Accessible at: http://0.0.0.0:${PORT} or http://localhost:${PORT}`);
 });
 
 // Graceful shutdown

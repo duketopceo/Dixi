@@ -60,3 +60,4 @@ temp/
 
 # External tools and downloads
 **/mcp-github-project-manager*/
+packages/vision/calibration_data.json
