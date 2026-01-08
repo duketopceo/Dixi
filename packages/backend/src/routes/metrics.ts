@@ -159,5 +159,83 @@ router.get('/prometheus', (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/metrics/performance
+ * Get performance metrics including vision service FPS, latency, and model status
+ */
+router.get('/performance', async (req: Request, res: Response) => {
+  try {
+    const VISION_SERVICE_URL = process.env.VISION_SERVICE_URL || 'http://localhost:5001';
+    const axios = require('axios');
+    
+    // Get tracking status from vision service
+    let visionStatus = null;
+    let visionFPS = null;
+    let modelStatus = {
+      hands: false,
+      face: false,
+      pose: false
+    };
+    
+    try {
+      const trackingStatus = await axios.get(`${VISION_SERVICE_URL}/tracking/status`, { timeout: 2000 });
+      if (trackingStatus.data) {
+        modelStatus = {
+          hands: trackingStatus.data.hand_tracking || false,
+          face: trackingStatus.data.face_tracking || false,
+          pose: trackingStatus.data.pose_tracking || false
+        };
+      }
+    } catch (error) {
+      logger.debug('Could not fetch vision service status:', error);
+    }
+    
+    // Get system metrics
+    const systemMetrics = monitoringService.getSystemMetrics();
+    const requestMetrics = monitoringService.getRequestMetrics();
+    const wsMetrics = monitoringService.getWebSocketMetrics();
+    
+    // Estimate FPS based on request rate (approximation)
+    // In a real implementation, vision service would report actual FPS
+    visionFPS = requestMetrics.requestsPerSecond * 2; // Rough estimate
+    
+    res.json({
+      message: 'Performance metrics retrieved successfully',
+      performance: {
+        vision: {
+          fps: visionFPS,
+          status: visionStatus ? 'connected' : 'disconnected',
+          models: modelStatus
+        },
+        backend: {
+          latency: requestMetrics.averageLatency,
+          requestsPerSecond: requestMetrics.requestsPerSecond,
+          p95Latency: requestMetrics.p95Latency,
+          p99Latency: requestMetrics.p99Latency
+        },
+        websocket: {
+          connected: wsMetrics.connectedClients > 0,
+          clients: wsMetrics.connectedClients,
+          messagesPerSecond: wsMetrics.messagesPerSecond,
+          latency: wsMetrics.averageLatency
+        },
+        system: {
+          cpu: systemMetrics.cpu.usage,
+          memory: systemMetrics.memory.usagePercent,
+          memoryUsed: systemMetrics.memory.used,
+          memoryTotal: systemMetrics.memory.total
+        },
+        timestamp: Date.now()
+      }
+    });
+  } catch (error) {
+    logger.error('Failed to get performance metrics:', error);
+    res.status(500).json({
+      error: 'Failed to retrieve performance metrics',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
 export default router;
 

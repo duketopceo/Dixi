@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import ProjectionCanvas from './components/ProjectionCanvas';
+import ProjectionShapes from './components/ProjectionShapes';
 import ControlPanel from './components/ControlPanel/index';
 import MinimalHUD from './components/HUD/MinimalHUD';
 import AIInputBar from './components/HUD/AIInputBar';
@@ -23,6 +24,7 @@ const App: React.FC = () => {
   return (
     <div className="app">
       <ProjectionCanvas />
+      <ProjectionShapes />
       <MinimalHUD />
       <AIInputBar />
       <ControlPanel />
