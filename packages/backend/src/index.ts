@@ -27,8 +27,8 @@ import { WebSocketService } from './services/websocket';
 import logger, { morganStream } from './utils/logger';
 
 const app: Express = express();
-const PORT = process.env.PORT || 3001;
-const WS_PORT = process.env.WS_PORT || 3002;
+const PORT = Number(process.env.PORT) || 3001;
+const WS_PORT = Number(process.env.WS_PORT) || 3002;
 
 // Middleware
 app.use(helmet());
