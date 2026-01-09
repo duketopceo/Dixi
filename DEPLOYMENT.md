@@ -50,27 +50,32 @@
 
 ## Deployment Options
 
-### Option 1: Docker Compose (Single Server) - FUTURE USE
+### Option 1: Docker Compose (Mac Mini Cluster)
 
-> ⚠️ **Note**: This option is planned for future deployment. For now, run services locally.
+> ✅ **Ready for Production**: See [DOCKER_DEPLOYMENT.md](./DOCKER_DEPLOYMENT.md) for complete setup guide.
 
-**Best for**: Development, small-scale production, on-premise
+**Best for**: Development, small-scale production, on-premise, Mac Mini clusters
 
+**Quick Start**:
 ```bash
 # 1. Clone repository
 git clone https://github.com/duketopceo/Dixi.git
 cd Dixi
 
 # 2. Configure environment
-cp .env.example .env
-# Edit .env with production values
+cp .env.example .env.production
+# Edit .env.production with production values
 
 # 3. Build and start
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker-compose -f docker-compose.prod.yml up -d --build
 
 # 4. Verify health
-curl http://localhost:3001/health/deep
+curl http://localhost:3001/health
+curl http://localhost:5000/health
+curl http://localhost:3000/health
 ```
+
+**For detailed Mac Mini cluster setup, see [DOCKER_DEPLOYMENT.md](./DOCKER_DEPLOYMENT.md)**
 
 **Monitoring**:
 ```bash

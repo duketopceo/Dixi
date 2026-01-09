@@ -72,12 +72,22 @@ To verify you're on the free tier:
 3. Go to Settings → Usage and billing
 4. Confirm "Spark Plan" is active (no billing)
 
+## Alternative: Docker Deployment
+
+For production deployment on a Mac Mini cluster or local server, see [DOCKER_DEPLOYMENT.md](./DOCKER_DEPLOYMENT.md) for complete Docker setup instructions.
+
+**Docker deployment benefits:**
+- All services run in containers
+- Easy scaling across multiple nodes
+- Better resource management
+- Production-ready configuration
+
 ## ⚠️ CRITICAL: Production Environment Variables
 
 ### The Problem
 When deployed to Firebase, the frontend **cannot connect to localhost**. The deployed site will show the UI but won't be able to reach your local backend/vision services.
 
-### Two Deployment Scenarios
+### Three Deployment Scenarios
 
 #### Scenario A: Frontend on Firebase, Backend Local (Current Setup)
 **Status:** ✅ Frontend deployed, ❌ Backend connections won't work  
@@ -90,7 +100,15 @@ When deployed to Firebase, the frontend **cannot connect to localhost**. The dep
 - WebSocket connections fail (can't reach `localhost:3002`)
 - UI shows connection errors gracefully
 
-#### Scenario B: Full Cloud Deployment (Future)
+#### Scenario B: Docker Deployment (Mac Mini Cluster)
+**Status:** ✅ Everything works on your cluster  
+**Requirements:**
+1. Docker installed on Mac Mini cluster
+2. Follow [DOCKER_DEPLOYMENT.md](./DOCKER_DEPLOYMENT.md)
+3. Services communicate via Docker network
+4. Frontend can be served via nginx or Firebase
+
+#### Scenario C: Full Cloud Deployment (Future)
 **Status:** ✅ Everything works for everyone  
 **Requirements:**
 1. Deploy backend to Cloud Run / Firebase Functions

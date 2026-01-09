@@ -1,30 +1,45 @@
-FROM node:20-alpine
+# Multi-stage build for frontend
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy root workspace files (package-lock.json contains all workspace dependencies)
+# Copy root workspace files
 COPY package.json package-lock.json ./
 
-# Copy frontend package.json to maintain its dependency declarations
+# Copy frontend package.json
 COPY packages/frontend/package.json ./packages/frontend/
 
-# Install all workspace dependencies deterministically
-# This installs dependencies for all workspaces, but ensures deterministic versions
-RUN npm ci --legacy-peer-deps
+# Install dependencies
+RUN npm ci --legacy-peer-deps && npm cache clean --force
 
-# Copy frontend source code
+# Copy frontend source
 COPY packages/frontend/ ./packages/frontend/
 
-# Build application (from frontend directory to use correct package.json)
+# Build application
 WORKDIR /app/packages/frontend
+ARG VITE_API_URL
+ARG VITE_WS_URL
+ARG VITE_VISION_SERVICE_URL
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_WS_URL=$VITE_WS_URL
+ENV VITE_VISION_SERVICE_URL=$VITE_VISION_SERVICE_URL
 RUN npm run build
-WORKDIR /app
 
-# Install serve to serve static files
-RUN npm install -g serve
+# Production stage with nginx
+FROM nginx:alpine
+
+# Copy built files
+COPY --from=builder /app/packages/frontend/dist /usr/share/nginx/html
+
+# Copy nginx configuration
+COPY packages/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port
-EXPOSE 3000
+EXPOSE 80
 
-# Serve the built application
-CMD ["serve", "-s", "dist", "-l", "3000"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost/ || exit 1
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
