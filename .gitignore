@@ -61,3 +61,11 @@ temp/
 # External tools and downloads
 **/mcp-github-project-manager*/
 packages/vision/calibration_data.json
+
+# IDE AI config
+.cursorrules
+.cursor/
+.claude/
+
+# Firebase cache
+.firebase/
