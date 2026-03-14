@@ -1,0 +1,9 @@
+node_modules
+.git
+.github
+packages/vision
+tests
+docs
+*.md
+.env*
+scripts
