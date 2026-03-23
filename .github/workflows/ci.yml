@@ -100,7 +100,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
       
       - name: Build Backend Image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./packages/backend/Dockerfile
@@ -110,7 +110,7 @@ jobs:
           cache-to: type=gha,mode=max
       
       - name: Build Frontend Image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./packages/frontend/Dockerfile
@@ -120,7 +120,7 @@ jobs:
           cache-to: type=gha,mode=max
       
       - name: Build Vision Image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./packages/vision
           push: false
