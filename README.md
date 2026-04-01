@@ -359,3 +359,9 @@ For issues and questions, please open an issue on GitHub.
 ---
 
 Built with ❤️ for interactive AI experiences
+
+---
+
+## AI-Assisted Development
+
+This project uses AI-assisted development tools including [Cursor](https://cursor.com), [Claude Code](https://claude.ai), and [GitHub Copilot](https://github.com/features/copilot). All AI-generated code is reviewed by the maintainer before merge. See `AGENTS.md` for AI agent rules and constraints.
