@@ -1,3 +1,7 @@
+Inherits from [luke-agents/AGENTS.md](https://github.com/duketopceo/luke-agents/blob/main/AGENTS.md). This file specializes; it does not replace.
+
+**Shared agent brain:** AppFlowy `http://cluster1:8088` (MCP `appflowy`) — Session Log / Decisions / Projects / Rules. Compose on **c1 only**; never Swarm-deploy AppFlowy. See luke-agents `AGENTS.md` §0a.
+
 # Dixi
 
 > AI-powered interactive projection system using computer vision, gesture recognition, and real-time AI to transform any surface into a responsive knowledge canvas.
