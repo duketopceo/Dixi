@@ -44,6 +44,7 @@ function toHandData(raw: RawHandResult): HandData {
 
 export class BrowserTrackingSource {
   private client: TrackerClient;
+  private startPromise: Promise<void> | null = null;
 
   constructor() {
     this.client = new TrackerClient({
@@ -83,18 +84,25 @@ export class BrowserTrackingSource {
   }
 
   async start(deviceId?: string): Promise<void> {
+    // StrictMode double-mounts effects in dev — dedupe concurrent starts or
+    // a second caller can leave status stuck at 'starting' after 'running'.
+    if (this.startPromise) return this.startPromise;
     const store = useVisionStore.getState();
     store.setStatus('starting');
-    try {
-      await this.client.start(deviceId);
-      store.setStatus('ready');
-    } catch (err) {
-      store.setStatus('error', err instanceof Error ? err.message : 'Camera unavailable');
-      throw err;
-    }
+    this.startPromise = this.client
+      .start(deviceId) // onReady inside -> 'running'
+      .catch((err) => {
+        store.setStatus('error', err instanceof Error ? err.message : 'Camera unavailable');
+        throw err;
+      })
+      .finally(() => {
+        this.startPromise = null;
+      });
+    return this.startPromise;
   }
 
   stop(): void {
+    this.startPromise = null;
     this.client.stop();
     useVisionStore.getState().setStatus('idle');
   }

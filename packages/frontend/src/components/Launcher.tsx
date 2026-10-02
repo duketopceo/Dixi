@@ -137,7 +137,10 @@ export const Launcher: React.FC = () => {
 
       <div style={{ position: 'absolute', bottom: 20, fontSize: 12, opacity: 0.45 }}>
         vision: {status} · mode: {mode}
-        {!homography && mode === 'browser' && ' · uncalibrated — pointing uses mirrored camera space'}
+        {mode === 'browser' &&
+          (homography
+            ? ' · projector calibrated'
+            : ' · no projector? works right on this screen — skip calibration for mirrored pointing')}
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import DrawScene from './scenes/DrawScene';
 import Launcher from './components/Launcher';
 import Dock from './components/Dock';
 import CalibrationOverlay from './components/CalibrationOverlay';
+import CameraPreview from './components/CameraPreview';
 import VisionHUD from './components/VisionHUD';
 import ControlPanel from './components/ControlPanel/index';
 import MinimalHUD from './components/HUD/MinimalHUD';
@@ -12,9 +13,19 @@ import AIInputBar from './components/HUD/AIInputBar';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useVisionStore } from './vision/visionStore';
 import { useAppStore } from './app/appStore';
+import { useTrackingStore } from './store/trackingStore';
 import { browserTrackingSource } from './vision/browserTrackingSource';
 import './config/firebase'; // Initialize Firebase
 import './App.css';
+
+// Debug handle for calibration/perf inspection from devtools or automation
+if (import.meta.env.DEV) {
+  (window as unknown as Record<string, unknown>).__stores = {
+    vision: useVisionStore,
+    tracking: useTrackingStore,
+    app: useAppStore,
+  };
+}
 
 const App: React.FC = () => {
   const { connect, disconnect } = useWebSocket();
@@ -48,6 +59,7 @@ const App: React.FC = () => {
       {!menuOpen && activeScene === 'draw' && <DrawScene />}
 
       <CalibrationOverlay />
+      <CameraPreview />
       <VisionHUD />
       <Dock />
       <Launcher />

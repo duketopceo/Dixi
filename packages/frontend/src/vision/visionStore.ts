@@ -26,10 +26,12 @@ interface VisionStore {
   calibrationPoints: { camera: Point2; projector: Point2 }[];
   homography: Homography | null;
   calibrating: boolean;
+  previewVisible: boolean;
 
   setMode: (mode: VisionMode) => void;
   setStatus: (status: VisionStatus, error?: string | null) => void;
   setPerf: (fps: number, inferenceMs: number) => void;
+  togglePreview: () => void;
   beginCalibration: () => void;
   addCalibrationPoint: (camera: Point2) => boolean;
   cancelCalibration: () => void;
@@ -66,10 +68,12 @@ export const useVisionStore = create<VisionStore>((set, get) => ({
   calibrationPoints: initial.points,
   homography: initial.homography,
   calibrating: false,
+  previewVisible: false,
 
   setMode: (mode) => set({ mode }),
   setStatus: (status, error = null) => set({ status, error }),
   setPerf: (fps, inferenceMs) => set({ fps, inferenceMs }),
+  togglePreview: () => set((s) => ({ previewVisible: !s.previewVisible })),
 
   beginCalibration: () => set({ calibrating: true, calibrationPoints: [] }),
 

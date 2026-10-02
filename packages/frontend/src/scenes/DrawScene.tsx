@@ -23,6 +23,8 @@ export const DrawScene: React.FC = () => {
   const strokes = useRef<Stroke[]>([]);
   const active = useRef<Map<'left' | 'right', Stroke>>(new Map());
   const tracking = useTrackingStore((s) => s.currentTracking);
+  const trackingRef = useRef(tracking);
+  trackingRef.current = tracking;
 
   // mutate stroke state from tracking updates
   useEffect(() => {
@@ -98,7 +100,7 @@ export const DrawScene: React.FC = () => {
     }
 
     // hand cursors
-    const hands = tracking?.hands;
+    const hands = trackingRef.current?.hands;
     for (const side of ['left', 'right'] as const) {
       const hand = hands?.[side];
       if (!hand?.detected || !hand.position) continue;
@@ -114,7 +116,7 @@ export const DrawScene: React.FC = () => {
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
     ctx.font = '14px system-ui, sans-serif';
     ctx.fillText('Pinch = pen down • open hand = lift • fist = clear', 20, canvas.height - 20);
-  }, [tracking]);
+  }, []);
 
   useEffect(() => {
     let id: number;
@@ -124,7 +126,10 @@ export const DrawScene: React.FC = () => {
     };
     id = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(id);
-  }, [draw]);
+    // run once — a `draw` dep here starves the rAF loop (tracking re-renders
+    // cancel the pending frame before it can paint)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <canvas
