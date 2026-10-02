@@ -45,6 +45,10 @@ export interface HandData {
   landmarks?: Array<{ x: number; y: number; z: number }>;
   gesture: string;
   position: { x: number; y: number; z?: number };
+  /** Raw camera-space position [0,1] (browser vision mode only) */
+  cameraPosition?: { x: number; y: number };
+  /** 0 = fingers open, 1 = tips touching (browser vision mode only) */
+  pinchStrength?: number;
   confidence: number;
   fingers?: {
     thumb: boolean;

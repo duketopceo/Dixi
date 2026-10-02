@@ -8,6 +8,9 @@ COPY package.json package-lock.json ./
 # Copy frontend package.json to maintain its dependency declarations
 COPY packages/frontend/package.json ./packages/frontend/
 
+# postinstall hook (scripts/copy-wasm.mjs) runs during npm ci — copy it first
+COPY packages/frontend/scripts ./packages/frontend/scripts
+
 # Install all workspace dependencies deterministically
 # This installs dependencies for all workspaces, but ensures deterministic versions
 RUN npm ci --legacy-peer-deps

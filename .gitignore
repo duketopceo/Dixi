@@ -69,3 +69,6 @@ packages/vision/calibration_data.json
 
 # Firebase cache
 .firebase/
+
+# MediaPipe WASM (copied from node_modules on postinstall)
+packages/frontend/public/wasm/
