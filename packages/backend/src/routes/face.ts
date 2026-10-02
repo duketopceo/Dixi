@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import axios from 'axios';
-import { wsService } from '../index';
+import { getWSService } from '../services/wsService';
 import { gestureLimiter } from '../middleware/rateLimiter';
 import logger from '../utils/logger';
 
@@ -84,6 +84,7 @@ router.post('/process', gestureLimiter, async (req: Request, res: Response) => {
     currentFaceData = faceData;
     
     // Broadcast to all connected clients via WebSocket
+    const wsService = getWSService();
     if (wsService) {
       wsService.broadcastFace(faceData);
     }

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import axios from 'axios';
+import { getWSService } from '../services/wsService';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -65,7 +66,7 @@ router.get('/deep', async (req: Request, res: Response) => {
 
   // Check WebSocket
   try {
-    const { wsService } = await import('../index');
+    const wsService = getWSService();
     checks.websocket = {
       status: 'healthy',
       connectedClients: wsService ? wsService.getClientCount() : 0

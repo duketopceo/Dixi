@@ -16,6 +16,11 @@ RUN npm ci --legacy-peer-deps
 COPY packages/frontend/ ./packages/frontend/
 
 # Build application (from frontend directory to use correct package.json)
+# Vite inlines import.meta.env.VITE_* at build time — pass via --build-arg
+ARG VITE_API_URL=http://localhost:3001/api
+ARG VITE_WS_URL=ws://localhost:3002
+ENV VITE_API_URL=$VITE_API_URL VITE_WS_URL=$VITE_WS_URL
+
 WORKDIR /app/packages/frontend
 RUN npm run build
 WORKDIR /app

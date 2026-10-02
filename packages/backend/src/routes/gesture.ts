@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import axios from 'axios';
-import { wsService } from '../index';
+import { getWSService } from '../services/wsService';
 import { AIService } from '../services/ai';
 import { gestureLimiter } from '../middleware/rateLimiter';
 import { validateGestureProcess } from '../middleware/validation';
@@ -76,9 +76,11 @@ let continuousAnalysisTimer: NodeJS.Timeout | null = null;
 let analysisInProgress = false;
 
 // Get current gesture data
+// Vision service removed its /gesture endpoint; /gesture/projector returns the
+// current gesture (projector-space when calibrated, camera-space otherwise)
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const response = await axios.get(`${VISION_SERVICE_URL}/gesture`, {
+    const response = await axios.get(`${VISION_SERVICE_URL}/gesture/projector`, {
       timeout: 5000 // 5 second timeout
     });
     const gestureData = response.data;
@@ -94,7 +96,7 @@ router.get('/', async (req: Request, res: Response) => {
     if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
       res.status(503).json({ 
         error: 'Vision service unavailable',
-        details: 'Vision service is not running or not accessible. Please start the vision service on port 5000.',
+        details: 'Vision service is not running or not accessible. Please start the vision service on port 5001.',
         type: 'connection_error'
       });
       return;
@@ -156,6 +158,7 @@ async function triggerAIForGesture(gestureData: GestureBufferItem): Promise<void
   
   // Add to queue instead of calling directly
   aiCallQueue.push(async () => {
+    const wsService = getWSService();
     try {
       logger.info(`${emoji} ${gestureType} gesture detected, processing AI inference`);
       
@@ -287,7 +290,7 @@ async function triggerAIForGesture(gestureData: GestureBufferItem): Promise<void
 router.post('/start', gestureLimiter, async (req: Request, res: Response) => {
   try {
     logger.info('Starting gesture tracking');
-    const response = await axios.post(`${VISION_SERVICE_URL}/gesture/start`);
+    const response = await axios.post(`${VISION_SERVICE_URL}/tracking/start`);
     logger.info('Gesture tracking started successfully');
     res.json({ 
       message: 'Gesture tracking started',
@@ -306,7 +309,7 @@ router.post('/start', gestureLimiter, async (req: Request, res: Response) => {
 router.post('/stop', gestureLimiter, async (req: Request, res: Response) => {
   try {
     logger.info('Stopping gesture tracking');
-    const response = await axios.post(`${VISION_SERVICE_URL}/gesture/stop`);
+    const response = await axios.post(`${VISION_SERVICE_URL}/tracking/stop`);
     logger.info('Gesture tracking stopped successfully');
     res.json({ 
       message: 'Gesture tracking stopped',
@@ -346,7 +349,8 @@ async function performContinuousAnalysis(isManual: boolean = false): Promise<voi
     if (gestureBuffer.length < minGestures) return;
   
   analysisInProgress = true;
-  
+  const wsService = getWSService();
+
   try {
     const recentGestures = gestureBuffer.slice(-10); // Last 10 gestures
     const gestureTypes = recentGestures.map(g => g.type).filter(t => t !== 'unknown');
@@ -433,6 +437,7 @@ router.post('/process', validateGestureProcess, async (req: Request, res: Respon
     }
     
     // Broadcast to all connected clients via WebSocket
+    const wsService = getWSService();
     if (wsService) {
       wsService.broadcastGesture({
         type: gestureData.type || 'unknown',

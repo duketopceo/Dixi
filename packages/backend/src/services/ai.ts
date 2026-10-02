@@ -256,7 +256,7 @@ export class AIService {
     this.modelName = process.env.OLLAMA_MODEL || 'gemma3:4b';
     // Vision model for image analysis (llava is now installed)
     this.visionModelName = process.env.OLLAMA_VISION_MODEL || 'llava:7b';
-    logger.info('✅ Vision model llava:7b is available for image analysis');
+    logger.info(`👁️ Vision model configured: ${this.visionModelName}`);
     // Vision service URL for capturing frames
     this.visionServiceUrl = process.env.VISION_SERVICE_URL || 'http://localhost:5001';
     

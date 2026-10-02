@@ -256,13 +256,14 @@ class ProjectionCalibration:
                     return False
         
         # Check for collinearity (all 4 points on a line)
-        # Using cross product of vectors
+        # Using 2D scalar cross product — np.cross() on 2D vectors was
+        # removed in NumPy 2.x
         v1 = points[1] - points[0]
         v2 = points[2] - points[0]
         v3 = points[3] - points[0]
-        
-        cross1 = np.cross(v1, v2)
-        cross2 = np.cross(v1, v3)
+
+        cross1 = v1[0] * v2[1] - v1[1] * v2[0]
+        cross2 = v1[0] * v3[1] - v1[1] * v3[0]
         
         if np.abs(cross1) < 0.0001 and np.abs(cross2) < 0.0001:
             return False
