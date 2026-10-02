@@ -45,13 +45,3 @@ export interface TrackedHand {
   pinchStrength: number; // 0 = wide open, 1 = tips touching
   timestamp: number;
 }
-
-// Worker protocol
-export type WorkerInMessage =
-  | { type: 'frame'; bitmap: ImageBitmap; timestampMs: number }
-  | { type: 'dispose' };
-
-export type WorkerOutMessage =
-  | { type: 'ready' }
-  | { type: 'result'; hands: RawHandResult[]; timestampMs: number; inferenceMs: number }
-  | { type: 'error'; message: string };

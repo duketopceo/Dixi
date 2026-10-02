@@ -65,6 +65,8 @@ export const GestureShapes: React.FC = () => {
   const left = cursorOf(tracking?.hands?.left ?? null, 'left');
   const right = cursorOf(tracking?.hands?.right ?? null, 'right');
   const cursors = [left, right].filter((c): c is HandCursor => c !== null);
+  const cursorsRef = useRef<HandCursor[]>(cursors);
+  cursorsRef.current = cursors;
 
   useEffect(() => {
     const current = shapesRef.current;
@@ -80,10 +82,11 @@ export const GestureShapes: React.FC = () => {
           scaleStart.current = { shapeId, handDist, scale: shape.scale };
         } else if (scaleStart.current.handDist > 0.01) {
           const ratio = handDist / scaleStart.current.handDist;
+          const baseScale = scaleStart.current.scale; // updater runs later — capture now
           setShapes((prev) =>
             prev.map((s) =>
               s.id === shapeId
-                ? { ...s, scale: Math.max(0.3, Math.min(3, scaleStart.current!.scale * ratio)) }
+                ? { ...s, scale: Math.max(0.3, Math.min(3, baseScale * ratio)) }
                 : s,
             ),
           );
@@ -170,7 +173,7 @@ export const GestureShapes: React.FC = () => {
 
     const grabbedIds = new Set(grabbed.current.keys());
 
-    for (const shape of shapes) {
+    for (const shape of shapesRef.current) {
       const x = shape.position.x * canvas.width;
       const y = shape.position.y * canvas.height;
       const r = SHAPE_RADIUS * Math.min(canvas.width, canvas.height) * shape.scale;
@@ -206,7 +209,7 @@ export const GestureShapes: React.FC = () => {
     }
 
     // cursors
-    for (const cursor of cursors) {
+    for (const cursor of cursorsRef.current) {
       const cx = cursor.pos.x * canvas.width;
       const cy = cursor.pos.y * canvas.height;
       ctx.beginPath();
@@ -223,7 +226,8 @@ export const GestureShapes: React.FC = () => {
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
     ctx.font = '14px system-ui, sans-serif';
     ctx.fillText('Pinch to grab • pinch with both hands to scale', 20, canvas.height - 20);
-  }, [shapes, cursors]);
+    // reads via refs — this closure mounts once and must not go stale
+  }, []);
 
   useEffect(() => {
     let id: number;
@@ -239,7 +243,10 @@ export const GestureShapes: React.FC = () => {
     };
     id = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(id);
-  }, [draw]);
+    // run once: depending on `draw` means every tracking-store re-render cancels
+    // the pending rAF before it fires — the loop starves and never paints
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <canvas

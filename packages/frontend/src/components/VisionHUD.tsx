@@ -15,6 +15,8 @@ export const VisionHUD: React.FC = () => {
   const beginCalibration = useVisionStore((s) => s.beginCalibration);
   const clearCalibration = useVisionStore((s) => s.clearCalibration);
   const calibrating = useVisionStore((s) => s.calibrating);
+  const previewVisible = useVisionStore((s) => s.previewVisible);
+  const togglePreview = useVisionStore((s) => s.togglePreview);
 
   if (mode !== 'browser' || calibrating) return null;
 
@@ -54,6 +56,21 @@ export const VisionHUD: React.FC = () => {
           {fps.toFixed(0)} fps · {inferenceMs.toFixed(0)}ms
         </span>
       )}
+      <button
+        onClick={togglePreview}
+        title="Toggle camera preview"
+        style={{
+          padding: '4px 10px',
+          fontSize: 11,
+          color: previewVisible ? '#00F5FF' : 'rgba(255,255,255,0.6)',
+          background: previewVisible ? 'rgba(0,245,255,0.12)' : 'rgba(255,255,255,0.08)',
+          border: `1px solid ${previewVisible ? 'rgba(0,245,255,0.4)' : 'rgba(255,255,255,0.2)'}`,
+          borderRadius: 10,
+          cursor: 'pointer',
+        }}
+      >
+        📷
+      </button>
       <button
         onClick={beginCalibration}
         style={{
