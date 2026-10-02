@@ -29,6 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README/.env.example now document `gemma3:4b` + `llava:7b` model defaults
 
 ### Added
+- Browser Vision Mode (`VITE_VISION_MODE=browser`, default): MediaPipe `GestureRecognizer` (WASM, GPU delegate) running in a Web Worker — camera to cursor with zero backend/Python in the loop
+- 4-point dwell calibration: point at projected corner markers → normalized-DLT homography maps camera space to projector space (localStorage persisted)
+- `GestureShapes` scene: pinch-drag shapes, two-hand pinch scales; cursor rendered from live tracking
+- `src/vision/` module: tracker worker/client with backpressure, geometric pinch classifier with hysteresis, position smoothing, homography math — pure logic under vitest (25 tests)
+- Vendored `hand_landmarker`/`gesture_recognizer` .task models in `public/models`; WASM runtime copied to `public/wasm` on postinstall
+
+### Added
 - AGENTS.md for AI-assisted development standards
 - CHANGELOG.md following Keep a Changelog format
 - .commitlintrc.json for conventional commit enforcement

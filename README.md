@@ -4,13 +4,33 @@ An AI-powered interactive projection system that uses computer vision, gesture r
 
 ## 🚀 Features
 
-- **Computer Vision**: Real-time gesture recognition using OpenCV and MediaPipe
+- **Browser Vision Mode (new)**: Hand tracking runs entirely in the browser — MediaPipe WASM + GestureRecognizer in a Web Worker. No Python service required. Pinch to grab shapes, pinch with both hands to scale, 4-point dwell calibration maps your camera to the projector
+- **Computer Vision**: Real-time gesture recognition using OpenCV and MediaPipe (legacy Python service mode also supported)
 - **AI Inference**: Ollama-powered AI integration for natural language understanding and generation
 - **Interactive Projection**: WebGL-based rendering for immersive visual experiences
-- **Real-time Communication**: WebSocket-based bidirectional data flow
+- **Real-time Communication**: WebSocket-based bidirectional data flow (optional in browser mode)
 - **Scalable Architecture**: Microservices design (Docker support in-progress, not required for local development)
 
 ## 🏗️ Architecture
+
+**Browser Vision Mode** (default, `VITE_VISION_MODE=browser`):
+
+```
+┌──────────────────────────────────────────┐
+│              Browser tab                  │
+│                                          │
+│  getUserMedia ──▶ Web Worker (MediaPipe  │
+│                   WASM GestureRecognizer)│
+│                        │                 │
+│                        ▼                 │
+│                  trackingStore           │
+│                        │                 │
+│              GestureShapes / HUD         │
+└──────────────────────────────────────────┘
+        optional WS for AI features
+```
+
+**Server mode** (legacy, `VITE_VISION_MODE=server`):
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
