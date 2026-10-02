@@ -1,6 +1,9 @@
 import React, { useEffect } from 'react';
 import ProjectionCanvas from './components/ProjectionCanvas';
 import GestureShapes from './components/GestureShapes';
+import DrawScene from './scenes/DrawScene';
+import Launcher from './components/Launcher';
+import Dock from './components/Dock';
 import CalibrationOverlay from './components/CalibrationOverlay';
 import VisionHUD from './components/VisionHUD';
 import ControlPanel from './components/ControlPanel/index';
@@ -8,6 +11,7 @@ import MinimalHUD from './components/HUD/MinimalHUD';
 import AIInputBar from './components/HUD/AIInputBar';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useVisionStore } from './vision/visionStore';
+import { useAppStore } from './app/appStore';
 import { browserTrackingSource } from './vision/browserTrackingSource';
 import './config/firebase'; // Initialize Firebase
 import './App.css';
@@ -15,6 +19,8 @@ import './App.css';
 const App: React.FC = () => {
   const { connect, disconnect } = useWebSocket();
   const mode = useVisionStore((s) => s.mode);
+  const activeScene = useAppStore((s) => s.activeScene);
+  const menuOpen = useAppStore((s) => s.menuOpen);
 
   useEffect(() => {
     if (mode === 'browser') {
@@ -35,10 +41,16 @@ const App: React.FC = () => {
 
   return (
     <div className="app">
-      <ProjectionCanvas />
-      <GestureShapes />
+      {/* Legacy R3F scene only makes sense against the Python service feed */}
+      {mode === 'server' && <ProjectionCanvas />}
+
+      {!menuOpen && activeScene === 'shapes' && <GestureShapes />}
+      {!menuOpen && activeScene === 'draw' && <DrawScene />}
+
       <CalibrationOverlay />
       <VisionHUD />
+      <Dock />
+      <Launcher />
       <MinimalHUD />
       <AIInputBar />
       <ControlPanel />
