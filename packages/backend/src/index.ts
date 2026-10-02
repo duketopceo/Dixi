@@ -24,6 +24,7 @@ import logsRoutes from './routes/logs';
 import { errorHandler } from './middleware/errorHandler';
 import { apiLimiter } from './middleware/rateLimiter';
 import { WebSocketService } from './services/websocket';
+import { setWSService } from './services/wsService';
 import logger, { morganStream } from './utils/logger';
 
 const app: Express = express();
@@ -33,7 +34,9 @@ const WS_PORT = process.env.WS_PORT || 3002;
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*', // Allow all origins for network access
+  // Reflect the request origin when FRONTEND_URL is unset: '*' is invalid
+  // combined with credentials:true and browsers reject it.
+  origin: process.env.FRONTEND_URL || true,
   credentials: true
 }));
 app.use(compression());
@@ -66,12 +69,15 @@ app.use(errorHandler);
 const server = createServer(app);
 
 // WebSocket server with error handling
-let wss: Server;
+let wss: Server | undefined;
 let wsService: WebSocketService | null = null;
 
+// Only bind ports when run directly (not when imported by tests/other modules)
+if (require.main === module) {
 try {
   wss = new Server({ port: Number(WS_PORT), host: '0.0.0.0' });
   wsService = new WebSocketService(wss);
+  setWSService(wsService);
   
   wss.on('error', (error: Error & { code?: string }) => {
     if (error.code === 'EADDRINUSE') {
@@ -119,7 +125,7 @@ server.on('error', (error: Error & { code?: string }) => {
   }
 });
 
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(Number(PORT), '0.0.0.0', () => {
   logger.info(`✅ Dixi Backend ready on port ${PORT}`);
   logger.info(`📡 Accessible at: http://0.0.0.0:${PORT} or http://localhost:${PORT}`);
 });
@@ -150,5 +156,6 @@ const shutdown = () => {
 
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
+}
 
 export { app, wss, wsService };

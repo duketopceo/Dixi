@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import axios from 'axios';
 import { AIService } from '../services/ai';
-import { wsService } from '../index';
+import { getWSService } from '../services/wsService';
 import { visionLimiter } from '../middleware/rateLimiter';
 import logger from '../utils/logger';
 
@@ -58,6 +58,7 @@ router.post('/process', visionLimiter, async (req: Request, res: Response) => {
     });
     
     // Broadcast to all connected clients via WebSocket
+    const wsService = getWSService();
     if (wsService) {
       wsService.broadcastTracking(trackingData);
     }
@@ -110,6 +111,7 @@ router.post('/analyze', visionLimiter, async (req: Request, res: Response) => {
     );
     
     // Broadcast AI response via WebSocket
+    const wsService = getWSService();
     if (wsService) {
       wsService.broadcastAIResponse({
         query: prompt || 'Combined tracking analysis',

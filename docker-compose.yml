@@ -27,10 +27,12 @@ services:
     build:
       context: .
       dockerfile: ./packages/frontend/Dockerfile
+      args:
+        # Vite inlines env vars at build time — runtime environment has no effect
+        - VITE_API_URL=http://localhost:3001/api
+        - VITE_WS_URL=ws://localhost:3002
     ports:
       - "3000:3000"
-    environment:
-      - REACT_APP_BACKEND_URL=http://localhost:3001
     depends_on:
       - backend
     networks:
@@ -44,14 +46,13 @@ services:
       - "5000:5000"
     environment:
       - PYTHON_ENV=production
+      - VISION_SERVICE_PORT=5000
+      - BACKEND_URL=http://backend:3001
     volumes:
       - ./models:/app/models
       - /dev/video0:/dev/video0
     devices:
       - /dev/video0:/dev/video0
-    runtime: nvidia
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
     networks:
       - dixi-network
 

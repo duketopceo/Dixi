@@ -82,8 +82,9 @@ An AI-powered interactive projection system that uses computer vision, gesture r
    # Then start the Ollama service:
    ollama serve
    
-   # In a separate terminal, pull the model:
-   ollama pull llama3.2
+   # In a separate terminal, pull the models:
+   ollama pull gemma3:4b      # text inference (default OLLAMA_MODEL)
+   ollama pull llava:7b       # optional, for image analysis
    ```
 
 3. **Set up environment variables**
@@ -232,7 +233,8 @@ ADAPTIVE_FPS=false                 # Enable adaptive FPS (reduces to 10 FPS when
 
 # Ollama Configuration (REQUIRED)
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.2
+OLLAMA_MODEL=gemma3:4b
+OLLAMA_VISION_MODEL=llava:7b
 ```
 
 ### Performance Optimization

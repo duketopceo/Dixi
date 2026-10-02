@@ -441,7 +441,6 @@ def get_tracking_status():
     })
 
 
-<<<<<<< HEAD
 # Projection Calibration Routes
 @app.route('/projection/calibration', methods=['GET'])
 def get_calibration():

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { wsService } from '../index';
+import { getWSService } from '../services/wsService';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -119,6 +119,7 @@ router.get('/logs', (req: Request, res: Response) => {
  */
 router.get('/clients', (req: Request, res: Response) => {
   try {
+    const wsService = getWSService();
     if (!wsService) {
       return res.status(503).json({
         error: 'WebSocket service not available',
@@ -154,6 +155,7 @@ router.post('/clients/:id/disconnect', (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
+    const wsService = getWSService();
     if (!wsService) {
       return res.status(503).json({
         error: 'WebSocket service not available',
@@ -182,6 +184,7 @@ router.post('/clients/:id/disconnect', (req: Request, res: Response) => {
  */
 router.get('/stats', (req: Request, res: Response) => {
   try {
+    const wsService = getWSService();
     const stats = {
       server: {
         uptime: process.uptime(),

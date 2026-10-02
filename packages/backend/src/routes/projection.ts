@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { wsService } from '../index';
+import { getWSService } from '../services/wsService';
 import { validateProjectionMapping, validateProjectionContent } from '../middleware/validation';
 import logger from '../utils/logger';
 import { CalibrationResponse, CalibrationPayload } from '../types/projection';
@@ -23,7 +23,7 @@ router.get('/status', (req: Request, res: Response) => {
     active: true,
     renderAPI: process.env.RENDER_API || 'webgl',
     gpuAcceleration: process.env.ENABLE_GPU_ACCELERATION === 'true',
-    connectedClients: wsService ? wsService.getClientCount() : 0,
+    connectedClients: getWSService()?.getClientCount() ?? 0,
     calibrated: calibrationMapping?.calibrated || false
   });
 });
@@ -93,6 +93,7 @@ router.post('/mapping', validateProjectionMapping, (req: Request, res: Response)
       });
 
       // Broadcast projection update
+      const wsService = getWSService();
       if (wsService) {
         wsService.broadcastProjection({
           type: 'mapping_update',
@@ -116,6 +117,7 @@ router.post('/mapping', validateProjectionMapping, (req: Request, res: Response)
       logger.info('Updating projection mapping (legacy format)');
       
       // Broadcast projection update
+      const wsService = getWSService();
       if (wsService) {
         wsService.broadcastProjection({
           type: 'mapping_update',
@@ -154,6 +156,7 @@ router.post('/content', validateProjectionContent, (req: Request, res: Response)
     logger.debug('Updating projection content', { hasPosition: !!position, hasStyle: !!style });
     
     // Broadcast content update
+    const wsService = getWSService();
     if (wsService) {
       wsService.broadcastProjection({
         type: 'content_update',

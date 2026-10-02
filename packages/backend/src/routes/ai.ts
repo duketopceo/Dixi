@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { AIService } from '../services/ai';
-import { wsService } from '../index';
+import { getWSService } from '../services/wsService';
 import { aiLimiter, visionLimiter } from '../middleware/rateLimiter';
 import { validateAIInfer, validateAIInit } from '../middleware/validation';
 import logger from '../utils/logger';
@@ -53,8 +53,9 @@ router.post('/infer', aiLimiter, validateAIInfer, async (req: Request, res: Resp
     
     const inferenceTime = Date.now() - startTime;
     logger.info('AI inference completed', { inferenceTime });
-    
+
     // Broadcast AI response via WebSocket
+    const wsService = getWSService();
     if (wsService) {
       wsService.broadcastAIResponse({
         query,
@@ -160,8 +161,9 @@ router.post('/vision/analyze', visionLimiter, async (req: Request, res: Response
     }
     
     const response = await aiService.analyzeCurrentFrame(prompt, context);
-    
+
     // Broadcast AI response via WebSocket
+    const wsService = getWSService();
     if (wsService) {
       wsService.broadcastAIResponse({
         query: prompt || 'Vision analysis',
