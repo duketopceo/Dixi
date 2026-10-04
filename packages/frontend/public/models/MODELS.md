@@ -3,9 +3,9 @@
 CLAUDE.md requires version-pinning all CV model weights. This file is the
 pin record for every blob vendored in this directory.
 
-| File | Source | Pinned version | SHA-256 | Vendored |
-|------|--------|----------------|---------|----------|
-| `gesture_recognizer.task` | MediaPipe Tasks Vision model bundle — Google's hosted `gesture_recognizer.task` (GestureRecognizer task, `https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task`) | tasks-vision `0.10.22-rc.20250304` model bundle (float16, v1) | `97952348cf6a6a4915c2ea1496b4b37ebabc50cbbf80571435643c455f2b0482` | 2026-10-01 (#60) |
+| File | Source | Model bundle revision | Runtime | SHA-256 | Vendored |
+|------|--------|-----------------------|---------|---------|----------|
+| `gesture_recognizer.task` | MediaPipe Tasks Vision model bundle — Google's hosted `gesture_recognizer.task` (GestureRecognizer task, `https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task`) | `float16`, bundle rev `1` | `@mediapipe/tasks-vision` `0.10.22-rc.20250304` | `97952348cf6a6a4915c2ea1496b4b37ebabc50cbbf80571435643c455f2b0482` | 2026-10-01 (#60) |
 
 ## Consumers
 

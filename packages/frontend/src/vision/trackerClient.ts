@@ -119,15 +119,27 @@ export class TrackerClient {
     this.video = null;
   }
 
+  // Release only the resources a specific start() acquired. A superseded
+  // start must never touch this.stream/this.video — a newer start owns them.
+  private releaseOwned(stream: MediaStream | null, video: HTMLVideoElement | null): void {
+    video?.pause();
+    if (video) video.srcObject = null;
+    stream?.getTracks().forEach((t) => t.stop());
+    if (this.stream === stream) this.stream = null;
+    if (this.video === video) this.video = null;
+  }
+
   async start(deviceId?: string): Promise<void> {
     if (this.running) return;
     const gen = ++this.generation;
+    let stream: MediaStream | null = null;
+    let video: HTMLVideoElement | null = null;
 
     try {
       await this.getRecognizer();
       if (gen !== this.generation) return;
 
-      const stream = await navigator.mediaDevices.getUserMedia({
+      stream = await navigator.mediaDevices.getUserMedia({
         video: {
           deviceId: deviceId ? { exact: deviceId } : undefined,
           width: { ideal: 1280 },
@@ -142,15 +154,13 @@ export class TrackerClient {
       }
       this.stream = stream;
 
-      const video = document.createElement('video');
+      video = document.createElement('video');
       video.srcObject = stream;
       video.playsInline = true;
       video.muted = true;
       await video.play();
       if (gen !== this.generation) {
-        video.pause();
-        video.srcObject = null;
-        this.teardownStream();
+        this.releaseOwned(stream, video);
         return;
       }
       this.video = video;
@@ -172,7 +182,11 @@ export class TrackerClient {
       this.callbacks.onReady?.();
       this.pump();
     } catch (err) {
-      this.teardownStream();
+      if (gen === this.generation) {
+        this.teardownStream();
+      } else {
+        this.releaseOwned(stream, video);
+      }
       throw err;
     }
   }

@@ -175,6 +175,42 @@ describe('TrackerClient lifecycle', () => {
     for (const t of tracks) expect(t.stop).not.toHaveBeenCalled();
   });
 
+  it('superseded start releases only its own stream — never the replacement', async () => {
+    // Force start A to suspend at video.play() so a stop+start can interleave.
+    let resolvePlay: (() => void) | null = null;
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(
+      () => new Promise<void>((res) => { resolvePlay = res; })
+    );
+
+    const client = makeClient();
+    const pA = client.start();             // acquires stream_A, parks at play()
+    await new Promise((r) => setTimeout(r, 0)); // flush to the play() await
+    const streamA = lastStream!;
+    expect(streamA).not.toBeNull();
+
+    client.stop();                          // stops stream_A, bumps generation
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    const pB = client.start();             // acquires stream_B, runs to live
+    await pB;
+    const streamB = lastStream!;
+    expect(streamB).not.toBe(streamA);
+
+    resolvePlay!();                         // A resumes, sees it's stale
+    await pA;
+
+    // The stale start must leave the replacement stream alone.
+    for (const t of tracksByStream.get(streamB)!) {
+      expect(t.stop).not.toHaveBeenCalled();
+    }
+    // ...while still releasing its own acquisition.
+    for (const t of tracksByStream.get(streamA)!) {
+      expect(t.stop).toHaveBeenCalled();
+    }
+    expect(onReady).toHaveBeenCalledTimes(1);
+    stepFrames(2);
+    expect(onResult).toHaveBeenCalled();
+  });
+
   it('concurrent starts share one recognizer and only the newest survives', async () => {
     const client = makeClient();
     await Promise.all([client.start(), client.start()]);

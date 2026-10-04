@@ -7,11 +7,15 @@ import axios from 'axios';
  * Skip when the daemon is down OR the configured model isn't pulled —
  * a running-but-mismatched Ollama must not fail the suite.
  */
-async function ollamaHasModel(model = 'gemma3:4b'): Promise<boolean> {
+const REQUIRED_MODEL = process.env.OLLAMA_MODEL || 'gemma3:4b';
+
+async function ollamaHasModel(model = REQUIRED_MODEL): Promise<boolean> {
   try {
     const res = await axios.get('http://localhost:11434/api/tags', { timeout: 2000 });
     const names: string[] = (res.data?.models ?? []).map((m: { name: string }) => m.name);
-    return names.some((n) => n === model || n.startsWith(`${model}-`) || n.startsWith(`${model}:`));
+    // Exact tag match only — Ollama advertises pulled models as name:tag, and
+    // an unsuffixed configured name resolves to :latest.
+    return names.includes(model) || names.includes(`${model}:latest`);
   } catch {
     return false;
   }
@@ -19,7 +23,7 @@ async function ollamaHasModel(model = 'gemma3:4b'): Promise<boolean> {
 
 async function skipUnlessOllamaModel(): Promise<boolean> {
   if (!(await ollamaHasModel())) {
-    console.warn('Ollama or gemma3:4b not available, skipping integration test');
+    console.warn(`Ollama or ${REQUIRED_MODEL} not available, skipping integration test`);
     return false;
   }
   return true;

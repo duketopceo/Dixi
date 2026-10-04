@@ -56,7 +56,8 @@ temp/
 *.tmp
 
 # Secrets & credentials (AGENTS.md mandatory set)
-.env.*.local
+.env.*
+!.env.example
 *.pem
 *.key
 *.p12

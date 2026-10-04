@@ -32,9 +32,14 @@ export const VisionHUD: React.FC = () => {
   useEffect(() => {
     if (status !== 'running') return;
     let cancelled = false;
-    browserTrackingSource.listCameras().then((cams) => {
-      if (!cancelled) setCameras(cams);
-    });
+    browserTrackingSource
+      .listCameras()
+      .then((cams) => {
+        if (!cancelled) setCameras(cams);
+      })
+      .catch(() => {
+        // Insecure context or missing mediaDevices — the picker stays empty.
+      });
     return () => {
       cancelled = true;
     };

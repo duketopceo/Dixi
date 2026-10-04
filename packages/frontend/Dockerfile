@@ -36,4 +36,5 @@ EXPOSE 3000
 
 # Serve the built application — WORKDIR is /app, dist lives under the
 # frontend package (a bare `serve -s dist` from /app serves nothing).
+USER node
 CMD ["serve", "-s", "packages/frontend/dist", "-l", "3000"]

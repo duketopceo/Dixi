@@ -36,12 +36,24 @@ app.use(helmet());
 // CORS: explicit allowlist. Credentialed requests must never be reflected
 // back to arbitrary origins — fail closed to localhost dev origins plus
 // FRONTEND_URL when configured.
+// Browsers send a bare Origin — normalize FRONTEND_URL to its origin so a
+// trailing slash or path in the env value cannot break the exact match.
+const frontendOrigins = (() => {
+  const raw = process.env.FRONTEND_URL;
+  if (!raw) return [];
+  try {
+    return [new URL(raw).origin];
+  } catch {
+    logger.warn(`FRONTEND_URL is not a valid URL; excluding it from the CORS allowlist`);
+    return [];
+  }
+})();
 const allowedOrigins = new Set([
   'http://localhost:3000',
   'http://localhost:5173',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:5173',
-  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+  ...frontendOrigins,
 ]);
 app.use(cors({
   origin: (origin, callback) => {
