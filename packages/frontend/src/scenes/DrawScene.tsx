@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import { useTrackingStore } from '../store/trackingStore';
+import { resizeCanvasToWindow } from '../components/canvasUtils';
 
 interface Stroke {
   color: string;
@@ -67,8 +68,7 @@ export const DrawScene: React.FC = () => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    resizeCanvasToWindow(canvas);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.lineCap = 'round';

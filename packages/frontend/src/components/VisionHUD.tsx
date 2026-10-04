@@ -12,7 +12,14 @@ const STATUS_COLOR: Record<string, string> = {
 
 /** Bottom-left pill: vision source status, fps, calibrate/recalibrate. */
 export const VisionHUD: React.FC = () => {
-  const { mode, status, fps, inferenceMs, homography, error } = useVisionStore();
+  // Narrow selectors: perf values are rounded so the HUD re-renders only
+  // when the displayed numbers actually change, not every inference frame.
+  const mode = useVisionStore((s) => s.mode);
+  const status = useVisionStore((s) => s.status);
+  const fps = useVisionStore((s) => Math.round(s.fps));
+  const inferenceMs = useVisionStore((s) => Math.round(s.inferenceMs));
+  const homography = useVisionStore((s) => s.homography);
+  const error = useVisionStore((s) => s.error);
   const beginCalibration = useVisionStore((s) => s.beginCalibration);
   const clearCalibration = useVisionStore((s) => s.clearCalibration);
   const calibrating = useVisionStore((s) => s.calibrating);
@@ -68,7 +75,10 @@ export const VisionHUD: React.FC = () => {
       </span>
       {status === 'running' && (
         <span style={{ opacity: 0.7 }}>
-          {fps.toFixed(0)} fps · {inferenceMs.toFixed(0)}ms
+          {fps} fps ·{' '}
+          <span style={{ color: inferenceMs > 25 ? '#FFB800' : undefined }}>
+            {inferenceMs}ms
+          </span>
         </span>
       )}
       {cameras.length > 1 && (

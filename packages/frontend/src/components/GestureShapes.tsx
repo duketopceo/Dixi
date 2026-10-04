@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useTrackingStore, type HandData } from '../store/trackingStore';
+import { resizeCanvasToWindow } from './canvasUtils';
 
 interface Shape {
   id: string;
@@ -171,8 +172,7 @@ export const GestureShapes: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    resizeCanvasToWindow(canvas);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const grabbedIds = new Set(grabbed.current.keys());

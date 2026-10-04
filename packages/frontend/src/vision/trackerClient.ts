@@ -47,6 +47,7 @@ export class TrackerClient {
   private fpsWindowStart = 0;
   private consecutiveFailures = 0;
   private lastErrorMessage: string | null = null;
+  private lastVideoTime = -1;
   onFps?: (fps: number) => void;
 
   constructor(callbacks: TrackerCallbacks) {
@@ -166,6 +167,7 @@ export class TrackerClient {
       this.running = true;
       this.consecutiveFailures = 0;
       this.lastErrorMessage = null;
+      this.lastVideoTime = -1;
       this.fpsWindowStart = performance.now();
       this.callbacks.onReady?.();
       this.pump();
@@ -197,7 +199,15 @@ export class TrackerClient {
   private pump = (): void => {
     if (!this.running || !this.recognizer || !this.video) return;
 
-    if (this.video.readyState >= 2 && this.frameCtx && this.frame) {
+    if (
+      this.video.readyState >= 2 &&
+      this.video.currentTime !== this.lastVideoTime &&
+      this.frameCtx &&
+      this.frame
+    ) {
+      // currentTime only advances when a NEW frame was presented — this
+      // gates inference so unchanged/held frames don't burn the WASM call.
+      this.lastVideoTime = this.video.currentTime;
       const start = performance.now();
       try {
         this.frameCtx.drawImage(this.video, 0, 0, this.frame.width, this.frame.height);

@@ -62,9 +62,14 @@ class FakeOffscreenCanvas {
 
 let rafCallback: FrameRequestCallback | null = null;
 let gumReject: Error | null = null;
+// jsdom video.currentTime is static — the pump gates inference on it
+// advancing, so tests drive it manually (each stepped frame = a new
+// presented camera frame).
+let videoTime = 0;
 
 function stepFrames(n: number) {
   for (let i = 0; i < n; i++) {
+    videoTime += 1 / 30;
     const cb = rafCallback;
     rafCallback = null;
     cb?.(performance.now());
@@ -81,6 +86,7 @@ describe('TrackerClient lifecycle', () => {
     gumReject = null;
     lastStream = null;
     rafCallback = null;
+    videoTime = 0;
     recognizerInstances.length = 0;
     recognizeForVideo.mockReset();
     recognizeForVideo.mockReturnValue({ landmarks: [], handednesses: [], gestures: [] });
@@ -107,6 +113,12 @@ describe('TrackerClient lifecycle', () => {
     Object.defineProperty(HTMLVideoElement.prototype, 'videoWidth', { value: 640, configurable: true });
     Object.defineProperty(HTMLVideoElement.prototype, 'videoHeight', { value: 480, configurable: true });
     Object.defineProperty(HTMLVideoElement.prototype, 'readyState', { value: 4, configurable: true });
+    Object.defineProperty(HTMLVideoElement.prototype, 'currentTime', {
+      get() {
+        return videoTime;
+      },
+      configurable: true,
+    });
 
     onReady = vi.fn();
     onError = vi.fn();
@@ -199,6 +211,22 @@ describe('TrackerClient lifecycle', () => {
     // tracker stopped itself — no more frames are pumped
     stepFrames(5);
     expect(onError).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips inference while the video presents no new frame', async () => {
+    const client = makeClient();
+    await client.start();
+    recognizeForVideo.mockClear();
+    stepFrames(3);
+    const calls = recognizeForVideo.mock.calls.length;
+    expect(calls).toBe(3);
+    // pump with currentTime frozen — unchanged frames get no inference
+    for (let i = 0; i < 3; i++) {
+      const cb = rafCallback;
+      rafCallback = null;
+      cb?.(performance.now());
+    }
+    expect(recognizeForVideo.mock.calls.length).toBe(calls);
   });
 
   it('tolerates transient pump errors without escalating to error state', async () => {
