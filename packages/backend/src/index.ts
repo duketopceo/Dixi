@@ -174,4 +174,6 @@ process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 }
 
-export { app, wss, wsService };
+// wss/wsService are only populated inside require.main — never export them;
+// routes read the live service through services/wsService's getWSService().
+export { app };

@@ -146,7 +146,8 @@ router.post('/vision/analyze', visionLimiter, async (req: Request, res: Response
         const VISION_SERVICE_URL = process.env.VISION_SERVICE_URL || 'http://localhost:5001';
         
         const [gestureRes, faceRes] = await Promise.allSettled([
-          axios.get(`${VISION_SERVICE_URL}/gesture`, { timeout: 2000 }),
+          // vision service's only gesture endpoint — /gesture was removed
+          axios.get(`${VISION_SERVICE_URL}/gesture/projector`, { timeout: 2000 }),
           axios.get(`${VISION_SERVICE_URL}/face`, { timeout: 2000 })
         ]);
         
