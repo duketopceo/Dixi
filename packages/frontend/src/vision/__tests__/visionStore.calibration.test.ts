@@ -60,6 +60,28 @@ describe('visionStore calibration lifecycle', () => {
     expect(saved.homography).toEqual(st.homography);
   });
 
+  it('rejects corrupt-but-parseable persisted calibration', async () => {
+    // poisoned payload: right shape, but coordinates are not finite numbers
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        points: [
+          { camera: [null, 0.1], projector: [0.05, 0.05] },
+          { camera: [0.9, 0.1], projector: [0.95, 0.05] },
+          { camera: [0.9], projector: [0.95, 0.95] },
+          { camera: [0.1, 0.9], projector: [0.05, 0.95] },
+        ],
+        homography: [1, 0, 0, 0, 1, 0, 0, 0, 'x'],
+      }),
+    );
+    const { vi } = await import('vitest');
+    vi.resetModules();
+    const fresh = await import('../visionStore');
+    expect(fresh.useVisionStore.getState().homography).toBeNull();
+    expect(localStorage.getItem(KEY)).toBeNull(); // poison removed
+    vi.resetModules(); // restore module registry for later suites
+  });
+
   it('degenerate camera points restart the flow instead of persisting NaN', () => {
     const s = useVisionStore.getState();
     s.beginCalibration();
