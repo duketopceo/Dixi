@@ -2,7 +2,9 @@
 // resurrect a stopped tracker, leak camera tracks, or run a dead pump.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { Mock } from 'vitest';
 import { TrackerClient } from '../trackerClient';
+import type { TrackerCallbacks } from '../trackerClient';
 
 // --- MediaPipe mocks ------------------------------------------------------
 
@@ -77,9 +79,9 @@ function stepFrames(n: number) {
 }
 
 describe('TrackerClient lifecycle', () => {
-  let onReady: ReturnType<typeof vi.fn>;
-  let onError: ReturnType<typeof vi.fn>;
-  let onResult: ReturnType<typeof vi.fn>;
+  let onReady: Mock<() => void>;
+  let onError: Mock<(message: string) => void>;
+  let onResult: Mock<NonNullable<TrackerCallbacks['onResult']>>;
 
   beforeEach(() => {
     delegateFailures = { GPU: false, CPU: false };
