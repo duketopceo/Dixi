@@ -222,7 +222,7 @@ router.post('/scene', (req: Request, res: Response) => {
 // Load scene
 router.get('/scene/:id', (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const scene = sceneStorage.get(id);
 
     if (!scene) {
@@ -275,7 +275,7 @@ router.get('/scenes', (req: Request, res: Response) => {
 // Delete scene
 router.delete('/scene/:id', (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const deleted = sceneStorage.delete(id);
 
     if (!deleted) {

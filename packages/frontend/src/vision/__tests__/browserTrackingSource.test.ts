@@ -13,10 +13,14 @@ import type { TrackerCallbacks } from '../trackerClient';
 const hooks = vi.hoisted(() => ({ cb: null as TrackerCallbacks | null }));
 
 vi.mock('../trackerClient', () => ({
-  TrackerClient: vi.fn((cb: TrackerCallbacks) => {
-    hooks.cb = cb;
-    return { start: vi.fn(async () => {}), stop: vi.fn(), videoElement: null };
-  }),
+  TrackerClient: class {
+    start = vi.fn(async () => {});
+    stop = vi.fn();
+    videoElement = null;
+    constructor(cb: TrackerCallbacks) {
+      hooks.cb = cb;
+    }
+  },
 }));
 
 /** 21-point landmark array; overrides applied by index. */
