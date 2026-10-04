@@ -49,10 +49,13 @@ jobs:
       - name: Install dependencies (workspace root)
         run: npm ci
 
-      - name: Build
+      - name: Typecheck + Build
         working-directory: packages/frontend
-        run: npm run build
-      # TODO: vitest + tsc --noEmit are red on legacy code — fix and re-enable
+        run: npm run build:check
+
+      - name: Test
+        working-directory: packages/frontend
+        run: npx vitest run
 
   vision-tests:
     name: Vision Service Tests

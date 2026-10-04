@@ -28,7 +28,7 @@ jobs:
         run: npm ci 2>/dev/null || npm install
 
       - name: Run tests
-        run: npm test 2>/dev/null || echo "No tests found — add tests to enable CI gating"
+        run: npm run test:all
 
   release:
     needs: test
