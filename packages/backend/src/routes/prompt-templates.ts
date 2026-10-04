@@ -32,7 +32,7 @@ router.get('/templates', (req: Request, res: Response) => {
  */
 router.get('/templates/:id', (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const template = promptTemplates.getTemplate(id);
 
     if (!template) {
@@ -105,7 +105,7 @@ router.post('/templates', (req: Request, res: Response) => {
  */
 router.put('/templates/:id', (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const updates = req.body;
 
     const updated = promptTemplates.updateTemplate(id, updates);
@@ -138,7 +138,7 @@ router.put('/templates/:id', (req: Request, res: Response) => {
  */
 router.delete('/templates/:id', (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const deleted = promptTemplates.deleteTemplate(id);
 
     if (!deleted) {
@@ -169,7 +169,7 @@ router.delete('/templates/:id', (req: Request, res: Response) => {
  */
 router.post('/templates/:id/render', (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const { variables } = req.body;
 
     if (!variables || typeof variables !== 'object') {

@@ -96,7 +96,7 @@ router.get('/recordings', (req: Request, res: Response) => {
  */
 router.get('/recordings/:id', (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const recording = gestureRecorder.getRecording(id);
 
     if (!recording) {
@@ -125,7 +125,7 @@ router.get('/recordings/:id', (req: Request, res: Response) => {
  */
 router.post('/recordings/:id/play', (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const recording = gestureRecorder.getRecording(id);
 
     if (!recording) {
@@ -156,7 +156,7 @@ router.post('/recordings/:id/play', (req: Request, res: Response) => {
  */
 router.delete('/recordings/:id', (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const deleted = gestureRecorder.deleteRecording(id);
 
     if (!deleted) {
