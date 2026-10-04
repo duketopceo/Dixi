@@ -43,13 +43,17 @@ describe('GestureControls', () => {
   });
 
   it('should stop tracking when button clicked', async () => {
+    (apiService.startTracking as any).mockResolvedValueOnce({
+      status: 'started',
+      message: 'Tracking started',
+    });
     (apiService.stopTracking as any).mockResolvedValueOnce({
       status: 'stopped',
       message: 'Tracking stopped',
     });
 
     // Start with tracking active
-    const { rerender } = render(<GestureControls currentGesture={null} onLog={mockOnLog} />);
+    render(<GestureControls currentGesture={null} onLog={mockOnLog} />);
     
     const startButton = screen.getByRole('button', { name: /Start Tracking/i });
     fireEvent.click(startButton);

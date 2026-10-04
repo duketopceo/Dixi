@@ -143,7 +143,7 @@ export const FaceOverlay: React.FC = React.memo(() => {
         <div className="body-pose-overlay">
           {useMemo(() => {
             // Only render key landmarks for performance (every 3rd landmark)
-            const keyLandmarks = body.landmarks.filter((_: any, idx: number) => idx % 3 === 0);
+            const keyLandmarks = (body.landmarks ?? []).filter((_: any, idx: number) => idx % 3 === 0);
             return keyLandmarks.map((landmark: any, idx: number) => (
               <div
                 key={idx}

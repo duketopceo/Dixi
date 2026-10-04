@@ -1,18 +1,17 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import { useTrackingStore } from '../store/trackingStore';
+import {
+  resizeCanvasToWindow,
+  normalizeCoordinate,
+  drawHandCursor,
+  HAND_COLOR,
+} from '../components/canvasUtils';
 
 interface Stroke {
   color: string;
   width: number;
   points: { x: number; y: number }[]; // [0,1] canvas space
 }
-
-const HAND_COLOR: Record<'left' | 'right', string> = {
-  right: '#00F5FF',
-  left: '#FF006E',
-};
-
-const norm = (v: number) => Math.max(0, Math.min(1, (v + 1) / 2));
 
 /**
  * Draw with your index finger: pinch closes the pen, open palm lifts it,
@@ -35,7 +34,7 @@ export const DrawScene: React.FC = () => {
         active.current.delete(side);
         continue;
       }
-      const pos = { x: norm(hand.position.x), y: norm(hand.position.y) };
+      const pos = { x: normalizeCoordinate(hand.position.x), y: normalizeCoordinate(hand.position.y) };
 
       if (hand.gesture === 'closed_fist') {
         strokes.current = [];
@@ -67,8 +66,7 @@ export const DrawScene: React.FC = () => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    resizeCanvasToWindow(canvas);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.lineCap = 'round';
@@ -104,13 +102,9 @@ export const DrawScene: React.FC = () => {
     for (const side of ['left', 'right'] as const) {
       const hand = hands?.[side];
       if (!hand?.detected || !hand.position) continue;
-      const x = norm(hand.position.x) * canvas.width;
-      const y = norm(hand.position.y) * canvas.height;
-      ctx.beginPath();
-      ctx.arc(x, y, hand.gesture === 'pinch' ? 12 : 8, 0, Math.PI * 2);
-      ctx.fillStyle =
-        hand.gesture === 'pinch' ? HAND_COLOR[side] : 'rgba(255,255,255,0.35)';
-      ctx.fill();
+      const x = normalizeCoordinate(hand.position.x) * canvas.width;
+      const y = normalizeCoordinate(hand.position.y) * canvas.height;
+      drawHandCursor(ctx, x, y, side, hand.gesture === 'pinch');
     }
 
     ctx.fillStyle = 'rgba(255,255,255,0.5)';

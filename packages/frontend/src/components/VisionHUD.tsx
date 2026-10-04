@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useVisionStore } from '../vision/visionStore';
+import { browserTrackingSource } from '../vision/browserTrackingSource';
 
 const STATUS_COLOR: Record<string, string> = {
   idle: '#888',
@@ -11,12 +12,33 @@ const STATUS_COLOR: Record<string, string> = {
 
 /** Bottom-left pill: vision source status, fps, calibrate/recalibrate. */
 export const VisionHUD: React.FC = () => {
-  const { mode, status, fps, inferenceMs, homography, error } = useVisionStore();
+  // Narrow selectors: perf values are rounded so the HUD re-renders only
+  // when the displayed numbers actually change, not every inference frame.
+  const mode = useVisionStore((s) => s.mode);
+  const status = useVisionStore((s) => s.status);
+  const fps = useVisionStore((s) => Math.round(s.fps));
+  const inferenceMs = useVisionStore((s) => Math.round(s.inferenceMs));
+  const homography = useVisionStore((s) => s.homography);
+  const error = useVisionStore((s) => s.error);
   const beginCalibration = useVisionStore((s) => s.beginCalibration);
   const clearCalibration = useVisionStore((s) => s.clearCalibration);
   const calibrating = useVisionStore((s) => s.calibrating);
   const previewVisible = useVisionStore((s) => s.previewVisible);
   const togglePreview = useVisionStore((s) => s.togglePreview);
+  const cameraId = useVisionStore((s) => s.cameraId);
+  const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
+
+  // Device labels only populate after a camera grant — refresh when running.
+  useEffect(() => {
+    if (status !== 'running') return;
+    let cancelled = false;
+    browserTrackingSource.listCameras().then((cams) => {
+      if (!cancelled) setCameras(cams);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
 
   if (mode !== 'browser' || calibrating) return null;
 
@@ -53,8 +75,36 @@ export const VisionHUD: React.FC = () => {
       </span>
       {status === 'running' && (
         <span style={{ opacity: 0.7 }}>
-          {fps.toFixed(0)} fps · {inferenceMs.toFixed(0)}ms
+          {fps} fps ·{' '}
+          <span style={{ color: inferenceMs > 25 ? '#FFB800' : undefined }}>
+            {inferenceMs}ms
+          </span>
         </span>
+      )}
+      {cameras.length > 1 && (
+        <select
+          value={cameraId ?? ''}
+          onChange={(e) => {
+            browserTrackingSource.setCamera(e.target.value || null).catch(() => {});
+          }}
+          title="Camera source"
+          style={{
+            fontSize: 11,
+            color: '#fff',
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: 10,
+            padding: '3px 6px',
+            maxWidth: 140,
+          }}
+        >
+          <option value="">Default camera</option>
+          {cameras.map((c) => (
+            <option key={c.deviceId} value={c.deviceId}>
+              {c.label || `Camera ${c.deviceId.slice(0, 6)}`}
+            </option>
+          ))}
+        </select>
       )}
       <button
         onClick={togglePreview}

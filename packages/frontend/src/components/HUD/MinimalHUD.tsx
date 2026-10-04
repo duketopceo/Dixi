@@ -8,9 +8,9 @@ const MinimalHUD: React.FC = () => {
   const { isConnected } = useWebSocket();
   const currentTracking = useTrackingStore((state) => state.currentTracking);
   const currentGesture = currentTracking?.hands?.right?.detected 
-    ? { type: currentTracking.hands.right.gesture, position: currentTracking.hands.right.position }
+    ? { type: currentTracking.hands.right.gesture, position: currentTracking.hands.right.position, confidence: currentTracking.hands.right.confidence }
     : currentTracking?.hands?.left?.detected
-    ? { type: currentTracking.hands.left.gesture, position: currentTracking.hands.left.position }
+    ? { type: currentTracking.hands.left.gesture, position: currentTracking.hands.left.position, confidence: currentTracking.hands.left.confidence }
     : null;
   const { isProcessing } = useAIStore();
   const [fps, setFps] = useState(0);

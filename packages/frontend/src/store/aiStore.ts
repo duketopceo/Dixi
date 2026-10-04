@@ -8,7 +8,7 @@ interface AIResponse {
   metadata?: any;
   timestamp: number;
   streaming?: boolean;
-  analysisType?: 'gesture' | 'continuous' | 'query';
+  analysisType?: 'gesture' | 'continuous' | 'query' | 'vision' | 'error';
 }
 
 interface ChatMessage {

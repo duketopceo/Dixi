@@ -418,7 +418,7 @@ export class AIService {
       const optimizedContext = this.buildOptimizedContext(context);
 
       // Gemini API endpoint
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.cloudModel}:generateContent?key=${this.geminiApiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.cloudModel}:generateContent`;
 
       const response = await axios.post(
         url,
@@ -442,7 +442,8 @@ export class AIService {
           }
         },
         {
-          timeout: 60000
+          timeout: 60000,
+          headers: { 'x-goog-api-key': this.geminiApiKey }
         }
       );
 
@@ -469,7 +470,7 @@ export class AIService {
         }
       };
     } catch (error: any) {
-      logger.error('Gemini inference failed:', error);
+      logger.error(`Gemini inference failed: ${error.message}`);
       
       if (error.response) {
         logger.error('Gemini API error response:', {
@@ -741,7 +742,7 @@ export class AIService {
     try {
       logger.info('👁️ Analyzing image with Gemini...');
       
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.cloudModel}:generateContent?key=${this.geminiApiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.cloudModel}:generateContent`;
 
       const response = await axios.post(
         url,
@@ -785,7 +786,8 @@ Rules:
           }
         },
         {
-          timeout: 30000 // 30 second timeout for vision
+          timeout: 30000, // 30 second timeout for vision
+          headers: { 'x-goog-api-key': this.geminiApiKey }
         }
       );
 
@@ -809,7 +811,7 @@ Rules:
         }
       };
     } catch (error: any) {
-      logger.error('Gemini vision analysis failed:', error);
+      logger.error(`Gemini vision analysis failed: ${error.message}`);
       
       if (error.response) {
         logger.error('Gemini API error response:', {

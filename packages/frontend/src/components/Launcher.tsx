@@ -106,7 +106,12 @@ export const Launcher: React.FC = () => {
 
       <div style={{ marginTop: 44, display: 'flex', gap: 16, alignItems: 'center' }}>
         <button
-          onClick={beginCalibration}
+          onClick={() => {
+            // The launcher (z-3000) sits above the calibration overlay
+            // (z-2000) — it must close or calibration is uncompletable.
+            beginCalibration();
+            closeMenu();
+          }}
           style={{
             padding: '12px 28px',
             fontSize: 15,

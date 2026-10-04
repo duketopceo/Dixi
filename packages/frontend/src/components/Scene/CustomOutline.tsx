@@ -25,7 +25,8 @@ export const CustomOutline: React.FC<CustomOutlineProps> = ({
   useFrame(() => {
     if (outlineRef.current && children.props.children) {
       // Sync the outline mesh with the original mesh
-      const originalMesh = children.ref?.current || children.props.children;
+      const childRef = (children.props as { ref?: React.RefObject<THREE.Object3D> }).ref?.current;
+      const originalMesh = childRef || children.props.children;
       if (originalMesh && originalMesh instanceof THREE.Mesh) {
         outlineRef.current.position.copy(originalMesh.position);
         outlineRef.current.rotation.copy(originalMesh.rotation);

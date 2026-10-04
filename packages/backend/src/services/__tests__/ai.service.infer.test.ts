@@ -2,6 +2,29 @@ import { AIService, InferenceResponse, GestureContext } from '../ai';
 import { createAIServiceWithEnv, clearAICache } from './test-utils';
 import axios from 'axios';
 
+/**
+ * These are integration tests: they call the real local Ollama.
+ * Skip when the daemon is down OR the configured model isn't pulled —
+ * a running-but-mismatched Ollama must not fail the suite.
+ */
+async function ollamaHasModel(model = 'gemma3:4b'): Promise<boolean> {
+  try {
+    const res = await axios.get('http://localhost:11434/api/tags', { timeout: 2000 });
+    const names: string[] = (res.data?.models ?? []).map((m: { name: string }) => m.name);
+    return names.some((n) => n === model || n.startsWith(`${model}-`) || n.startsWith(`${model}:`));
+  } catch {
+    return false;
+  }
+}
+
+async function skipUnlessOllamaModel(): Promise<boolean> {
+  if (!(await ollamaHasModel())) {
+    console.warn('Ollama or gemma3:4b not available, skipping integration test');
+    return false;
+  }
+  return true;
+}
+
 describe('AIService - Inference Tests', () => {
   beforeEach(() => {
     clearAICache();
@@ -87,12 +110,7 @@ describe('AIService - Inference Tests', () => {
 
     it('should make real Ollama API call and return response', async () => {
       // Skip if Ollama is not running
-      try {
-        await axios.get('http://localhost:11434/api/tags', { timeout: 2000 });
-      } catch {
-        console.warn('Ollama not running, skipping test');
-        return;
-      }
+      if (!(await skipUnlessOllamaModel())) return;
 
       const query = 'Say hello in one sentence';
       const response = await service.infer(query);
@@ -106,12 +124,7 @@ describe('AIService - Inference Tests', () => {
     });
 
     it('should include context in prompt when provided', async () => {
-      try {
-        await axios.get('http://localhost:11434/api/tags', { timeout: 2000 });
-      } catch {
-        console.warn('Ollama not running, skipping test');
-        return;
-      }
+      if (!(await skipUnlessOllamaModel())) return;
 
       const context: GestureContext = {
         gesture: {
@@ -142,12 +155,7 @@ describe('AIService - Inference Tests', () => {
     });
 
     it('should cache response and return cached result on second call', async () => {
-      try {
-        await axios.get('http://localhost:11434/api/tags', { timeout: 2000 });
-      } catch {
-        console.warn('Ollama not running, skipping test');
-        return;
-      }
+      if (!(await skipUnlessOllamaModel())) return;
 
       const query = 'What is 2+2? Answer in one word.';
       
@@ -168,12 +176,7 @@ describe('AIService - Inference Tests', () => {
     });
 
     it('should use different cache keys for different providers', async () => {
-      try {
-        await axios.get('http://localhost:11434/api/tags', { timeout: 2000 });
-      } catch {
-        console.warn('Ollama not running, skipping test');
-        return;
-      }
+      if (!(await skipUnlessOllamaModel())) return;
 
       const query = 'Test query for cache key';
       
@@ -228,12 +231,7 @@ describe('AIService - Inference Tests', () => {
 
   describe('E. Gemini Fallback to Ollama', () => {
     it('should fall back to Ollama when Gemini fails', async () => {
-      try {
-        await axios.get('http://localhost:11434/api/tags', { timeout: 2000 });
-      } catch {
-        console.warn('Ollama not running, skipping fallback test');
-        return;
-      }
+      if (!(await skipUnlessOllamaModel())) return;
 
       // Use invalid API key to trigger Gemini failure
       const service = createAIServiceWithEnv({
@@ -269,12 +267,7 @@ describe('AIService - Inference Tests', () => {
     });
 
     it('should stream responses from Ollama', async () => {
-      try {
-        await axios.get('http://localhost:11434/api/tags', { timeout: 2000 });
-      } catch {
-        console.warn('Ollama not running, skipping stream test');
-        return;
-      }
+      if (!(await skipUnlessOllamaModel())) return;
 
       const chunks: Array<{ text: string; done: boolean }> = [];
       const context: GestureContext = {

@@ -1,5 +1,4 @@
 import React from 'react';
-import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useSceneStore, ObjectGroup } from '../../store/sceneStore';
 
@@ -8,7 +7,6 @@ interface GroupVisualizationProps {
 }
 
 export const GroupVisualization: React.FC<GroupVisualizationProps> = ({ group }) => {
-  const { scene } = useThree();
   const objects = useSceneStore((state) => state.objects);
   const selectedGroupId = useSceneStore((state) => state.selectedGroupId);
   const isSelected = selectedGroupId === group.id;
@@ -27,7 +25,6 @@ export const GroupVisualization: React.FC<GroupVisualizationProps> = ({ group })
     box.expandByPoint(new THREE.Vector3(pos.x + size, pos.y + size, pos.z + size));
   });
 
-  const center = box.getCenter(new THREE.Vector3());
   const size = box.getSize(new THREE.Vector3());
 
   return (

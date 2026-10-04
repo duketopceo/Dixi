@@ -34,5 +34,6 @@ RUN npm install -g serve
 # Expose port
 EXPOSE 3000
 
-# Serve the built application
-CMD ["serve", "-s", "dist", "-l", "3000"]
+# Serve the built application — WORKDIR is /app, dist lives under the
+# frontend package (a bare `serve -s dist` from /app serves nothing).
+CMD ["serve", "-s", "packages/frontend/dist", "-l", "3000"]
