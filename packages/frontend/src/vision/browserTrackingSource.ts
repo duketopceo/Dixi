@@ -90,7 +90,8 @@ export class BrowserTrackingSource {
     const store = useVisionStore.getState();
     store.setStatus('starting');
     const wantId = deviceId ?? store.cameraId ?? undefined;
-    this.startPromise = this.client
+    let p: Promise<void>;
+    p = this.client
       .start(wantId) // onReady inside -> 'running'
       .catch(async (err) => {
         // A persisted cameraId can point at an unplugged camera — fall back
@@ -106,9 +107,11 @@ export class BrowserTrackingSource {
         throw err;
       })
       .finally(() => {
-        this.startPromise = null;
+        // Identity check: a newer start may already own startPromise.
+        if (this.startPromise === p) this.startPromise = null;
       });
-    return this.startPromise;
+    this.startPromise = p;
+    return p;
   }
 
   stop(): void {
