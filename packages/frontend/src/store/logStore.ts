@@ -138,7 +138,7 @@ export const useLogStore = create<LogStore>((set) => ({
     })),
 
   clearSection: (section) =>
-    set((state) => ({
+    set(() => ({
       [section]: [],
     })),
 

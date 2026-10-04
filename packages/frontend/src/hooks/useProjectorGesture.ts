@@ -5,7 +5,7 @@
  * in projector coordinate space (0-1 normalized).
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useWebSocket } from './useWebSocket';
 
 export interface ProjectorGestureData {

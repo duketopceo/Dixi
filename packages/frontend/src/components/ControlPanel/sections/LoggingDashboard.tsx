@@ -29,7 +29,6 @@ export const LoggingDashboard: React.FC<Props> = ({ onLog }) => {
     apiLogs,
     healthLogs,
     clearSection,
-    clearAll,
   } = useLogStore();
 
   // Fetch logs from backend

@@ -18,7 +18,7 @@ import { GestureSmoother } from '../utils/gestureSmoothing';
 import logger from '../utils/logger';
 
 const ProjectionScene: React.FC = () => {
-  const { scene, camera, gl } = useThree();
+  const { scene, camera } = useThree();
   const currentTracking = useTrackingStore((state) => state.currentTracking);
   const currentGesture = currentTracking?.hands?.right?.detected 
     ? { type: currentTracking.hands.right.gesture, position: currentTracking.hands.right.position, confidence: currentTracking.hands.right.confidence, timestamp: currentTracking.hands.right.timestamp }
@@ -30,15 +30,10 @@ const ProjectionScene: React.FC = () => {
   const addObject = useSceneStore((state) => state.addObject);
   const removeObject = useSceneStore((state) => state.removeObject);
   const selectObject = useSceneStore((state) => state.selectObject);
-  const addToSelection = useSceneStore((state) => state.addToSelection);
   const clearSelection = useSceneStore((state) => state.clearSelection);
   const updateObject = useSceneStore((state) => state.updateObject);
-  const updateSelectedObjects = useSceneStore((state) => state.updateSelectedObjects);
   const duplicateObject = useSceneStore((state) => state.duplicateObject);
-  const selectedObjectIds = useSceneStore((state) => state.selectedObjectIds);
-  const isSelected = useSceneStore((state) => state.isSelected);
   const groups = useSceneStore((state) => state.groups);
-  const createGroup = useSceneStore((state) => state.createGroup);
   const { clearResponse, sendQuery } = useAIStore();
 
   // Gesture state tracking
@@ -83,7 +78,7 @@ const ProjectionScene: React.FC = () => {
   // Track frame time for performance monitoring
   const frameTimeRef = useRef<number>(16.67);
   const lastFrameTimeDispatchRef = useRef<number>(0);
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     frameTimeRef.current = delta * 1000; // Convert to milliseconds
     // Dispatch frame time update (throttled to once per second)
     const now = Date.now();
@@ -177,7 +172,7 @@ const ProjectionScene: React.FC = () => {
             addParticle(sanitized.position, '#FF006E', 'burst');
           }
           
-          updateObject(selectedObjectId, {
+          updateObject(selectedObject.id, {
             position: sanitized.position,
           });
         }
@@ -231,7 +226,7 @@ const ProjectionScene: React.FC = () => {
           
           const sanitized = sanitizeTransform(undefined, newRotation);
           if (sanitized.rotation) {
-            updateObject(selectedObjectId, {
+            updateObject(selectedObject.id, {
               rotation: sanitized.rotation,
             });
           }
@@ -263,7 +258,7 @@ const ProjectionScene: React.FC = () => {
         
         if (finalScale < 0.15 && gestureType === 'fist') {
           // Delete object if scaled too small
-          removeObject(selectedObjectId);
+          removeObject(selectedObject.id);
           addParticle(selectedObject.position as [number, number, number], '#FF006E', 'burst');
           selectObject(null);
           scaleSmootherRef.current.reset();
@@ -271,7 +266,7 @@ const ProjectionScene: React.FC = () => {
         } else {
           const sanitized = sanitizeTransform(undefined, undefined, [finalScale, finalScale, finalScale]);
           if (sanitized.scale) {
-            updateObject(selectedObjectId, {
+            updateObject(selectedObject.id, {
               scale: sanitized.scale,
             });
           }

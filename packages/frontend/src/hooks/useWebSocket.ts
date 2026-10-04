@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 import { useAIStore } from '../store/aiStore';
 import { useTrackingStore } from '../store/trackingStore';
 import logger from '../utils/logger';

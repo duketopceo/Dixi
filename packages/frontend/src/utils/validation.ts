@@ -1,5 +1,4 @@
 import { SceneObject } from '../store/sceneStore';
-import * as THREE from 'three';
 
 export const MAX_OBJECTS = 50;
 export const MIN_GESTURE_CONFIDENCE = 0.3;

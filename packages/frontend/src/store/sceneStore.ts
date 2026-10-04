@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import * as THREE from 'three';
 import { MAX_OBJECTS } from '../utils/validation';
 
 export type ObjectType = 'box' | 'sphere' | 'torus' | 'cone' | 'cylinder' | 'octahedron' | 'tetrahedron' | 'plane' | 'ring';
@@ -180,6 +179,7 @@ export const useSceneStore = create<SceneStore>((set, get) => ({
             ...obj,
             ...updates,
             metadata: {
+              createdAt: Date.now(),
               ...obj.metadata,
               lastModified: Date.now(),
             },
@@ -210,6 +210,7 @@ export const useSceneStore = create<SceneStore>((set, get) => ({
             ...obj,
             ...updates,
             metadata: {
+              createdAt: Date.now(),
               ...obj.metadata,
               lastModified: Date.now(),
             },
@@ -401,6 +402,7 @@ export const useSceneStore = create<SceneStore>((set, get) => ({
             ...g,
             objectIds: [...g.objectIds, objectId],
             metadata: {
+              createdAt: Date.now(),
               ...g.metadata,
               lastModified: Date.now(),
             },
@@ -421,6 +423,7 @@ export const useSceneStore = create<SceneStore>((set, get) => ({
             ...g,
             objectIds: g.objectIds.filter((id) => id !== objectId),
             metadata: {
+              createdAt: Date.now(),
               ...g.metadata,
               lastModified: Date.now(),
             },
@@ -451,6 +454,7 @@ export const useSceneStore = create<SceneStore>((set, get) => ({
             ...g,
             ...updates,
             metadata: {
+              createdAt: Date.now(),
               ...g.metadata,
               lastModified: Date.now(),
             },

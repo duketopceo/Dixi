@@ -157,12 +157,13 @@ describe('LoggingDashboard', () => {
     global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
     global.URL.revokeObjectURL = vi.fn();
     const mockClick = vi.fn();
-    const mockCreateElement = vi.fn(() => ({
-      click: mockClick,
-      href: '',
-      download: '',
-    }));
-    document.createElement = mockCreateElement as any;
+    const origCreateElement = document.createElement.bind(document);
+    const mockCreateElement = vi.fn((tag: string) =>
+      tag === 'a'
+        ? ({ click: mockClick, href: '', download: '' } as unknown as HTMLElement)
+        : origCreateElement(tag)
+    );
+    document.createElement = mockCreateElement as typeof document.createElement;
 
     (apiService.getBackendLogs as any).mockResolvedValueOnce([]);
     (apiService.getVisionLogs as any).mockResolvedValueOnce([]);

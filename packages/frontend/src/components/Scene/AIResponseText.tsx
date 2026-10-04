@@ -17,7 +17,7 @@ export const AIResponseText: React.FC = () => {
     ? { type: currentTracking.hands.left.gesture, position: currentTracking.hands.left.position }
     : null;
   const [displayedText, setDisplayedText] = useState('');
-  const [wordIndex, setWordIndex] = useState(0);
+  const [, setWordIndex] = useState(0);
   const animationFrameRef = useRef<number>();
 
   // Handle streaming text animation

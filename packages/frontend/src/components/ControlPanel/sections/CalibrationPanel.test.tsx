@@ -124,7 +124,7 @@ describe('CalibrationPanel', () => {
 
     // Wait for error to appear
     await waitFor(() => {
-      expect(mockOnLog).toHaveBeenCalledWith('error', expect.stringContaining('Failed to save'));
+      expect(mockOnLog).toHaveBeenCalledWith('error', expect.stringContaining('Validation failed'));
     });
   });
 
@@ -169,8 +169,7 @@ describe('CalibrationPanel', () => {
           expect.objectContaining({ id: 'topRight' }),
           expect.objectContaining({ id: 'bottomLeft' }),
           expect.objectContaining({ id: 'bottomRight' })
-        ]),
-        expect.any(String)
+        ])
       );
       expect(mockOnLog).toHaveBeenCalledWith('success', expect.stringContaining('Demo calibration'));
     });
