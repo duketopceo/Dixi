@@ -88,7 +88,9 @@ function loadCalibration(): {
 const initial = loadCalibration();
 
 export const useVisionStore = create<VisionStore>((set, get) => ({
-  mode: (import.meta.env.VITE_VISION_MODE as VisionMode) || 'browser',
+  // Validate the env value — an unchecked cast would let a typo silently
+  // select nonsense mode instead of the browser default.
+  mode: import.meta.env.VITE_VISION_MODE === 'server' ? 'server' : 'browser',
   status: 'idle',
   error: null,
   fps: 0,

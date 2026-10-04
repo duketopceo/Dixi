@@ -17,18 +17,23 @@ Nobody else occupies this lane: Lumo Play and Intuiface are closed no-code platf
 ## Phases
 
 ### ✅ v0.2 — Foundation (done, Oct 2026)
-- Browser Vision Mode: MediaPipe GestureRecognizer in a Web Worker, GPU delegate + CPU fallback
+- Browser Vision Mode: MediaPipe GestureRecognizer on the main thread — GPU/CPU delegate self-benchmarked at startup (MediaPipe's WASM loader uses `importScripts`, which ES-module workers forbid)
 - 4-point dwell calibration (normalized-DLT homography camera→projector)
 - GestureShapes scene: pinch-drag, two-hand pinch-to-scale
 - VisionHUD status pill + CalibrationOverlay
 - CI that actually gates; vision/backend test suites green
 - `VITE_VISION_MODE=server` keeps the legacy Python path alive
 
-### 🚧 v0.3 — GUI Shell (current)
+### ✅ v0.3 — GUI Shell
 - Scene system: Launcher + Dock + scene registry
 - DrawScene: pinch to sketch, fist to clear
+- Camera picker: HUD dropdown, persisted device, unplug fallback
 - Calibration flow polish; per-scene instructions on the projected surface
-- Frame budget guardrails: warn when inference > 33ms or fps < 24
+- Frame budget guardrails: HUD warns when inference > 25ms; canvas bitmap
+  resizes are guarded; inference skips unchanged frames
+- Review fix round (see `docs/plans/2026-10-03-review-fix-round-plan.md`):
+  tracker lifecycle serialization, fail-closed CORS + admin auth, calibration
+  integrity, scene consolidation, CI actually gating frontend tests
 
 ### 📋 v0.4 — Smarter Surfaces
 - **Auto-calibration**: project a marker, find it in the camera frame automatically (no finger taps)

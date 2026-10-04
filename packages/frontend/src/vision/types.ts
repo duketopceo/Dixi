@@ -1,4 +1,6 @@
-// Shared types between the vision worker and the main thread.
+// Shared vision types. Inference runs on the main thread (MediaPipe's WASM
+// loader uses importScripts, which ES-module workers forbid) — the tracker
+// self-benchmarks GPU vs CPU delegates at startup and keeps the faster.
 // Camera coords are normalized [0,1] with origin top-left (MediaPipe image space).
 // Projector coords are normalized [0,1] with origin top-left (canvas space).
 
@@ -6,11 +8,6 @@ export interface Landmark {
   x: number;
   y: number;
   z: number;
-}
-
-export interface CalibrationPoint {
-  camera: { x: number; y: number };
-  projector: { x: number; y: number };
 }
 
 export interface RawHandResult {
@@ -32,16 +29,3 @@ export type GestureName =
   | 'i_love_you'
   | 'none';
 
-export interface TrackedHand {
-  detected: boolean;
-  handedness: 'Left' | 'Right';
-  gesture: GestureName;
-  /** Fingertip/pinch-centroid position in projector space [-1, 1], or null when uncalibrated */
-  position: { x: number; y: number; z: number } | null;
-  /** Position in raw camera space [0, 1] */
-  cameraPosition: { x: number; y: number };
-  landmarks: Landmark[];
-  confidence: number;
-  pinchStrength: number; // 0 = wide open, 1 = tips touching
-  timestamp: number;
-}

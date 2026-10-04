@@ -1,7 +1,6 @@
 // GestureShapes interaction state machine: pinch-grab, drag, two-hand
 // scale, release — observed through the recorded 2d context.
 
-import React from 'react';
 import { render, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import GestureShapes from '../GestureShapes';

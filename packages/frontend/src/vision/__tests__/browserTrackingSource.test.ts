@@ -74,12 +74,11 @@ function frame(hands: RawHandResult[], ms = 0) {
 }
 
 describe('BrowserTrackingSource', () => {
-  let source: BrowserTrackingSource;
-
   beforeEach(() => {
     useTrackingStore.setState({ currentTracking: null, trackingHistory: [] });
     useVisionStore.setState({ homography: null, status: 'idle', fps: 0, inferenceMs: 0 });
-    source = new BrowserTrackingSource();
+    // constructs the mocked TrackerClient and captures its callbacks
+    new BrowserTrackingSource();
     // clear any residual per-hand state from earlier tests
     frame([]);
   });

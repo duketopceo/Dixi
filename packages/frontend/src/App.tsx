@@ -35,7 +35,8 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (mode === 'browser') {
-      // Vision runs locally — camera + MediaPipe WASM in a Web Worker.
+      // Vision runs locally — camera + MediaPipe WASM on the main thread
+      // (the WASM loader's importScripts is incompatible with ESM workers).
       // WebSocket/backend stays connected for AI features only if configured.
       browserTrackingSource.start().catch(() => {
         // camera denied/unavailable — status already 'error' in the store
