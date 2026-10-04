@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import { useTrackerVideoStream } from '../vision/useTrackerVideoStream';
 import { useTrackingStore } from '../store/trackingStore';
 import { useVisionStore } from '../vision/visionStore';
+import { HAND_COLOR } from './canvasUtils';
 
 // Hand skeleton connections for landmark overlay
 const BONES: [number, number][] = [
@@ -13,7 +14,6 @@ const BONES: [number, number][] = [
   [5, 9], [9, 13], [13, 17], [0, 17],   // palm
 ];
 
-const HAND_COLOR = { left: '#FF006E', right: '#00F5FF' } as const;
 const WIDTH = 320;
 const HEIGHT = 180;
 

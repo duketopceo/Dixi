@@ -1,5 +1,5 @@
 // Bridges tracker worker results into the existing trackingStore shape so
-// every downstream component (ProjectionShapes, HUD, GestureCursor) works
+// every downstream component (GestureShapes, DrawScene, HUD) works
 // unchanged — same TrackingData interface the Python service produced.
 
 import { TrackerClient } from './trackerClient';

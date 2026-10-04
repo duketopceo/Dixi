@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useTrackingStore, type HandData } from '../store/trackingStore';
-import { resizeCanvasToWindow } from './canvasUtils';
+import { resizeCanvasToWindow, normalizeCoordinate, dist, drawHandCursor } from './canvasUtils';
 
 interface Shape {
   id: string;
@@ -17,16 +17,8 @@ const initialShapes: Shape[] = [
   { id: 'c', type: 'triangle', position: { x: 0.7, y: 0.35 }, scale: 1, color: '#00FF87', pulse: 0 },
 ];
 
-export function normalizeCoordinate(raw: number): number {
-  return Math.max(0, Math.min(1, (raw + 1) / 2));
-}
-
 const SHAPE_RADIUS = 0.07;
 const GRAB_THRESHOLD = 0.1;
-
-function dist(a: { x: number; y: number }, b: { x: number; y: number }): number {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
 
 interface HandCursor {
   pos: { x: number; y: number }; // [0,1] canvas
@@ -214,17 +206,13 @@ export const GestureShapes: React.FC = () => {
 
     // cursors
     for (const cursor of cursorsRef.current) {
-      const cx = cursor.pos.x * canvas.width;
-      const cy = cursor.pos.y * canvas.height;
-      ctx.beginPath();
-      ctx.arc(cx, cy, cursor.pinching ? 16 : 10, 0, Math.PI * 2);
-      ctx.fillStyle = cursor.pinching
-        ? 'rgba(255,255,255,0.9)'
-        : 'rgba(255,255,255,0.4)';
-      ctx.fill();
-      ctx.strokeStyle = cursor.side === 'right' ? '#00F5FF' : '#FF006E';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      drawHandCursor(
+        ctx,
+        cursor.pos.x * canvas.width,
+        cursor.pos.y * canvas.height,
+        cursor.side,
+        cursor.pinching,
+      );
     }
 
     ctx.fillStyle = 'rgba(255,255,255,0.5)';

@@ -1,11 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeCoordinate } from './ProjectionShapes';
+import { normalizeCoordinate } from './canvasUtils';
 
-/**
- * Simplified test suite focusing on the coordinate normalization utility.
- * Full component tests are run separately to avoid memory issues.
- */
-describe('ProjectionShapes', () => {
+describe('canvasUtils', () => {
   describe('normalizeCoordinate', () => {
     it('should convert -1 to 0', () => {
       expect(normalizeCoordinate(-1)).toBe(0);
