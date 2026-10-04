@@ -108,7 +108,7 @@ router.post('/process', gestureLimiter, async (req: Request, res: Response) => {
 router.post('/start', gestureLimiter, async (req: Request, res: Response) => {
   try {
     logger.info('Starting face detection');
-    const response = await axios.post(`${VISION_SERVICE_URL}/face/start`);
+    const response = await axios.post(`${VISION_SERVICE_URL}/face/start`, undefined, { timeout: 5000 });
     logger.info('Face detection started successfully');
     res.json({ 
       message: 'Face detection started',
@@ -127,7 +127,7 @@ router.post('/start', gestureLimiter, async (req: Request, res: Response) => {
 router.post('/stop', gestureLimiter, async (req: Request, res: Response) => {
   try {
     logger.info('Stopping face detection');
-    const response = await axios.post(`${VISION_SERVICE_URL}/face/stop`);
+    const response = await axios.post(`${VISION_SERVICE_URL}/face/stop`, undefined, { timeout: 5000 });
     logger.info('Face detection stopped successfully');
     res.json({ 
       message: 'Face detection stopped',

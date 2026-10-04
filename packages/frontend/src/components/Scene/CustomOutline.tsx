@@ -21,22 +21,30 @@ export const CustomOutline: React.FC<CustomOutlineProps> = ({
 }) => {
   const outlineRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
+  const sourceRef = useRef<THREE.Mesh | null>(null);
 
   useFrame(() => {
-    if (outlineRef.current && children.props.children) {
+    if (outlineRef.current && sourceRef.current) {
       // Sync the outline mesh with the original mesh
-      const originalMesh = children.ref?.current || children.props.children;
-      if (originalMesh && originalMesh instanceof THREE.Mesh) {
-        outlineRef.current.position.copy(originalMesh.position);
-        outlineRef.current.rotation.copy(originalMesh.rotation);
-        outlineRef.current.scale.copy(originalMesh.scale).multiplyScalar(1 + thickness);
-      }
+      const originalMesh = sourceRef.current;
+      outlineRef.current.position.copy(originalMesh.position);
+      outlineRef.current.rotation.copy(originalMesh.rotation);
+      outlineRef.current.scale.copy(originalMesh.scale).multiplyScalar(1 + thickness);
     }
   });
 
-  // Clone the children and create an outline version
+  // React 18 keeps ref on the element, not in props — capture the mounted
+  // node through our injected callback ref, and forward any ref the caller
+  // already attached.
+  const originalRef = (children as React.ReactElement & { ref?: React.Ref<THREE.Mesh> }).ref;
   const clonedChildren = React.cloneElement(children, {
-    ref: (node: THREE.Mesh) => {
+    ref: (node: THREE.Mesh | null) => {
+      sourceRef.current = node;
+      if (typeof originalRef === 'function') {
+        originalRef(node);
+      } else if (originalRef && typeof originalRef === 'object') {
+        (originalRef as React.MutableRefObject<THREE.Mesh | null>).current = node;
+      }
       if (node) {
         // Create outline mesh
         if (node.geometry) {

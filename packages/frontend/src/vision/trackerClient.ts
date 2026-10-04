@@ -5,6 +5,11 @@
 //
 // One inference per animation frame; the rAF cadence provides natural
 // backpressure. Timestamps feed VIDEO mode so MediaPipe tracks across frames.
+//
+// Lifecycle: start()/stop() are serialized by a monotonically increasing
+// generation. Every awaited step re-checks the generation — a start that was
+// stopped mid-flight aborts, releasing whatever it already acquired (camera
+// tracks, video element) instead of resurrecting a dead tracker.
 
 import {
   FilesetResolver,
@@ -18,6 +23,8 @@ const MODEL_PATH = '/models/gesture_recognizer.task';
 // Inference input width — MediaPipe scales internally, so feeding the
 // full-res video element just wastes texture readback on every frame.
 const INFER_WIDTH = 320;
+// Consecutive pump failures before the tracker halts into 'error'.
+const MAX_CONSECUTIVE_FAILURES = 30;
 
 export interface TrackerCallbacks {
   onReady?: () => void;
@@ -27,15 +34,20 @@ export interface TrackerCallbacks {
 
 export class TrackerClient {
   private recognizer: GestureRecognizer | null = null;
+  private recognizerPromise: Promise<GestureRecognizer> | null = null;
   private stream: MediaStream | null = null;
   private video: HTMLVideoElement | null = null;
   private frame: OffscreenCanvas | null = null;
   private frameCtx: OffscreenCanvasRenderingContext2D | null = null;
   private running = false;
+  private generation = 0;
   private rafId = 0;
   private callbacks: TrackerCallbacks;
   private frameCount = 0;
   private fpsWindowStart = 0;
+  private consecutiveFailures = 0;
+  private lastErrorMessage: string | null = null;
+  private lastVideoTime = -1;
   onFps?: (fps: number) => void;
 
   constructor(callbacks: TrackerCallbacks) {
@@ -79,45 +91,104 @@ export class TrackerClient {
     const winner = gpu.ms < cpu.ms * 0.85 ? gpu : cpu;
     const loser = winner === gpu ? cpu : gpu;
     loser.r?.close();
-    return winner.r!;
+    if (!winner.r) {
+      throw new Error('Hand tracking failed to initialize (no usable GPU/CPU delegate)');
+    }
+    return winner.r;
+  }
+
+  /** Shared recognizer init — concurrent starts must not double-benchmark. */
+  private getRecognizer(): Promise<GestureRecognizer> {
+    if (this.recognizer) return Promise.resolve(this.recognizer);
+    if (!this.recognizerPromise) {
+      this.recognizerPromise = this.pickDelegate()
+        .then((r) => (this.recognizer = r))
+        .catch((err) => {
+          this.recognizerPromise = null; // a later start() may retry
+          throw err;
+        });
+    }
+    return this.recognizerPromise;
+  }
+
+  private teardownStream(): void {
+    this.stream?.getTracks().forEach((t) => t.stop());
+    this.stream = null;
+    this.video?.pause();
+    if (this.video) this.video.srcObject = null;
+    this.video = null;
+  }
+
+  // Release only the resources a specific start() acquired. A superseded
+  // start must never touch this.stream/this.video — a newer start owns them.
+  private releaseOwned(stream: MediaStream | null, video: HTMLVideoElement | null): void {
+    video?.pause();
+    if (video) video.srcObject = null;
+    stream?.getTracks().forEach((t) => t.stop());
+    if (this.stream === stream) this.stream = null;
+    if (this.video === video) this.video = null;
   }
 
   async start(deviceId?: string): Promise<void> {
     if (this.running) return;
+    const gen = ++this.generation;
+    let stream: MediaStream | null = null;
+    let video: HTMLVideoElement | null = null;
 
-    if (!this.recognizer) {
-      this.recognizer = await this.pickDelegate();
+    try {
+      await this.getRecognizer();
+      if (gen !== this.generation) return;
+
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          deviceId: deviceId ? { exact: deviceId } : undefined,
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 },
+        },
+        audio: false,
+      });
+      if (gen !== this.generation) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+      this.stream = stream;
+
+      video = document.createElement('video');
+      video.srcObject = stream;
+      video.playsInline = true;
+      video.muted = true;
+      await video.play();
+      if (gen !== this.generation) {
+        this.releaseOwned(stream, video);
+        return;
+      }
+      this.video = video;
+
+      // Downscale target for inference
+      const h = Math.round((INFER_WIDTH * video.videoHeight) / video.videoWidth);
+      this.frame = new OffscreenCanvas(INFER_WIDTH, h);
+      this.frameCtx = this.frame.getContext('2d');
+
+      if (import.meta.env.DEV) {
+        (window as unknown as Record<string, unknown>).__video = video;
+      }
+
+      this.running = true;
+      this.consecutiveFailures = 0;
+      this.lastErrorMessage = null;
+      this.lastVideoTime = -1;
+      this.fpsWindowStart = performance.now();
+      this.callbacks.onReady?.();
+      this.pump();
+    } catch (err) {
+      if (gen === this.generation) {
+        this.teardownStream();
+      } else {
+        this.releaseOwned(stream, video);
+      }
+      throw err;
     }
-
-    this.stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        deviceId: deviceId ? { exact: deviceId } : undefined,
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-        frameRate: { ideal: 30 },
-      },
-      audio: false,
-    });
-
-    this.video = document.createElement('video');
-    this.video.srcObject = this.stream;
-    this.video.playsInline = true;
-    this.video.muted = true;
-    await this.video.play();
-
-    // Downscale target for inference
-    const h = Math.round((INFER_WIDTH * this.video.videoHeight) / this.video.videoWidth);
-    this.frame = new OffscreenCanvas(INFER_WIDTH, h);
-    this.frameCtx = this.frame.getContext('2d');
-
-    if (import.meta.env.DEV) {
-      (window as unknown as Record<string, unknown>).__video = this.video;
-    }
-
-    this.running = true;
-    this.fpsWindowStart = performance.now();
-    this.callbacks.onReady?.();
-    this.pump();
   }
 
   get videoElement(): HTMLVideoElement | null {
@@ -142,13 +213,23 @@ export class TrackerClient {
   private pump = (): void => {
     if (!this.running || !this.recognizer || !this.video) return;
 
-    if (this.video.readyState >= 2 && this.frameCtx && this.frame) {
+    if (
+      this.video.readyState >= 2 &&
+      this.video.currentTime !== this.lastVideoTime &&
+      this.frameCtx &&
+      this.frame
+    ) {
+      // currentTime only advances when a NEW frame was presented — this
+      // gates inference so unchanged/held frames don't burn the WASM call.
+      this.lastVideoTime = this.video.currentTime;
       const start = performance.now();
       try {
         this.frameCtx.drawImage(this.video, 0, 0, this.frame.width, this.frame.height);
         const result = this.recognizer.recognizeForVideo(this.frame, start);
         const inferenceMs = performance.now() - start;
         this.callbacks.onResult?.(this.toRaw(result), start, inferenceMs);
+        this.consecutiveFailures = 0;
+        this.lastErrorMessage = null;
         this.frameCount++;
         if (performance.now() - this.fpsWindowStart >= 2000) {
           this.onFps?.((this.frameCount * 1000) / (performance.now() - this.fpsWindowStart));
@@ -156,7 +237,19 @@ export class TrackerClient {
           this.fpsWindowStart = performance.now();
         }
       } catch (err) {
-        this.callbacks.onError?.(err instanceof Error ? err.message : String(err));
+        const message = err instanceof Error ? err.message : String(err);
+        this.consecutiveFailures++;
+        // Transient inference errors are tolerated silently — a single bad
+        // frame is not a tracker failure and must not flip status to 'error'
+        // or spam a store write at rAF rate. Only a sustained failure halts.
+        if (message !== this.lastErrorMessage) {
+          this.lastErrorMessage = message;
+        }
+        if (this.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+          this.callbacks.onError?.(`tracking halted after repeated errors: ${message}`);
+          this.stop();
+          return;
+        }
       }
     }
 
@@ -164,11 +257,9 @@ export class TrackerClient {
   };
 
   stop(): void {
+    this.generation++; // abort any in-flight start
     this.running = false;
     cancelAnimationFrame(this.rafId);
-    this.stream?.getTracks().forEach((t) => t.stop());
-    this.stream = null;
-    this.video?.pause();
-    this.video = null;
+    this.teardownStream();
   }
 }

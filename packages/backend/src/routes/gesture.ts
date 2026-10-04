@@ -290,7 +290,7 @@ async function triggerAIForGesture(gestureData: GestureBufferItem): Promise<void
 router.post('/start', gestureLimiter, async (req: Request, res: Response) => {
   try {
     logger.info('Starting gesture tracking');
-    const response = await axios.post(`${VISION_SERVICE_URL}/tracking/start`);
+    const response = await axios.post(`${VISION_SERVICE_URL}/tracking/start`, undefined, { timeout: 5000 });
     logger.info('Gesture tracking started successfully');
     res.json({ 
       message: 'Gesture tracking started',
@@ -309,7 +309,7 @@ router.post('/start', gestureLimiter, async (req: Request, res: Response) => {
 router.post('/stop', gestureLimiter, async (req: Request, res: Response) => {
   try {
     logger.info('Stopping gesture tracking');
-    const response = await axios.post(`${VISION_SERVICE_URL}/tracking/stop`);
+    const response = await axios.post(`${VISION_SERVICE_URL}/tracking/stop`, undefined, { timeout: 5000 });
     logger.info('Gesture tracking stopped successfully');
     res.json({ 
       message: 'Gesture tracking stopped',

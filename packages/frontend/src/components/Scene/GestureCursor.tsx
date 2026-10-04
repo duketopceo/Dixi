@@ -6,13 +6,11 @@ import { useTrackingStore } from '../../store/trackingStore';
 export const GestureCursor: React.FC = () => {
   const groupRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
-  const outerRingRef = useRef<THREE.Mesh>(null);
   const centerCrosshairRef = useRef<THREE.Mesh>(null);
-  const gestureVisualRef = useRef<THREE.Mesh>(null);
-  const bracket1Ref = useRef<THREE.Mesh>(null);
-  const bracket2Ref = useRef<THREE.Mesh>(null);
-  const bracket3Ref = useRef<THREE.Mesh>(null);
-  const bracket4Ref = useRef<THREE.Mesh>(null);
+  const bracket1Ref = useRef<THREE.Group>(null);
+  const bracket2Ref = useRef<THREE.Group>(null);
+  const bracket3Ref = useRef<THREE.Group>(null);
+  const bracket4Ref = useRef<THREE.Group>(null);
   const currentTracking = useTrackingStore((state) => state.currentTracking);
   // Get primary hand gesture (right hand preferred, fallback to left)
   const currentGesture = currentTracking?.hands?.right?.detected 
@@ -151,7 +149,7 @@ export const GestureCursor: React.FC = () => {
 
       {/* Gesture-specific visuals for various gesture types */}
       {['pinch', 'ok', 'double_tap'].includes(currentGesture.type) && (
-        <mesh ref={gestureVisualRef}>
+        <mesh>
           <octahedronGeometry args={[0.08, 0]} />
           <meshBasicMaterial 
             color={color} 
@@ -163,49 +161,49 @@ export const GestureCursor: React.FC = () => {
       )}
 
       {['point', 'point_up', 'point_down', 'point_left', 'point_right', 'point_both', 'gun'].includes(currentGesture.type) && (
-        <mesh ref={gestureVisualRef} rotation={[Math.PI / 2, 0, 0]}>
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
           <coneGeometry args={[0.08, 0.25, 8]} />
           <meshBasicMaterial color={color} transparent opacity={0.8} />
         </mesh>
       )}
 
       {['fist'].includes(currentGesture.type) && (
-        <mesh ref={gestureVisualRef}>
+        <mesh>
           <sphereGeometry args={[0.1, 16, 16]} />
           <meshBasicMaterial color={color} transparent opacity={0.7} />
         </mesh>
       )}
 
       {['open_palm', 'five'].includes(currentGesture.type) && (
-        <mesh ref={gestureVisualRef}>
+        <mesh>
           <planeGeometry args={[0.2, 0.2]} />
           <meshBasicMaterial color={color} transparent opacity={0.5} />
         </mesh>
       )}
 
       {['thumbs_up'].includes(currentGesture.type) && (
-        <mesh ref={gestureVisualRef} rotation={[-Math.PI / 4, 0, 0]}>
+        <mesh rotation={[-Math.PI / 4, 0, 0]}>
           <cylinderGeometry args={[0.05, 0.05, 0.15, 8]} />
           <meshBasicMaterial color={color} transparent opacity={0.8} />
         </mesh>
       )}
 
       {['peace', 'two'].includes(currentGesture.type) && (
-        <mesh ref={gestureVisualRef}>
+        <mesh>
           <torusGeometry args={[0.1, 0.02, 8, 16, Math.PI]} />
           <meshBasicMaterial color={color} transparent opacity={0.6} />
         </mesh>
       )}
 
       {['circle', 'rotate_clockwise', 'rotate_counterclockwise'].includes(currentGesture.type) && (
-        <mesh ref={gestureVisualRef}>
+        <mesh>
           <torusGeometry args={[0.12, 0.02, 16, 32]} />
           <meshBasicMaterial color={color} transparent opacity={0.6} />
         </mesh>
       )}
 
       {['figure_eight'].includes(currentGesture.type) && (
-        <group ref={gestureVisualRef}>
+        <group>
           <mesh>
             <torusGeometry args={[0.08, 0.015, 16, 32, Math.PI]} />
             <meshBasicMaterial color={color} transparent opacity={0.6} />
@@ -218,7 +216,7 @@ export const GestureCursor: React.FC = () => {
       )}
 
       {['zoom_in', 'zoom_out'].includes(currentGesture.type) && (
-        <group ref={gestureVisualRef}>
+        <group>
           <mesh>
             <ringGeometry args={[0.1, 0.12, 32]} />
             <meshBasicMaterial color={color} transparent opacity={0.6} />
@@ -231,7 +229,7 @@ export const GestureCursor: React.FC = () => {
       )}
 
       {['clap'].includes(currentGesture.type) && (
-        <group ref={gestureVisualRef}>
+        <group>
           <mesh position={[-0.08, 0, 0]}>
             <planeGeometry args={[0.1, 0.15]} />
             <meshBasicMaterial color={color} transparent opacity={0.7} />
@@ -244,7 +242,7 @@ export const GestureCursor: React.FC = () => {
       )}
 
       {['swipe_left', 'swipe_right', 'swipe_up', 'swipe_down'].includes(currentGesture.type) && (
-        <mesh ref={gestureVisualRef}>
+        <mesh>
           <boxGeometry args={[0.15, 0.05, 0.01]} />
           <meshBasicMaterial color={color} transparent opacity={0.7} />
         </mesh>

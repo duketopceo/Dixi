@@ -7,7 +7,7 @@ import { ObjectType } from '../store/sceneStore';
  */
 export class ObjectPool {
   private geometryPool: Map<ObjectType, THREE.BufferGeometry[]>;
-  private materialPool: Map<string, THREE.Material[]>;
+  private materialPool: Map<string, THREE.MeshStandardMaterial[]>;
   private activeObjects: Set<string>;
   private maxPoolSize: number;
 
@@ -180,7 +180,7 @@ export class ObjectPool {
     }
   }
 
-  private updateGeometrySize(geometry: THREE.BufferGeometry, type: ObjectType, size: number): void {
+  private updateGeometrySize(_geometry: THREE.BufferGeometry, _type: ObjectType, _size: number): void {
     // For simplicity, we'll recreate geometry if size changes significantly
     // In a production system, you might want to scale the geometry instead
     // This is a simplified implementation

@@ -23,6 +23,14 @@ export interface FaceData {
     turn: number;
   };
   expressions?: { [key: string]: number };
+  eye_features?: {
+    left_eye_open: boolean;
+    right_eye_open: boolean;
+    both_eyes_open: boolean;
+    gaze_direction: number;
+    left_eye_height: number;
+    right_eye_height: number;
+  };
   mouth_features?: {
     mouth_open: boolean;
     mouth_open_ratio: number;

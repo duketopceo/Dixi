@@ -1,5 +1,6 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useTrackingStore, type HandData } from '../store/trackingStore';
+import { resizeCanvasToWindow, normalizeCoordinate, dist, drawHandCursor } from './canvasUtils';
 
 interface Shape {
   id: string;
@@ -16,16 +17,8 @@ const initialShapes: Shape[] = [
   { id: 'c', type: 'triangle', position: { x: 0.7, y: 0.35 }, scale: 1, color: '#00FF87', pulse: 0 },
 ];
 
-export function normalizeCoordinate(raw: number): number {
-  return Math.max(0, Math.min(1, (raw + 1) / 2));
-}
-
 const SHAPE_RADIUS = 0.07;
 const GRAB_THRESHOLD = 0.1;
-
-function dist(a: { x: number; y: number }, b: { x: number; y: number }): number {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
 
 interface HandCursor {
   pos: { x: number; y: number }; // [0,1] canvas
@@ -62,9 +55,13 @@ export const GestureShapes: React.FC = () => {
   const shapesRef = useRef(shapes);
   shapesRef.current = shapes;
 
-  const left = cursorOf(tracking?.hands?.left ?? null, 'left');
-  const right = cursorOf(tracking?.hands?.right ?? null, 'right');
-  const cursors = [left, right].filter((c): c is HandCursor => c !== null);
+  // Memoized on `tracking` — a fresh array every render would re-fire the
+  // interaction effect after every setShapes, livelocking during pinch.
+  const cursors = useMemo(() => {
+    const left = cursorOf(tracking?.hands?.left ?? null, 'left');
+    const right = cursorOf(tracking?.hands?.right ?? null, 'right');
+    return [left, right].filter((c): c is HandCursor => c !== null);
+  }, [tracking]);
   const cursorsRef = useRef<HandCursor[]>(cursors);
   cursorsRef.current = cursors;
 
@@ -83,13 +80,12 @@ export const GestureShapes: React.FC = () => {
         } else if (scaleStart.current.handDist > 0.01) {
           const ratio = handDist / scaleStart.current.handDist;
           const baseScale = scaleStart.current.scale; // updater runs later — capture now
-          setShapes((prev) =>
-            prev.map((s) =>
-              s.id === shapeId
-                ? { ...s, scale: Math.max(0.3, Math.min(3, baseScale * ratio)) }
-                : s,
-            ),
-          );
+          const newScale = Math.max(0.3, Math.min(3, baseScale * ratio));
+          if (Math.abs(newScale - shape.scale) > 1e-4) {
+            setShapes((prev) =>
+              prev.map((s) => (s.id === shapeId ? { ...s, scale: newScale } : s)),
+            );
+          }
         }
       }
     } else {
@@ -126,6 +122,7 @@ export const GestureShapes: React.FC = () => {
         if (shapeId && last) {
           const dx = cursor.pos.x - last.x;
           const dy = cursor.pos.y - last.y;
+          if (dx === 0 && dy === 0) continue;
           setShapes((prev) =>
             prev.map((s) =>
               s.id === shapeId
@@ -167,8 +164,7 @@ export const GestureShapes: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    resizeCanvasToWindow(canvas);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const grabbedIds = new Set(grabbed.current.keys());
@@ -210,17 +206,13 @@ export const GestureShapes: React.FC = () => {
 
     // cursors
     for (const cursor of cursorsRef.current) {
-      const cx = cursor.pos.x * canvas.width;
-      const cy = cursor.pos.y * canvas.height;
-      ctx.beginPath();
-      ctx.arc(cx, cy, cursor.pinching ? 16 : 10, 0, Math.PI * 2);
-      ctx.fillStyle = cursor.pinching
-        ? 'rgba(255,255,255,0.9)'
-        : 'rgba(255,255,255,0.4)';
-      ctx.fill();
-      ctx.strokeStyle = cursor.side === 'right' ? '#00F5FF' : '#FF006E';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      drawHandCursor(
+        ctx,
+        cursor.pos.x * canvas.width,
+        cursor.pos.y * canvas.height,
+        cursor.side,
+        cursor.pinching,
+      );
     }
 
     ctx.fillStyle = 'rgba(255,255,255,0.5)';

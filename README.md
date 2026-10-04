@@ -4,7 +4,7 @@ An AI-powered interactive projection system that uses computer vision, gesture r
 
 ## 🚀 Features
 
-- **Browser Vision Mode (new)**: Hand tracking runs entirely in the browser — MediaPipe WASM + GestureRecognizer in a Web Worker. No Python service required. Pinch to grab shapes, pinch with both hands to scale, 4-point dwell calibration maps your camera to the projector
+- **Browser Vision Mode (new)**: Hand tracking runs entirely in the browser — MediaPipe WASM + GestureRecognizer on the main thread (GPU/CPU delegate self-benchmarked at startup). No Python service required. Pinch to grab shapes, pinch with both hands to scale, 4-point dwell calibration maps your camera to the projector
 - **Computer Vision**: Real-time gesture recognition using OpenCV and MediaPipe (legacy Python service mode also supported)
 - **AI Inference**: Ollama-powered AI integration for natural language understanding and generation
 - **Interactive Projection**: WebGL-based rendering for immersive visual experiences
@@ -19,7 +19,7 @@ An AI-powered interactive projection system that uses computer vision, gesture r
 ┌──────────────────────────────────────────┐
 │              Browser tab                  │
 │                                          │
-│  getUserMedia ──▶ Web Worker (MediaPipe  │
+│  getUserMedia ──▶ TrackerClient (MediaPipe│
 │                   WASM GestureRecognizer)│
 │                        │                 │
 │                        ▼                 │

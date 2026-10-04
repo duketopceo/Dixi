@@ -33,10 +33,38 @@ const WS_PORT = process.env.WS_PORT || 3002;
 
 // Middleware
 app.use(helmet());
+// CORS: explicit allowlist. Credentialed requests must never be reflected
+// back to arbitrary origins — fail closed to localhost dev origins plus
+// FRONTEND_URL when configured.
+// Browsers send a bare Origin — normalize FRONTEND_URL to its origin so a
+// trailing slash or path in the env value cannot break the exact match.
+const frontendOrigins = (() => {
+  const raw = process.env.FRONTEND_URL;
+  if (!raw) return [];
+  try {
+    return [new URL(raw).origin];
+  } catch {
+    logger.warn(`FRONTEND_URL is not a valid URL; excluding it from the CORS allowlist`);
+    return [];
+  }
+})();
+const allowedOrigins = new Set([
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
+  ...frontendOrigins,
+]);
 app.use(cors({
-  // Reflect the request origin when FRONTEND_URL is unset: '*' is invalid
-  // combined with credentials:true and browsers reject it.
-  origin: process.env.FRONTEND_URL || true,
+  origin: (origin, callback) => {
+    // Requests without an Origin header (curl, same-origin, non-browser
+    // clients) are not subject to CORS — allow them.
+    if (!origin || allowedOrigins.has(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    }
+  },
   credentials: true
 }));
 app.use(compression());
@@ -158,4 +186,6 @@ process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 }
 
-export { app, wss, wsService };
+// wss/wsService are only populated inside require.main — never export them;
+// routes read the live service through services/wsService's getWSService().
+export { app };

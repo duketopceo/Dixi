@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAIStore } from '../../store/aiStore';
 import { apiService } from '../../services/api';
-import { useTrackingStore } from '../../store/trackingStore';
 import './AIInputBar.css';
 
 const AIInputBar: React.FC = () => {
@@ -9,7 +8,6 @@ const AIInputBar: React.FC = () => {
   const [input, setInput] = useState('');
   const [isAnalyzingVision, setIsAnalyzingVision] = useState(false);
   const { 
-    sendQuery, 
     sendQueryWithTracking,
     analyzeTracking,
     isProcessing, 
@@ -21,7 +19,6 @@ const AIInputBar: React.FC = () => {
     autoAnalysisInterval,
     getContextSummary
   } = useAIStore();
-  const currentTracking = useTrackingStore((state) => state.currentTracking);
   const responseScrollRef = useRef<HTMLDivElement>(null);
   const autoAnalysisIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -269,7 +266,7 @@ const AIInputBar: React.FC = () => {
             onBlur={(e) => {
               // Don't hide if clicking submit button or vision button
               const related = e.relatedTarget as HTMLElement;
-              if (!related || (related.type !== 'submit' && !related.classList.contains('ai-vision-button') && !related.classList.contains('ai-tracking-button') && !related.classList.contains('ai-auto-button'))) {
+              if (!related || (!(related instanceof HTMLButtonElement && related.type === 'submit') && !related.classList.contains('ai-vision-button') && !related.classList.contains('ai-tracking-button') && !related.classList.contains('ai-auto-button'))) {
                 // Small delay to allow submit
                 setTimeout(() => {
                   if (!input.trim()) {

@@ -2,9 +2,9 @@ import request from 'supertest';
 import express, { Express } from 'express';
 import projectionRoutes from '../projection';
 
-// Mock wsService to avoid WebSocket dependencies in tests
-jest.mock('../../index', () => ({
-  wsService: null
+// Mock the wsService registry — routes read it via getWSService()
+jest.mock('../../services/wsService', () => ({
+  getWSService: jest.fn(() => null),
 }));
 
 describe('Projection Mapping API', () => {

@@ -24,7 +24,6 @@ const ProjectionCanvas: React.FC = () => {
   const imgRef = React.useRef<HTMLImageElement | null>(null);
   const fpsRef = useRef<number[]>([]);
   const lastFrameTimeRef = useRef<number>(Date.now());
-  const currentTracking = useTrackingStore((state) => state.currentTracking);
   const MAX_RETRIES = 5;
   const BASE_RETRY_DELAY = 2000; // 2 seconds
 

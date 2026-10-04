@@ -2,13 +2,13 @@ import request from 'supertest';
 import express, { Express } from 'express';
 import projectionRoutes from '../projection';
 
-// Mock wsService to avoid WebSocket dependencies in tests
-jest.mock('../../index', () => ({
-  wsService: {
+// Mock the wsService registry — routes read it via getWSService()
+jest.mock('../../services/wsService', () => ({
+  getWSService: jest.fn(() => ({
     broadcastProjection: jest.fn(),
     broadcastProjectorGesture: jest.fn(),
-    getClientCount: jest.fn(() => 0)
-  }
+    getClientCount: jest.fn(() => 0),
+  })),
 }));
 
 describe('Projection Gesture Normalization', () => {

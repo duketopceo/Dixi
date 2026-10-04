@@ -55,6 +55,19 @@ tmp/
 temp/
 *.tmp
 
+# Secrets & credentials (AGENTS.md mandatory set)
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+service-account*.json
+
+# Python
+*.py[cod]
+.venv/
+
 # GPU cache
 .nv/
 

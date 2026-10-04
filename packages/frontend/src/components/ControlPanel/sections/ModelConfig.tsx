@@ -113,6 +113,7 @@ export const ModelConfig: React.FC<Props> = ({ onLog }) => {
           </label>
           <input
             type="range"
+            aria-label="Frame Skip Interval"
             min="1"
             max="5"
             value={config.frame_skip_interval}
@@ -181,6 +182,7 @@ export const ModelConfig: React.FC<Props> = ({ onLog }) => {
           </label>
           <input
             type="range"
+            aria-label="Backend Push Cooldown"
             min="100"
             max="1000"
             step="50"

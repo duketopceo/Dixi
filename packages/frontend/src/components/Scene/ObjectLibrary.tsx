@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import { ObjectType, SceneObject } from '../../store/sceneStore';
 
 export const OBJECT_COLORS = [
