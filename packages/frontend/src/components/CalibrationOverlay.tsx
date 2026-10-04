@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useVisionStore, PROJECTOR_TARGETS } from '../vision/visionStore';
 import { useTrackingStore } from '../store/trackingStore';
-import { browserTrackingSource } from '../vision/browserTrackingSource';
+import { useTrackerVideoStream } from '../vision/useTrackerVideoStream';
 
 // Dwell-capture: fingertip must stay within this camera-space radius for
 // DWELL_MS to register a calibration point.
@@ -18,10 +18,12 @@ export const CalibrationOverlay: React.FC = () => {
   const points = useVisionStore((s) => s.calibrationPoints);
   const addPoint = useVisionStore((s) => s.addCalibrationPoint);
   const cancel = useVisionStore((s) => s.cancelCalibration);
-  const tracking = useTrackingStore((s) => s.currentTracking);
 
   const [dwellProgress, setDwellProgress] = useState(0);
   const [doneFlash, setDoneFlash] = useState(false);
+  // fingertip position for the preview marker — driven at poll cadence
+  // inside the dwell interval, not by a per-frame tracking subscription
+  const [tip, setTip] = useState<{ x: number; y: number } | null>(null);
 
   // Esc cancels
   useEffect(() => {
@@ -34,22 +36,22 @@ export const CalibrationOverlay: React.FC = () => {
   }, [calibrating, cancel]);
   const dwellStart = useRef<number | null>(null);
   const anchor = useRef<{ x: number; y: number } | null>(null);
+  // After a capture the fingertip must LEAVE the captured region before the
+  // next dwell may start — otherwise a held hand re-banks the same camera
+  // point for the next target and the homography comes out degenerate.
+  const releasePos = useRef<{ x: number; y: number } | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const stream = useTrackerVideoStream(calibrating);
 
-  // Attach the live camera stream to the preview inset
+  // Bind the preview inset to the tracker's stream by identity.
   useEffect(() => {
-    if (!calibrating) return;
-    const t = setInterval(() => {
-      const video = browserTrackingSource.videoElement;
-      if (video && videoRef.current !== video) {
-        if (videoRef.current) {
-          videoRef.current.srcObject = video.srcObject;
-          videoRef.current.play().catch(() => {});
-        }
-      }
-    }, 200);
-    return () => clearInterval(t);
-  }, [calibrating]);
+    const v = videoRef.current;
+    if (!v || !stream) return;
+    if (v.srcObject !== stream) {
+      v.srcObject = stream;
+      v.play().catch(() => {});
+    }
+  }, [stream]);
 
   // Dwell detection on the fingertip's camera position.
   // Reads getState() inside the interval — subscribing here would re-create
@@ -66,11 +68,23 @@ export const CalibrationOverlay: React.FC = () => {
             : null;
 
       const tip = hand?.cameraPosition;
+      setTip(tip ?? null);
       if (!tip) {
         dwellStart.current = null;
         anchor.current = null;
+        releasePos.current = null;
         setDwellProgress(0);
         return;
+      }
+
+      // Wait for the fingertip to depart the last captured point.
+      if (releasePos.current) {
+        const moved = Math.hypot(tip.x - releasePos.current.x, tip.y - releasePos.current.y);
+        if (moved < STABILITY_RADIUS * 2) {
+          setDwellProgress(0);
+          return;
+        }
+        releasePos.current = null;
       }
 
       if (!anchor.current || Math.hypot(tip.x - anchor.current.x, tip.y - anchor.current.y) > STABILITY_RADIUS) {
@@ -85,6 +99,7 @@ export const CalibrationOverlay: React.FC = () => {
       if (elapsed >= DWELL_MS) {
         // capture camera point (anchor centroid)
         const captured = addPoint([anchor.current.x, anchor.current.y]);
+        releasePos.current = { x: anchor.current.x, y: anchor.current.y };
         anchor.current = null;
         dwellStart.current = null;
         setDwellProgress(0);
@@ -97,12 +112,31 @@ export const CalibrationOverlay: React.FC = () => {
     return () => clearInterval(timer);
   }, [calibrating, addPoint]);
 
-  if (!calibrating) return null;
+  if (!calibrating && !doneFlash) return null;
+
+  // 'Calibrated' flash: addPoint flips calibrating off in the same commit,
+  // so the flash must render on its own state or it never paints.
+  if (doneFlash) {
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 2000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(0,255,135,0.15)',
+          fontFamily: 'system-ui, sans-serif',
+        }}
+      >
+        <div style={{ fontSize: 42, color: '#00FF87', fontWeight: 700 }}>Calibrated</div>
+      </div>
+    );
+  }
 
   const idx = Math.min(points.length, 3);
   const [tx, ty] = PROJECTOR_TARGETS[idx];
-  const tip =
-    tracking?.hands?.right?.cameraPosition ?? tracking?.hands?.left?.cameraPosition ?? null;
 
   return (
     <div
@@ -259,23 +293,6 @@ export const CalibrationOverlay: React.FC = () => {
         Cancel (Esc)
       </button>
 
-      {/* Done flash */}
-      {doneFlash && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(0,255,135,0.15)',
-          }}
-        >
-          <div style={{ fontSize: 42, color: '#00FF87', fontFamily: 'system-ui', fontWeight: 700 }}>
-            Calibrated
-          </div>
-        </div>
-      )}
     </div>
   );
 };

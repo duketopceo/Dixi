@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { browserTrackingSource } from '../vision/browserTrackingSource';
+import { useTrackerVideoStream } from '../vision/useTrackerVideoStream';
 import { useTrackingStore } from '../store/trackingStore';
 import { useVisionStore } from '../vision/visionStore';
 
@@ -25,28 +25,21 @@ export const CameraPreview: React.FC = () => {
   const visible = useVisionStore((s) => s.previewVisible);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const attached = useRef(false);
+  const stream = useTrackerVideoStream(visible);
   const tracking = useTrackingStore((s) => s.currentTracking);
   const trackingRef = useRef(tracking);
   trackingRef.current = tracking;
 
-  // Attach the tracker's live video element's stream to our preview <video>
+  // Rebind whenever the tracker's stream identity changes — a restart swaps
+  // the stream, and latching the old one shows a frozen dead feed.
   useEffect(() => {
-    if (!visible) return;
-    const t = setInterval(() => {
-      const src = browserTrackingSource.videoElement;
-      if (src?.srcObject && videoRef.current && !attached.current) {
-        videoRef.current.srcObject = src.srcObject;
-        videoRef.current.play().catch(() => {});
-        attached.current = true;
-        clearInterval(t);
-      }
-    }, 200);
-    return () => {
-      clearInterval(t);
-      attached.current = false;
-    };
-  }, [visible]);
+    const v = videoRef.current;
+    if (!v || !stream) return;
+    if (v.srcObject !== stream) {
+      v.srcObject = stream;
+      v.play().catch(() => {});
+    }
+  }, [stream]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;

@@ -28,6 +28,8 @@ interface VisionStore {
   calibrating: boolean;
   previewVisible: boolean;
   cameraId: string | null;
+  /** Points snapshotted when calibration began — restored on cancel. */
+  preCalibrationPoints: { camera: Point2; projector: Point2 }[] | null;
 
   setMode: (mode: VisionMode) => void;
   setCameraId: (id: string | null) => void;
@@ -42,6 +44,27 @@ interface VisionStore {
   toProjector: (x: number, y: number) => Point2 | null;
 }
 
+function isPoint2(p: unknown): p is Point2 {
+  return Array.isArray(p) && p.length === 2 && p.every((v) => Number.isFinite(v));
+}
+
+function isValidSavedCalibration(data: unknown): data is {
+  points: { camera: Point2; projector: Point2 }[];
+  homography: Homography;
+} {
+  const d = data as { points?: unknown; homography?: unknown } | null;
+  return (
+    Array.isArray(d?.points) &&
+    d.points.length === 4 &&
+    d.points.every(
+      (p) => isPoint2((p as { camera?: unknown })?.camera) && isPoint2((p as { projector?: unknown })?.projector),
+    ) &&
+    Array.isArray(d.homography) &&
+    d.homography.length === 9 &&
+    d.homography.every((v) => Number.isFinite(v))
+  );
+}
+
 function loadCalibration(): {
   points: { camera: Point2; projector: Point2 }[];
   homography: Homography | null;
@@ -49,10 +72,13 @@ function loadCalibration(): {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { points: [], homography: null };
-    const data = JSON.parse(raw);
-    if (data?.points?.length === 4 && Array.isArray(data?.homography)) {
+    const data: unknown = JSON.parse(raw);
+    if (isValidSavedCalibration(data)) {
       return { points: data.points, homography: data.homography };
     }
+    // Corrupt-but-parseable payload (NaN, wrong arity) — remove the poison
+    // so every reload doesn't re-ingest it.
+    localStorage.removeItem(STORAGE_KEY);
   } catch {
     /* corrupt storage — recalibrate */
   }
@@ -70,6 +96,7 @@ export const useVisionStore = create<VisionStore>((set, get) => ({
   calibrationPoints: initial.points,
   homography: initial.homography,
   calibrating: false,
+  preCalibrationPoints: null,
   previewVisible: false,
   cameraId: (() => {
     try { return localStorage.getItem('dixi-camera-v1'); } catch { return null; }
@@ -87,7 +114,12 @@ export const useVisionStore = create<VisionStore>((set, get) => ({
   setPerf: (fps, inferenceMs) => set({ fps, inferenceMs }),
   togglePreview: () => set((s) => ({ previewVisible: !s.previewVisible })),
 
-  beginCalibration: () => set({ calibrating: true, calibrationPoints: [] }),
+  beginCalibration: () =>
+    set((s) => ({
+      calibrating: true,
+      calibrationPoints: [],
+      preCalibrationPoints: s.calibrationPoints,
+    })),
 
   /** Returns true when all 4 points are in and calibration completed. */
   addCalibrationPoint: (camera) => {
@@ -109,7 +141,7 @@ export const useVisionStore = create<VisionStore>((set, get) => ({
 
     if (h) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ points, homography: h }));
-      set({ calibrationPoints: points, homography: h, calibrating: false });
+      set({ calibrationPoints: points, homography: h, calibrating: false, preCalibrationPoints: null });
       return true;
     }
     // Degenerate point set — restart
@@ -118,10 +150,13 @@ export const useVisionStore = create<VisionStore>((set, get) => ({
   },
 
   cancelCalibration: () =>
-    set({
+    set((s) => ({
       calibrating: false,
-      calibrationPoints: initial.points.length === 4 ? initial.points : [],
-    }),
+      // Restore the snapshot taken at beginCalibration — module-load
+      // `initial` is stale if calibration changed since page load.
+      calibrationPoints: s.preCalibrationPoints ?? s.calibrationPoints,
+      preCalibrationPoints: null,
+    })),
 
   clearCalibration: () => {
     localStorage.removeItem(STORAGE_KEY);
