@@ -27,8 +27,10 @@ interface VisionStore {
   homography: Homography | null;
   calibrating: boolean;
   previewVisible: boolean;
+  cameraId: string | null;
 
   setMode: (mode: VisionMode) => void;
+  setCameraId: (id: string | null) => void;
   setStatus: (status: VisionStatus, error?: string | null) => void;
   setPerf: (fps: number, inferenceMs: number) => void;
   togglePreview: () => void;
@@ -69,8 +71,18 @@ export const useVisionStore = create<VisionStore>((set, get) => ({
   homography: initial.homography,
   calibrating: false,
   previewVisible: false,
+  cameraId: (() => {
+    try { return localStorage.getItem('dixi-camera-v1'); } catch { return null; }
+  })(),
 
   setMode: (mode) => set({ mode }),
+  setCameraId: (id) => {
+    try {
+      if (id) localStorage.setItem('dixi-camera-v1', id);
+      else localStorage.removeItem('dixi-camera-v1');
+    } catch { /* storage blocked */ }
+    set({ cameraId: id });
+  },
   setStatus: (status, error = null) => set({ status, error }),
   setPerf: (fps, inferenceMs) => set({ fps, inferenceMs }),
   togglePreview: () => set((s) => ({ previewVisible: !s.previewVisible })),

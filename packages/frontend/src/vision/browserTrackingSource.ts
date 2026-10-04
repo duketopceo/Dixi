@@ -89,8 +89,18 @@ export class BrowserTrackingSource {
     if (this.startPromise) return this.startPromise;
     const store = useVisionStore.getState();
     store.setStatus('starting');
+    const wantId = deviceId ?? store.cameraId ?? undefined;
     this.startPromise = this.client
-      .start(deviceId) // onReady inside -> 'running'
+      .start(wantId) // onReady inside -> 'running'
+      .catch(async (err) => {
+        // A persisted cameraId can point at an unplugged camera — fall back
+        // to the system default instead of wedging on 'error' forever.
+        if (wantId && err instanceof DOMException && err.name === 'OverconstrainedError') {
+          store.setCameraId(null);
+          return this.client.start(undefined);
+        }
+        throw err;
+      })
       .catch((err) => {
         store.setStatus('error', err instanceof Error ? err.message : 'Camera unavailable');
         throw err;
@@ -105,6 +115,22 @@ export class BrowserTrackingSource {
     this.startPromise = null;
     this.client.stop();
     useVisionStore.getState().setStatus('idle');
+  }
+
+  /** Available video inputs — labels populate only after a camera grant. */
+  async listCameras(): Promise<MediaDeviceInfo[]> {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices.filter((d) => d.kind === 'videoinput');
+  }
+
+  /** Persist + hot-swap the camera; restarts the tracker when running. */
+  async setCamera(id: string | null): Promise<void> {
+    const store = useVisionStore.getState();
+    store.setCameraId(id);
+    if (store.status === 'running' || store.status === 'starting') {
+      this.stop();
+      await this.start();
+    }
   }
 
   get videoElement(): HTMLVideoElement | null {
