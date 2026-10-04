@@ -4,10 +4,18 @@ import logger from '../utils/logger';
 
 const router = Router();
 
-// Simple authentication middleware (basic auth or API key)
+// API-key authentication. Fail closed: when ADMIN_API_KEY is unset the
+// admin surface is unavailable rather than protected by a published value.
+// Header-only — query-string keys leak into access logs.
 const authenticateAdmin = (req: Request, res: Response, next: Function) => {
-  const apiKey = req.headers['x-api-key'] || req.query.apiKey;
-  const adminApiKey = process.env.ADMIN_API_KEY || 'admin-key-change-in-production';
+  const adminApiKey = process.env.ADMIN_API_KEY;
+  if (!adminApiKey) {
+    return res.status(503).json({
+      error: 'Admin API unavailable',
+      details: 'ADMIN_API_KEY is not configured'
+    });
+  }
+  const apiKey = req.headers['x-api-key'];
 
   if (apiKey === adminApiKey) {
     next();
@@ -75,9 +83,9 @@ router.put('/config', (req: Request, res: Response) => {
     // Note: Environment variables can't be changed at runtime in Node.js
     // This endpoint would need a config service to persist changes
     
-    res.json({
-      message: 'Configuration update not yet implemented',
-      note: 'Runtime config updates require a config service with persistence',
+    res.status(501).json({
+      error: 'Not implemented',
+      details: 'Runtime config updates require a config service with persistence',
     });
   } catch (error) {
     logger.error('Failed to update config:', error);
@@ -97,11 +105,9 @@ router.get('/logs', (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 100;
     
-    // Note: This is a placeholder. In production, you'd query your logging system
-    // (e.g., Winston file transport, external logging service)
-    res.json({
-      message: 'Log retrieval not yet implemented',
-      note: 'Logs are currently written to console/file. Implement log querying service for production.',
+    res.status(501).json({
+      error: 'Not implemented',
+      details: 'Use /api/logs/backend instead; log querying is not implemented',
       limit,
     });
   } catch (error) {
@@ -162,12 +168,10 @@ router.post('/clients/:id/disconnect', (req: Request, res: Response) => {
       });
     }
 
-    // Note: This requires WebSocketService to have a disconnectClient method
-    // For now, return a placeholder response
-    res.json({
-      message: 'Client disconnect not yet implemented',
+    res.status(501).json({
+      error: 'Not implemented',
+      details: 'disconnectClient is not implemented in WebSocketService',
       clientId: id,
-      note: 'Implement disconnectClient method in WebSocketService',
     });
   } catch (error) {
     logger.error('Failed to disconnect client:', error);
