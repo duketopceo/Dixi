@@ -13,6 +13,30 @@
   --accent-success: #00FF87;
   --accent-error: #FF006E;
   --grid-border: rgba(0, 245, 255, 0.15);
+
+  /* Lightfield tokens (see DESIGN.md). Dark-first: black projects as "no light". */
+  --lf-bg: #05080a;
+  --lf-text: #e8f4f5;
+  --lf-text-muted: #9fb4b8;
+  --lf-accent: #00f5ff;
+  --lf-ok: #00ff87;
+  --lf-warn: #ffb800;
+  --lf-err: #ff4d8d;
+  --lf-focus: #00f5ff;
+  --lf-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Keyboard path: visible focus on every interactive element. */
+:focus-visible {
+  outline: 3px solid var(--lf-focus);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }
 
 body {
