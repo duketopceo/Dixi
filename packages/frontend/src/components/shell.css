@@ -1,0 +1,23 @@
+/* Launcher + Dock chrome. Targets are sized for a projected wall, not a mouse. */
+.dx-card {
+  width: 220px; height: 160px; font-size: 18px; color: var(--lf-text);
+  background: rgba(255, 255, 255, 0.06);
+  border: 2px solid rgba(0, 245, 255, 0.5); border-radius: 16px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  transition: transform 120ms var(--lf-ease), box-shadow 120ms var(--lf-ease);
+}
+.dx-card:hover:not(:disabled) { transform: scale(1.04); box-shadow: 0 0 30px rgba(0, 245, 255, 0.25); }
+.dx-card:disabled { color: var(--lf-text-muted); border-color: rgba(255, 255, 255, 0.15); cursor: not-allowed; }
+.dx-card-desc { font-size: 13px; color: var(--lf-text-muted); padding: 0 12px; }
+.dx-btn {
+  padding: 12px 24px; font-size: 15px; color: var(--lf-text); background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 12px; cursor: pointer;
+}
+.dx-btn:hover { background: rgba(255, 255, 255, 0.1); }
+.dx-dock-item {
+  min-width: 64px; padding: 10px 14px; font-size: 13px; font-family: system-ui, sans-serif;
+  color: var(--lf-text); background: transparent; border: 1px solid transparent; border-radius: 10px;
+  cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.dx-dock-item:hover { background: rgba(255, 255, 255, 0.08); }
+.dx-dock-item[aria-current='true'] { color: var(--lf-accent); background: rgba(0, 245, 255, 0.12); border-color: rgba(0, 245, 255, 0.4); }

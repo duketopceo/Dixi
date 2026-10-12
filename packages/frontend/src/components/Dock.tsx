@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAppStore, type SceneId } from '../app/appStore';
 import { useVisionStore } from '../vision/visionStore';
+import './shell.css';
 
 const ITEMS: { id: SceneId | 'menu'; icon: string; label: string }[] = [
   { id: 'menu', icon: '⌂', label: 'Menu' },
@@ -41,26 +42,13 @@ export const Dock: React.FC = () => {
         return (
           <button
             key={item.id}
+            className="dx-dock-item"
+            aria-current={active}
             onClick={() =>
               item.id === 'menu' ? toggleMenu() : setScene(item.id)
             }
-            style={{
-              minWidth: 64,
-              padding: '10px 14px',
-              fontSize: 13,
-              fontFamily: 'system-ui, sans-serif',
-              color: active ? '#00F5FF' : 'rgba(255,255,255,0.8)',
-              background: active ? 'rgba(0,245,255,0.12)' : 'transparent',
-              border: `1px solid ${active ? 'rgba(0,245,255,0.4)' : 'transparent'}`,
-              borderRadius: 10,
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 2,
-            }}
           >
-            <span style={{ fontSize: 20 }}>{item.icon}</span>
+            <span style={{ fontSize: 20 }} aria-hidden="true">{item.icon}</span>
             <span>{item.label}</span>
           </button>
         );
