@@ -1,389 +1,64 @@
-# Dixi - Digital Exploration and Curiosity 🎨
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/logo-dark.svg">
+    <img alt="Dixi" src="assets/brand/logo.svg" width="240">
+  </picture>
+</p>
 
-An AI-powered interactive projection system that uses computer vision, gesture recognition, and real-time AI to transform any surface into a responsive knowledge canvas.
+<p align="center"><b>Turn any wall into a touchless display with a webcam, a projector and a browser tab.</b></p>
 
-## 🚀 Features
+Dixi tracks your hands in the browser (MediaPipe WASM), maps the camera view onto the projected image with a
+four-point calibration, and lets you pinch to grab and draw on what is projected. Logo is a proposal pending owner sign-off.
 
-- **Browser Vision Mode (new)**: Hand tracking runs entirely in the browser — MediaPipe WASM + GestureRecognizer on the main thread (GPU/CPU delegate self-benchmarked at startup). No Python service required. Pinch to grab shapes, pinch with both hands to scale, 4-point dwell calibration maps your camera to the projector
-- **Computer Vision**: Real-time gesture recognition using OpenCV and MediaPipe (legacy Python service mode also supported)
-- **AI Inference**: Ollama-powered AI integration for natural language understanding and generation
-- **Interactive Projection**: WebGL-based rendering for immersive visual experiences
-- **Real-time Communication**: WebSocket-based bidirectional data flow (optional in browser mode)
-- **Scalable Architecture**: Microservices design (Docker support in-progress, not required for local development)
+> TODO: add a screenshot or short recording from a real rig. Launcher preview: [`docs/design-shots/launcher-after.png`](docs/design-shots/launcher-after.png).
 
-## 🏗️ Architecture
+## Quick start
 
-**Browser Vision Mode** (default, `VITE_VISION_MODE=browser`):
-
-```
-┌──────────────────────────────────────────┐
-│              Browser tab                  │
-│                                          │
-│  getUserMedia ──▶ TrackerClient (MediaPipe│
-│                   WASM GestureRecognizer)│
-│                        │                 │
-│                        ▼                 │
-│                  trackingStore           │
-│                        │                 │
-│              GestureShapes / HUD         │
-└──────────────────────────────────────────┘
-        optional WS for AI features
-```
-
-**Server mode** (legacy, `VITE_VISION_MODE=server`):
-
-```
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│   Frontend  │────▶│   Backend    │◀────│   Vision    │
-│   (React)   │◀────│ (Node.js +   │     │  (Python +  │
-│             │     │   Express)   │     │  MediaPipe) │
-└─────────────┘     └──────────────┘     └─────────────┘
-      │                     │                     │
-      │                     ▼                     │
-      │              ┌──────────────┐             │
-      └──────────────│   Ollama     │             │
-                     │  AI Service  │             │
-                     │  (llama3.2)  │             │
-                     └──────────────┘             │
-                            ▲                     │
-                            │                     │
-                            └─────────────────────┘
-                     (Gesture data triggers AI)
-```
-
-## 📦 Tech Stack
-
-### Frontend
-- **React 18** with TypeScript
-- **Three.js** / **React Three Fiber** for 3D rendering
-- **Vite** for fast development and building
-- **Zustand** for state management
-- **WebSocket** for real-time updates
-
-### Backend
-- **Node.js 20** with Express
-- **TypeScript** for type safety
-- **WebSocket** (ws) for real-time communication
-- **Ollama** API integration for AI inference
-- **Axios** for HTTP client communication
-
-### Computer Vision
-- **Python 3.11** with Flask
-- **OpenCV** for image processing
-- **MediaPipe** for hand/gesture tracking
-- **NumPy** for numerical operations
-
-### Infrastructure
-- **Docker** & **Docker Compose** for containerization (planned for future cloud deployment)
-- **NVIDIA Container Runtime** for GPU support (optional)
-- **GCP Cloud Run** for scalable deployment (planned for future)
-
-## 🛠️ Installation
-
-### Prerequisites
-
-- Node.js 20+
-- Python 3.11+
-- **Ollama** (required) - Install from https://ollama.ai
-- Docker & Docker Compose (planned for future cloud deployment, not needed for local development)
-- Webcam/camera (for gesture recognition)
-
-### Local Development
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/duketopceo/Dixi.git
-   cd Dixi
-   ```
-
-2. **Install and start Ollama** (REQUIRED)
-   ```bash
-   # Install Ollama from https://ollama.ai
-   # Then start the Ollama service:
-   ollama serve
-   
-   # In a separate terminal, pull the models:
-   ollama pull gemma3:4b      # text inference (default OLLAMA_MODEL)
-   ollama pull llava:7b       # optional, for image analysis
-   ```
-
-3. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env if needed (defaults work for local development)
-   ```
-
-4. **Install dependencies**
-   ```bash
-   npm install
-   npm run install:all
-   ```
-
-5. **Set up Python virtual environment** (for vision service)
-   ```bash
-   # Windows
-   python -m venv .venv
-   .venv\Scripts\activate
-   
-   # Install vision service dependencies
-   cd packages/vision
-   pip install -r requirements.txt
-   
-   # Download MediaPipe model if missing
-   # The model file should be at packages/vision/hand_landmarker.task
-   # If missing, download from:
-   # https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task
-   ```
-
-6. **Start development servers**
-   ```bash
-   # Start all services
-   npm run dev
-
-   # Or start individually
-   npm run dev:backend    # Backend server (port 3001)
-   npm run dev:frontend   # Frontend dev server (port 3000)
-   
-   # Vision service (port 5001) - REQUIRED for camera feed
-   cd packages/vision
-   python main.py
-   ```
-   
-   **Important**: The vision service must be running for the camera feed to work. Without it, you'll see a black screen with an error message.
-
-### Docker Deployment
-
-> ⚠️ **Note**: Docker deployment is planned for future cloud deployment. For current development, run services locally using the commands above (npm run dev + python main.py). Focus on getting the projector interaction loop working locally first.
+Requires Node 20+, a webcam, and (optionally) a projector. The camera needs `localhost` or HTTPS.
 
 ```bash
-# Build all containers
-npm run docker:build
-
-# Start all services
-npm run docker:up
-
-# Stop all services
-npm run docker:down
+git clone https://github.com/duketopceo/Dixi.git && cd Dixi
+npm ci
+npm run dev:frontend        # http://localhost:3000
 ```
 
-## 🎮 Usage
+1. Allow the camera. The Launcher shows two scenes: **Shapes** (pinch to grab, two hands to scale) and **Draw** (pinch = pen, fist = clear).
+2. Choose "Calibrate camera <-> projector" and dwell a fingertip on each of the four projected corners. Calibration is saved in `localStorage`.
+3. No projector? It works on your screen with mirrored pointing; skip calibration.
 
-1. **Access the Web Interface**
-   - Open your browser to `http://localhost:3000`
-   - The interactive canvas will be displayed
+## How it works
 
-2. **Start Gesture Tracking**
-   - Click "Start Tracking" in the control panel
-   - Allow camera access when prompted
-   - Move your hands in front of the camera
-
-3. **Interact with AI**
-   - Type queries in the AI Query input
-   - Click "Send Query" to get AI responses
-   - Responses appear in real-time on the canvas
-
-4. **Supported Gestures**
-   - 👋 **Wave**: Triggers AI-generated description of the gesture
-   - 👉 **Point**: Direct interaction (coordinates sent to AI)
-   - 🤏 **Pinch**: Selection/grab action (coordinates sent to AI)
-
-## 📡 API Endpoints
-
-### Backend (Port 3001)
-
-#### Health Check
-```
-GET /health
+```mermaid
+flowchart LR
+  cam[getUserMedia] --> mp[MediaPipe GestureRecognizer WASM]
+  mp --> store[trackingStore / visionStore]
+  store -->|homography| scenes[Shapes, Draw scenes]
+  scenes --> canvas[Projected canvas]
 ```
 
-#### Gesture Endpoints
-```
-GET  /api/gestures          # Get current gesture
-POST /api/gestures/start    # Start tracking
-POST /api/gestures/stop     # Stop tracking
-POST /api/gestures/process  # Process gesture event
-```
+- `packages/frontend/src/vision/`: tracker client, 4-point homography (`homography.ts`), gesture rules, camera lifecycle.
+- `packages/frontend/src/components/` and `scenes/`: Launcher, Dock, calibration overlay, scenes.
+- Legacy "server mode" (`VITE_VISION_MODE=server`): a Node/Express + WebSocket backend (`packages/backend`, port 3001, Ollama AI routes) and a Python vision service (`packages/vision`). Not needed for the scenes above; its future is roadmap unit U2.
 
-#### AI Endpoints
-```
-GET  /api/ai/status         # Get model status
-POST /api/ai/initialize     # Initialize AI model
-POST /api/ai/infer          # Generate inference
-POST /api/ai/stream         # Stream inference
-```
+## Checks
 
-#### Projection Endpoints
-```
-GET  /api/projection/status   # Get projection status
-POST /api/projection/mapping  # Update mapping
-POST /api/projection/content  # Update content
-```
-
-### Vision Service (Port 5001)
-
-```
-GET  /health              # Health check
-GET  /gesture             # Get current gesture
-POST /gesture/start       # Start tracking
-POST /gesture/stop        # Stop tracking
-GET  /status              # Service status
-```
-
-## 🔧 Configuration
-
-### Environment Variables
-
-```env
-# Backend
-NODE_ENV=development
-PORT=3001
-FRONTEND_URL=http://localhost:3000
-WS_PORT=3002
-
-# Vision Service
-VISION_SERVICE_URL=http://localhost:5001
-VISION_SERVICE_PORT=5001
-
-# Vision Service Performance Configuration
-FRAME_SKIP_INTERVAL=2              # Process every Nth frame (1-5, default: 2 for ~15 FPS)
-ENABLE_FACE_TRACKING=true          # Enable face detection (default: true)
-ENABLE_POSE_TRACKING=true          # Enable pose detection (default: true)
-BACKEND_PUSH_COOLDOWN_MS=500       # Time between backend updates in ms (default: 500)
-ADAPTIVE_FPS=false                 # Enable adaptive FPS (reduces to 10 FPS when idle, default: false)
-
-# Ollama Configuration (REQUIRED)
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=gemma3:4b
-OLLAMA_VISION_MODEL=llava:7b
-```
-
-### Performance Optimization
-
-The vision service supports several configuration options to reduce compute usage by 60-70%:
-
-- **Frame Skip Interval**: Process every Nth frame (default: 2). Higher values reduce compute but may affect responsiveness.
-  - `1` = ~30 FPS (full processing)
-  - `2` = ~15 FPS (50% reduction, recommended)
-  - `3` = ~10 FPS (67% reduction)
-  - `4` = ~7.5 FPS (75% reduction)
-  - `5` = ~6 FPS (80% reduction)
-
-- **Optional Models**: Disable face or pose tracking to save additional 30-50% compute when not needed.
-
-- **Backend Push Cooldown**: Increase from default 500ms to reduce network traffic and backend load.
-
-- **Adaptive FPS**: Automatically reduces to 10 FPS when idle (no activity for 5+ seconds), increases to 15-30 FPS when active.
-
-These settings can be configured via environment variables or through the Model Configuration panel in the Control Panel UI.
-
-## 🚀 Deployment
-
-### Firebase Hosting
-
-1. **Install Firebase CLI**
-   ```bash
-   npm install -g firebase-tools
-   ```
-
-2. **Login to Firebase**
-   ```bash
-   firebase login
-   ```
-
-3. **Setup Firebase** (first time only)
-   ```bash
-   # Windows PowerShell
-   .\scripts\setup_firebase.ps1
-   
-   # Or manually:
-   # Update .firebaserc with your Firebase project ID
-   # firebase use --add  # Select or create a project
-   ```
-
-4. **Build frontend**
-   ```bash
-   npm run build:frontend
-   ```
-
-5. **Deploy to Firebase**
-   ```bash
-   # Deploy everything
-   firebase deploy
-   
-   # Or deploy only hosting
-   firebase deploy --only hosting
-   
-   # Or deploy only functions (backend)
-   firebase deploy --only functions
-   ```
-
-### GCP Cloud Run
-
-> ⚠️ **Note**: Cloud Run deployment is planned for future. Current focus is on local projector interaction. Docker and cloud deployment will be revisited once core projector functionality is stable and tested.
-
-1. **Build and push containers**
-   ```bash
-   gcloud builds submit --tag gcr.io/PROJECT_ID/dixi-backend packages/backend
-   gcloud builds submit --tag gcr.io/PROJECT_ID/dixi-frontend packages/frontend
-   gcloud builds submit --tag gcr.io/PROJECT_ID/dixi-vision packages/vision
-   ```
-
-2. **Deploy services**
-   ```bash
-   gcloud run deploy dixi-backend --image gcr.io/PROJECT_ID/dixi-backend
-   gcloud run deploy dixi-frontend --image gcr.io/PROJECT_ID/dixi-frontend
-   gcloud run deploy dixi-vision --image gcr.io/PROJECT_ID/dixi-vision
-   ```
-
-## 🤝 Contributing
-
-Contributions are welcome! Please see our [Contributing Guidelines](./CONTRIBUTING.md) for details on:
-
-- Setting up your development environment
-- Our branch structure (`main` and `development`)
-- Submitting Pull Requests
-- Code style guidelines
-- Testing requirements
-
-Quick start for contributors:
 ```bash
-# Fork and clone the repository
-git clone https://github.com/your-username/Dixi.git
-cd Dixi
-
-# Create a feature branch from development
-git checkout development
-git checkout -b feature/your-feature-name
-
-# Make changes, commit, and push
-git push origin feature/your-feature-name
-
-# Open a PR targeting the development branch
+npm run build:check -w packages/frontend && npx vitest run --root packages/frontend
+npm run build -w packages/backend && npm test -w packages/backend
 ```
 
-See [BRANCH_STRUCTURE.md](./BRANCH_STRUCTURE.md) for detailed branch workflow.
+`npm run lint` currently fails because no ESLint config exists (roadmap U1).
 
-## 📄 License
+## Status and roadmap
 
-MIT License - see LICENSE file for details
+Browser vision mode and the scene shell are done; see [ROADMAP.md](ROADMAP.md) (program plan first) and
+[docs/research/2026-10-10-landscape.md](docs/research/2026-10-10-landscape.md). Design direction: [DESIGN.md](DESIGN.md).
+Older server-era guides remain in `docs/` and `QUICK_START.md` and may be out of date.
 
-## 🙏 Acknowledgments
+## Contributing
 
-- MediaPipe for gesture recognition
-- Ollama for AI inference
-- Three.js for 3D rendering
-- OpenCV for computer vision
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). CONTRIBUTING.md names a `development` branch; this program PR targets `main`.
 
-## 📞 Support
+## License
 
-For issues and questions, please open an issue on GitHub.
-
----
-
-Built with ❤️ for interactive AI experiences
-
----
-
-## AI-Assisted Development
-
-This project uses AI-assisted development tools including [Cursor](https://cursor.com), [Claude Code](https://claude.ai), and [GitHub Copilot](https://github.com/features/copilot). All AI-generated code is reviewed by the maintainer before merge. See `AGENTS.md` for AI agent rules and constraints.
+MIT, see [LICENSE](LICENSE).

@@ -1,5 +1,30 @@
 # Dixi Roadmap
 
+## Program plan (2026-10-11)
+
+Source: [`docs/plans/2026-10-11-001-program-roadmap-plan.md`](docs/plans/2026-10-11-001-program-roadmap-plan.md) ·
+research: [`docs/research/2026-10-10-landscape.md`](docs/research/2026-10-10-landscape.md).
+
+| Horizon | Unit | Difficulty |
+|---|---|---|
+| Now | U1 Make lint real (no ESLint config exists today) | easy |
+| Now | U2 Quarantine legacy server mode (lazy-load or delete R3F/ControlPanel/firebase/Python) | medium |
+| Now | U3 Docs truth pass (13.7k lines of server-era docs) | easy |
+| Now | U4 Latency + calibration harness | medium |
+| Next | U5 Scene SDK `registerScene` | medium |
+| Next | U6 Auto-calibration | hard |
+| Next | U7 Gesture record/playback in the browser | medium |
+| Later | U8 Occlusion handling | hard |
+| Later | U9 AI ask-path | medium |
+| Later | U10 Showcase scene, 3-minute first run | easy/medium |
+| Later | U11 Hosted demo and rig photos | easy |
+
+Each unit carries Difficulty, Feasibility and a Simpler alternative in the plan.
+
+---
+
+# Roadmap history (2026-10-02)
+
 *Rewritten 2026-10-02. The previous roadmap (multi-user/mobile/cloud/enterprise) was aspirational fiction — every date silently missed while `main` carried a syntax error for 9 months. This roadmap is scoped to what the product actually is.*
 
 ## What Dixi Is
