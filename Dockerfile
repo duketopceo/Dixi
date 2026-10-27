@@ -2,7 +2,7 @@
 # Builds frontend + backend together, vision service optional
 
 # Stage 1: Build frontend
-FROM node:20-alpine AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/frontend/package.json ./packages/frontend/
@@ -13,7 +13,7 @@ ENV DEMO_MODE=true
 RUN npm run build
 
 # Stage 2: Build backend
-FROM node:20-alpine AS backend-builder
+FROM node:24-alpine AS backend-builder
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/backend/package.json ./packages/backend/
@@ -23,7 +23,7 @@ WORKDIR /app/packages/backend
 RUN npm run build
 
 # Stage 3: Production runtime
-FROM node:20-alpine
+FROM node:24-alpine
 WORKDIR /app
 
 # Install serve for frontend
