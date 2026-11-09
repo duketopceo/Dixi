@@ -85,3 +85,6 @@ packages/vision/calibration_data.json
 
 # MediaPipe WASM (copied from node_modules on postinstall)
 packages/frontend/public/wasm/
+
+# codebase-memory-mcp local index cache
+.codebase-memory/
